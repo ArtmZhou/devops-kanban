@@ -1,0 +1,13 @@
+package com.devops.kanban.repository;
+
+import com.devops.kanban.entity.Agent;
+import java.util.List;
+import java.util.Optional;
+
+public interface AgentRepository {
+    List<Agent> findByProjectId(Long projectId);
+    Optional<Agent> findById(Long id);
+    Agent save(Agent agent);
+    void deleteById(Long id);
+    Long getNextId();
+}
