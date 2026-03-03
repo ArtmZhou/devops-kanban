@@ -1,25 +1,42 @@
 <template>
-  <div class="task-card" :class="priorityClass" @click="$emit('click')">
-    <div class="task-header">
-      <span class="priority-badge" :class="priorityClass">{{ priorityLabel }}</span>
-      <span v-if="task.externalId" class="external-id">#{{ task.externalId }}</span>
-    </div>
+  <el-card
+    class="task-card"
+    :class="priorityClass"
+    shadow="hover"
+    @click="$emit('click')"
+  >
+    <template #header>
+      <div class="task-header">
+        <el-tag :type="priorityTagType" size="small" effect="dark">
+          {{ priorityLabel }}
+        </el-tag>
+        <span v-if="task.externalId" class="external-id">#{{ task.externalId }}</span>
+      </div>
+    </template>
+
     <h4 class="task-title">{{ task.title }}</h4>
     <p v-if="task.description" class="task-description">{{ truncatedDescription }}</p>
-    <div class="task-footer">
-      <span v-if="task.assignee" class="assignee">
-        <span class="avatar">{{ task.assignee.charAt(0).toUpperCase() }}</span>
-        {{ task.assignee }}
-      </span>
-      <span v-if="task.syncedAt" class="sync-info">
-        Synced: {{ formatTime(task.syncedAt) }}
-      </span>
-    </div>
-  </div>
+
+    <template #footer>
+      <div class="task-footer">
+        <span v-if="task.assignee" class="assignee">
+          <el-avatar :size="18" class="avatar">
+            {{ task.assignee.charAt(0).toUpperCase() }}
+          </el-avatar>
+          <span class="assignee-name">{{ task.assignee }}</span>
+        </span>
+        <span v-if="task.syncedAt" class="sync-info">
+          <el-icon><Clock /></el-icon>
+          {{ formatTime(task.syncedAt) }}
+        </span>
+      </div>
+    </template>
+  </el-card>
 </template>
 
 <script setup>
 import { computed } from 'vue'
+import { Clock } from '@element-plus/icons-vue'
 
 const props = defineProps({
   task: {
@@ -32,6 +49,16 @@ defineEmits(['click'])
 
 const priorityClass = computed(() => {
   return `priority-${(props.task.priority || 'MEDIUM').toLowerCase()}`
+})
+
+const priorityTagType = computed(() => {
+  const types = {
+    LOW: 'info',
+    MEDIUM: 'primary',
+    HIGH: 'warning',
+    CRITICAL: 'danger'
+  }
+  return types[props.task.priority] || 'primary'
 })
 
 const priorityLabel = computed(() => {
@@ -60,88 +87,61 @@ const formatTime = (dateStr) => {
 
 <style scoped>
 .task-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px;
   margin-bottom: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
   border-left: 3px solid #ccc;
 }
 
-.task-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
 .task-card.priority-critical {
-  border-left-color: #dc3545;
+  border-left-color: var(--el-color-danger);
 }
 
 .task-card.priority-high {
-  border-left-color: #fd7e14;
+  border-left-color: var(--el-color-warning);
 }
 
 .task-card.priority-medium {
-  border-left-color: #0d6efd;
+  border-left-color: var(--el-color-primary);
 }
 
 .task-card.priority-low {
-  border-left-color: #6c757d;
+  border-left-color: var(--el-color-info);
+}
+
+.task-card :deep(.el-card__header) {
+  padding: 8px 12px;
+}
+
+.task-card :deep(.el-card__body) {
+  padding: 8px 12px;
+}
+
+.task-card :deep(.el-card__footer) {
+  padding: 6px 12px;
 }
 
 .task-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
-}
-
-.priority-badge {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.priority-badge.priority-critical {
-  background: #dc3545;
-  color: #fff;
-}
-
-.priority-badge.priority-high {
-  background: #fd7e14;
-  color: #fff;
-}
-
-.priority-badge.priority-medium {
-  background: #0d6efd;
-  color: #fff;
-}
-
-.priority-badge.priority-low {
-  background: #e9ecef;
-  color: #6c757d;
 }
 
 .external-id {
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .task-title {
   margin: 0 0 8px 0;
   font-size: 14px;
   font-weight: 600;
-  color: #212529;
+  color: var(--el-text-color-primary);
 }
 
 .task-description {
-  margin: 0 0 8px 0;
+  margin: 0;
   font-size: 12px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   line-height: 1.4;
 }
 
@@ -150,7 +150,7 @@ const formatTime = (dateStr) => {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .assignee {
@@ -160,18 +160,17 @@ const formatTime = (dateStr) => {
 }
 
 .avatar {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #6c757d;
-  color: #fff;
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: var(--el-color-primary);
+}
+
+.assignee-name {
+  margin-left: 4px;
 }
 
 .sync-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-style: italic;
 }
 </style>
