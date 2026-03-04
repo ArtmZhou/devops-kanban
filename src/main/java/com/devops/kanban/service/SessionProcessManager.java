@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Manages AI agent processes for interactive sessions.
@@ -24,6 +25,8 @@ import java.util.concurrent.Executors;
 public class SessionProcessManager {
 
     private static final long PERSIST_INTERVAL_MS = 5000; // 5 seconds debounce
+    private static final int BUFFER_SIZE = 256;  // Character buffer size for streaming
+    private static final long FLUSH_INTERVAL_MS = 80; // 80ms time window for flushing chunks
 
     private final SimpMessagingTemplate messagingTemplate;
     private final SessionRepository sessionRepository;
@@ -87,6 +90,7 @@ public class SessionProcessManager {
 
     /**
      * Stop a running process
+     * First attempts graceful termination (SIGTERM), then forces kill (SIGKILL) if needed.
      *
      * @param sessionId the session ID
      */
@@ -98,8 +102,24 @@ public class SessionProcessManager {
         BufferedWriter writer = processInputs.remove(sessionId);
 
         if (process != null) {
+            // First attempt graceful termination (SIGTERM)
             process.destroy();
-            log.info("Stopped process for session {}", sessionId);
+
+            try {
+                // Wait 2 seconds for graceful termination
+                if (!process.waitFor(2, TimeUnit.SECONDS)) {
+                    log.warn("Process for session {} did not terminate gracefully, forcing...", sessionId);
+                    process.destroyForcibly();
+                    // Wait 1 second for forced termination to complete
+                    process.waitFor(1, TimeUnit.SECONDS);
+                }
+                log.info("Stopped process for session {} (exit code: {})", sessionId, process.exitValue());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                // Force kill if interrupted
+                process.destroyForcibly();
+                log.warn("Interrupted while stopping process for session {}", sessionId);
+            }
         }
 
         if (writer != null) {
@@ -134,8 +154,16 @@ public class SessionProcessManager {
             writer.flush();
             log.debug("Sent input to session {}: {}", sessionId, input);
 
-            // Echo the input to output
-            broadcastOutput(sessionId, "stdin", "> " + input);
+            // Store input in output buffer for persistence
+            StringBuilder output = sessionOutputs.get(sessionId);
+            if (output != null) {
+                output.append("> ").append(input).append("\n");
+                // Persist immediately to ensure input is saved
+                persistOutput(sessionId);
+            }
+
+            // Echo the input to output via WebSocket
+            broadcastChunk(sessionId, "stdin", "> " + input + "\n", true);
             return true;
 
         } catch (IOException e) {
@@ -249,25 +277,51 @@ public class SessionProcessManager {
     }
 
     /**
-     * Read from an input stream and broadcast to WebSocket
+     * Read from an input stream and broadcast to WebSocket with character-level streaming
      */
     private void readStream(Long sessionId, InputStream inputStream, String streamName) {
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+        StringBuilder lineBuffer = new StringBuilder();
+        char[] charBuffer = new char[BUFFER_SIZE];
+        long lastFlushTime = System.currentTimeMillis();
 
-            String line;
-            while ((line = reader.readLine()) != null) {
-                // Store in buffer
+        try (InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
+            int charsRead;
+            while ((charsRead = reader.read(charBuffer)) != -1) {
+                String chunk = new String(charBuffer, 0, charsRead);
+                lineBuffer.append(chunk);
+
+                long now = System.currentTimeMillis();
+                boolean shouldFlush =
+                        lineBuffer.length() >= BUFFER_SIZE ||
+                        (now - lastFlushTime) >= FLUSH_INTERVAL_MS ||
+                        chunk.contains("\n");
+
+                if (shouldFlush) {
+                    boolean isComplete = chunk.contains("\n");
+                    broadcastChunk(sessionId, streamName, lineBuffer.toString(), isComplete);
+
+                    // Store to output buffer
+                    StringBuilder output = sessionOutputs.get(sessionId);
+                    if (output != null) {
+                        output.append(lineBuffer);
+                    }
+
+                    lineBuffer.setLength(0);
+                    lastFlushTime = now;
+
+                    // Debounced persistence after each flush
+                    persistOutputDebounced(sessionId);
+                }
+            }
+
+            // Flush remaining content
+            if (lineBuffer.length() > 0) {
+                broadcastChunk(sessionId, streamName, lineBuffer.toString(), true);
+
                 StringBuilder output = sessionOutputs.get(sessionId);
                 if (output != null) {
-                    output.append(line).append("\n");
+                    output.append(lineBuffer);
                 }
-
-                // Broadcast to WebSocket
-                broadcastOutput(sessionId, streamName, line);
-
-                // Debounced persistence
-                persistOutputDebounced(sessionId);
             }
 
         } catch (IOException e) {
@@ -281,6 +335,23 @@ public class SessionProcessManager {
                 handleProcessEnd(sessionId, process.exitValue());
             }
         }
+    }
+
+    /**
+     * Broadcast a chunk of output to WebSocket subscribers
+     */
+    private void broadcastChunk(Long sessionId, String stream, String content, boolean isComplete) {
+        String role = "stdin".equals(stream) ? "user" : "assistant";
+
+        Map<String, Object> payload = Map.of(
+                "type", "chunk",
+                "stream", stream,
+                "role", role,
+                "content", content,
+                "isComplete", isComplete,
+                "timestamp", System.currentTimeMillis()
+        );
+        messagingTemplate.convertAndSend("/topic/session/" + sessionId + "/output", payload);
     }
 
     /**
@@ -306,24 +377,6 @@ public class SessionProcessManager {
 
         // Cleanup
         processInputs.remove(sessionId);
-    }
-
-    /**
-     * Broadcast output to WebSocket subscribers
-     */
-    private void broadcastOutput(Long sessionId, String stream, String line) {
-        // Determine role based on stream type
-        String role = "stdin".equals(stream) ? "user" : "assistant";
-
-        Map<String, Object> payload = Map.of(
-                "type", "message",
-                "role", role,
-                "stream", stream,
-                "content", line,
-                "data", line, // Keep for backward compatibility
-                "timestamp", System.currentTimeMillis()
-        );
-        messagingTemplate.convertAndSend("/topic/session/" + sessionId + "/output", payload);
     }
 
     /**

@@ -41,13 +41,14 @@
       </div>
       <div v-else class="output-container" ref="outputContainer">
         <div
-          v-for="(line, index) in currentOutput"
-          :key="index"
+          v-for="line in currentOutput"
+          :key="line.id"
           class="output-line"
-          :class="line.stream"
+          :class="[line.stream, { 'incomplete': !line.isComplete }]"
         >
           <span v-if="line.stream === 'stdin'" class="prompt">&gt;</span>
           <span class="line-content">{{ line.data }}</span>
+          <span v-if="!line.isComplete" class="cursor">▊</span>
         </div>
         <div v-if="currentOutput.length === 0" class="empty-output">
           <p>Waiting for output...</p>
@@ -111,7 +112,8 @@ const currentSession = computed(() => {
 // Current session output
 const currentOutput = computed(() => {
   if (!props.currentSessionId) return []
-  return sessionOutputs.value[props.currentSessionId] || []
+  const output = sessionOutputs.value[props.currentSessionId]
+  return output?.lines || []
 })
 
 // Check if current session is running
@@ -167,18 +169,77 @@ const stopCurrentSession = () => {
   }
 }
 
-// Add output to a session
+// Add output to a session (legacy method for compatibility)
 const addOutput = (sessionId, line) => {
   if (!sessionOutputs.value[sessionId]) {
-    sessionOutputs.value[sessionId] = []
+    sessionOutputs.value[sessionId] = {
+      lines: [],
+      currentLineId: null
+    }
   }
-  sessionOutputs.value[sessionId].push(line)
+
+  const output = sessionOutputs.value[sessionId]
+  output.lines.push({
+    id: `line-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    data: line.data,
+    stream: line.stream || 'stdout',
+    isComplete: true,
+    timestamp: line.timestamp || Date.now()
+  })
   scrollToBottom()
+}
+
+// Handle streaming chunks from WebSocket
+const handleStreamChunk = (sessionId, chunk) => {
+  if (!sessionOutputs.value[sessionId]) {
+    sessionOutputs.value[sessionId] = {
+      lines: [],
+      currentLineId: null
+    }
+  }
+
+  const output = sessionOutputs.value[sessionId]
+
+  if (chunk.type === 'chunk') {
+    let currentLine = output.lines.find(l => l.id === output.currentLineId)
+
+    if (!currentLine || currentLine.isComplete) {
+      // Create a new line
+      currentLine = {
+        id: `line-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        data: '',
+        stream: chunk.stream,
+        isComplete: false
+      }
+      output.lines.push(currentLine)
+      output.currentLineId = currentLine.id
+    }
+
+    // Append content to current line
+    currentLine.data += chunk.content
+    currentLine.isComplete = chunk.isComplete
+
+    if (chunk.isComplete) {
+      output.currentLineId = null
+    }
+
+    scrollToBottom()
+  } else if (chunk.type === 'message') {
+    // Backward compatibility with old message format
+    addOutput(sessionId, {
+      data: chunk.content || chunk.data,
+      stream: chunk.stream,
+      timestamp: chunk.timestamp
+    })
+  }
 }
 
 // Clear output for a session
 const clearOutput = (sessionId) => {
-  sessionOutputs.value[sessionId] = []
+  sessionOutputs.value[sessionId] = {
+    lines: [],
+    currentLineId: null
+  }
 }
 
 // Scroll to bottom
@@ -202,28 +263,45 @@ watch(() => props.currentSessionId, async (newId, oldId) => {
   if (newId) {
     console.log('[TerminalPanel] Loading output for session:', newId)
 
-    // Load existing output
-    try {
-      const response = await sessionApi.getOutput(newId)
-      console.log('[TerminalPanel] Output response:', response)
-      // Handle string output (split by newlines)
-      const outputStr = response.data || response || ''
-      if (typeof outputStr === 'string') {
-        const lines = outputStr.split('\n').filter(l => l.trim())
-        sessionOutputs.value[newId] = lines.map((line, i) => ({
-          data: line,
-          stream: 'stdout',
-          timestamp: Date.now() + i
-        }))
-      } else if (Array.isArray(outputStr)) {
-        sessionOutputs.value[newId] = outputStr.map(line => ({
-          data: line.data || line,
-          stream: line.stream || 'stdout',
-          timestamp: line.timestamp || Date.now()
-        }))
+    // Only load output if not already loaded (preserve existing output)
+    const existingOutput = sessionOutputs.value[newId]
+    if (!existingOutput || existingOutput.lines.length === 0) {
+      try {
+        const response = await sessionApi.getOutput(newId)
+        console.log('[TerminalPanel] Output response:', response)
+        // Handle string output (split by newlines)
+        const outputStr = response.data || response || ''
+        if (typeof outputStr === 'string') {
+          const lines = outputStr.split('\n').filter(l => l.trim())
+          if (lines.length > 0) {
+            sessionOutputs.value[newId] = {
+              lines: lines.map((line, i) => ({
+                id: `line-history-${i}`,
+                data: line,
+                stream: 'stdout',
+                isComplete: true,
+                timestamp: Date.now() + i
+              })),
+              currentLineId: null
+            }
+          }
+        } else if (Array.isArray(outputStr)) {
+          if (outputStr.length > 0) {
+            sessionOutputs.value[newId] = {
+              lines: outputStr.map((line, i) => ({
+                id: `line-history-${i}`,
+                data: line.data || line,
+                stream: line.stream || 'stdout',
+                isComplete: true,
+                timestamp: line.timestamp || Date.now()
+              })),
+              currentLineId: null
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[TerminalPanel] Failed to load output:', e)
       }
-    } catch (e) {
-      console.error('[TerminalPanel] Failed to load output:', e)
     }
 
     // Connect WebSocket if not connected
@@ -240,13 +318,7 @@ watch(() => props.currentSessionId, async (newId, oldId) => {
 
     // Subscribe to output
     wsService.subscribeToOutput(newId, (data) => {
-      if (data.type === 'message') {
-        addOutput(newId, {
-          data: data.content || data.data,
-          stream: data.stream,
-          timestamp: data.timestamp
-        })
-      }
+      handleStreamChunk(newId, data)
     })
 
     // Subscribe to status
@@ -497,6 +569,17 @@ defineExpose({
 
 .line-content {
   white-space: pre-wrap;
+}
+
+.cursor {
+  color: #409eff;
+  animation: blink 1s infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
 
 .terminal-input {

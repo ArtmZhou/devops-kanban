@@ -56,10 +56,12 @@ public class GitService {
      */
     public Path createWorktree(Path mainRepoPath, Long projectId, String branch) {
         try {
-            Files.createDirectories(worktreesDir);
+            // Create worktrees directory inside the project's repo
+            Path projectWorktreesDir = mainRepoPath.resolve("data").resolve("worktrees");
+            Files.createDirectories(projectWorktreesDir);
 
             String worktreeName = "task-" + projectId + "-" + UUID.randomUUID().toString().substring(0, 8);
-            Path worktreePath = worktreesDir.resolve(worktreeName);
+            Path worktreePath = projectWorktreesDir.resolve(worktreeName);
 
             Repository mainRepo = openRepository(mainRepoPath);
             try (Git git = new Git(mainRepo)) {
@@ -69,7 +71,8 @@ public class GitService {
                 log.info("Created worktree at: {} with branch: {}", worktreePath, branch);
             }
 
-            return worktreePath;
+            // Return absolute path
+            return worktreePath.toAbsolutePath();
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to create worktree", e);
