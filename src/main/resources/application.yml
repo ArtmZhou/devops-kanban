@@ -18,3 +18,12 @@ app:
     path: ./data
   cors:
     origins: http://localhost:5173,http://localhost:3000,http://localhost:3001
+
+# Node.js Bridge Configuration for Claude CLI integration
+# The bridge uses native spawn() with stream-json output, bypassing PTY compatibility issues
+bridge:
+  enabled: true
+  host: 127.0.0.1
+  port: 3002
+  # Timeout for HTTP requests to bridge (in milliseconds)
+  timeout: 10000

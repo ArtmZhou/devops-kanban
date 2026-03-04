@@ -1,11 +1,14 @@
 package com.devops.kanban.controller;
 
+import com.devops.kanban.config.BridgeConfig;
 import com.devops.kanban.dto.ApiResponse;
 import com.devops.kanban.dto.SessionDTO;
 import com.devops.kanban.entity.Session;
+import com.devops.kanban.service.BridgeClient;
 import com.devops.kanban.service.SessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -13,6 +16,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,6 +24,7 @@ import java.util.stream.Collectors;
 /**
  * REST and WebSocket controller for AI session management.
  */
+@Slf4j
 @Controller
 @RestController
 @RequestMapping("/api/sessions")
@@ -28,6 +33,28 @@ import java.util.stream.Collectors;
 public class SessionController {
 
     private final SessionService sessionService;
+    private final BridgeClient bridgeClient;
+    private final BridgeConfig bridgeConfig;
+
+    // ==================== Bridge Diagnostic ====================
+
+    /**
+     * Diagnostic endpoint to check bridge status
+     */
+    @GetMapping("/bridge/status")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getBridgeStatus() {
+        log.info("[API] GET /api/sessions/bridge/status");
+        Map<String, Object> status = new HashMap<>();
+        status.put("configEnabled", bridgeConfig.isEnabled());
+        status.put("configHost", bridgeConfig.getHost());
+        status.put("configPort", bridgeConfig.getPort());
+        status.put("baseUrl", bridgeConfig.getBaseUrl());
+
+        boolean healthy = bridgeClient.isHealthy();
+        status.put("healthy", healthy);
+
+        return ResponseEntity.ok(ApiResponse.success(status));
+    }
 
     // ==================== REST API ====================
 
@@ -37,8 +64,26 @@ public class SessionController {
     @PostMapping
     public ResponseEntity<ApiResponse<SessionDTO>> createSession(
             @Valid @RequestBody SessionDTO dto) {
-        Session session = sessionService.createSession(dto.getTaskId(), dto.getAgentId());
-        return ResponseEntity.ok(ApiResponse.success("Session created", toDTO(session)));
+        log.info("[API] POST /api/sessions | TaskId: {} | AgentId: {}", dto.getTaskId(), dto.getAgentId());
+        try {
+            Session session = sessionService.createSession(dto.getTaskId(), dto.getAgentId());
+            log.info("[API] Session created | SessionId: {} | TaskId: {}", session.getId(), dto.getTaskId());
+            return ResponseEntity.ok(ApiResponse.success("Session created", toDTO(session)));
+        } catch (IllegalArgumentException e) {
+            log.warn("[API] Invalid session request | TaskId: {} | Error: {}", dto.getTaskId(), e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (IllegalStateException e) {
+            log.warn("[API] Session state error | TaskId: {} | Error: {}", dto.getTaskId(), e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (NullPointerException e) {
+            log.error("[API] Missing required configuration | TaskId: {} | Error: {}", dto.getTaskId(), e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("Project configuration error: localPath is not configured. Please set the local repository path for this project."));
+        } catch (Exception e) {
+            log.error("[API] Failed to create session | TaskId: {} | Error: {}", dto.getTaskId(), e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Failed to create session: " + e.getMessage()));
+        }
     }
 
     /**
@@ -46,6 +91,7 @@ public class SessionController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<SessionDTO>> getSession(@PathVariable Long id) {
+        log.debug("[API] GET /api/sessions/{}", id);
         return sessionService.getSession(id)
                 .map(session -> ResponseEntity.ok(ApiResponse.success(toDTO(session))))
                 .orElse(ResponseEntity.ok(ApiResponse.error("Session not found")));
@@ -58,6 +104,8 @@ public class SessionController {
     public ResponseEntity<ApiResponse<List<SessionDTO>>> getSessions(
             @RequestParam(required = false) Long taskId,
             @RequestParam(required = false, defaultValue = "false") boolean activeOnly) {
+
+        log.debug("[API] GET /api/sessions | TaskId: {} | ActiveOnly: {}", taskId, activeOnly);
 
         if (taskId == null) {
             return ResponseEntity.ok(ApiResponse.error("taskId is required"));
@@ -75,6 +123,7 @@ public class SessionController {
                     .collect(Collectors.toList());
         }
 
+        log.debug("[API] Found {} sessions for TaskId: {}", sessions.size(), taskId);
         return ResponseEntity.ok(ApiResponse.success(sessions));
     }
 
@@ -83,6 +132,7 @@ public class SessionController {
      */
     @GetMapping("/task/{taskId}/active")
     public ResponseEntity<ApiResponse<SessionDTO>> getActiveSession(@PathVariable Long taskId) {
+        log.debug("[API] GET /api/sessions/task/{}/active", taskId);
         return sessionService.getActiveSessionByTaskId(taskId)
                 .map(session -> ResponseEntity.ok(ApiResponse.success(toDTO(session))))
                 .orElse(ResponseEntity.ok(ApiResponse.success(null)));
@@ -95,10 +145,12 @@ public class SessionController {
     public ResponseEntity<ApiResponse<List<SessionDTO>>> getSessionHistory(
             @PathVariable Long taskId,
             @RequestParam(required = false, defaultValue = "true") boolean includeOutput) {
+        log.debug("[API] GET /api/sessions/task/{}/history | IncludeOutput: {}", taskId, includeOutput);
         List<Session> sessions = sessionService.getSessionsWithOutputByTaskId(taskId);
         List<SessionDTO> dtos = sessions.stream()
                 .map(session -> toDTO(session, includeOutput))
                 .collect(Collectors.toList());
+        log.debug("[API] Retrieved {} session history entries for TaskId: {}", dtos.size(), taskId);
         return ResponseEntity.ok(ApiResponse.success(dtos));
     }
 
@@ -107,10 +159,13 @@ public class SessionController {
      */
     @PostMapping("/{id}/start")
     public ResponseEntity<ApiResponse<SessionDTO>> startSession(@PathVariable Long id) {
+        log.info("[API] POST /api/sessions/{}/start", id);
         try {
             Session session = sessionService.startSession(id);
+            log.info("[API] Session started | SessionId: {} | Status: {}", id, session.getStatus());
             return ResponseEntity.ok(ApiResponse.success("Session started", toDTO(session)));
         } catch (Exception e) {
+            log.error("[API] Failed to start session | SessionId: {} | Error: {}", id, e.getMessage());
             return ResponseEntity.ok(ApiResponse.error("Failed to start session: " + e.getMessage()));
         }
     }
@@ -120,10 +175,13 @@ public class SessionController {
      */
     @PostMapping("/{id}/stop")
     public ResponseEntity<ApiResponse<SessionDTO>> stopSession(@PathVariable Long id) {
+        log.info("[API] POST /api/sessions/{}/stop", id);
         try {
             Session session = sessionService.stopSession(id);
+            log.info("[API] Session stopped | SessionId: {} | Status: {}", id, session.getStatus());
             return ResponseEntity.ok(ApiResponse.success("Session stopped", toDTO(session)));
         } catch (Exception e) {
+            log.error("[API] Failed to stop session | SessionId: {} | Error: {}", id, e.getMessage());
             return ResponseEntity.ok(ApiResponse.error("Failed to stop session: " + e.getMessage()));
         }
     }
@@ -137,13 +195,17 @@ public class SessionController {
             @RequestBody Map<String, String> body) {
         String input = body.get("input");
         if (input == null || input.trim().isEmpty()) {
+            log.warn("[API] POST /api/sessions/{}/input - empty input rejected", id);
             return ResponseEntity.ok(ApiResponse.error("Input is required"));
         }
 
+        log.debug("[API] POST /api/sessions/{}/input | Length: {} chars", id, input.length());
         boolean success = sessionService.sendInput(id, input);
         if (success) {
+            log.debug("[API] Input sent successfully | SessionId: {}", id);
             return ResponseEntity.ok(ApiResponse.success("Input sent", null));
         } else {
+            log.warn("[API] Failed to send input | SessionId: {}", id);
             return ResponseEntity.ok(ApiResponse.error("Failed to send input"));
         }
     }
@@ -153,7 +215,9 @@ public class SessionController {
      */
     @GetMapping("/{id}/output")
     public ResponseEntity<ApiResponse<String>> getSessionOutput(@PathVariable Long id) {
+        log.debug("[API] GET /api/sessions/{}/output", id);
         String output = sessionService.getSessionOutput(id);
+        log.debug("[API] Retrieved output | SessionId: {} | Length: {} chars", id, output != null ? output.length() : 0);
         return ResponseEntity.ok(ApiResponse.success(output));
     }
 
@@ -162,10 +226,13 @@ public class SessionController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteSession(@PathVariable Long id) {
+        log.info("[API] DELETE /api/sessions/{}", id);
         try {
             sessionService.deleteSession(id);
+            log.info("[API] Session deleted | SessionId: {}", id);
             return ResponseEntity.ok(ApiResponse.success("Session deleted", null));
         } catch (Exception e) {
+            log.error("[API] Failed to delete session | SessionId: {} | Error: {}", id, e.getMessage());
             return ResponseEntity.ok(ApiResponse.error("Failed to delete session: " + e.getMessage()));
         }
     }
@@ -182,7 +249,10 @@ public class SessionController {
             @Payload Map<String, String> payload) {
         String input = payload.get("input");
         if (input != null && !input.trim().isEmpty()) {
+            log.debug("[WS] Received input for session {} | Length: {} chars", sessionId, input.length());
             sessionService.sendInput(sessionId, input);
+        } else {
+            log.warn("[WS] Empty input received for session {}", sessionId);
         }
     }
 

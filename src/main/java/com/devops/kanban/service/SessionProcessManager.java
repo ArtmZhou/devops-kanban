@@ -2,6 +2,8 @@ package com.devops.kanban.service;
 
 import com.devops.kanban.entity.Session;
 import com.devops.kanban.repository.SessionRepository;
+import com.pty4j.PtyProcess;
+import com.pty4j.PtyProcessBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,24 +22,32 @@ import java.util.concurrent.TimeUnit;
 /**
  * Manages AI agent processes for interactive sessions.
  * Handles process lifecycle, I/O streams, and real-time output broadcasting.
+ * Uses PTY (pseudo-terminal) for proper TTY support required by interactive CLI tools.
  */
 @Service
 @Slf4j
 public class SessionProcessManager {
 
     private static final long PERSIST_INTERVAL_MS = 5000; // 5 seconds debounce
-    private static final int BUFFER_SIZE = 256;  // Character buffer size for streaming
+    private static final int BUFFER_SIZE = 4096;  // Buffer size for PTY output
     private static final long FLUSH_INTERVAL_MS = 80; // 80ms time window for flushing chunks
 
     private final SimpMessagingTemplate messagingTemplate;
     private final SessionRepository sessionRepository;
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
-    // Active process management
-    private final ConcurrentHashMap<Long, Process> activeProcesses = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<Long, BufferedWriter> processInputs = new ConcurrentHashMap<>();
+    // Active PTY process management
+    private final ConcurrentHashMap<Long, PtyProcess> activeProcesses = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, StringBuilder> sessionOutputs = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Long> lastPersistTime = new ConcurrentHashMap<>();
+
+    // Process tracking for enhanced logging
+    private final ConcurrentHashMap<Long, Long> processPids = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Long> sessionStartTimes = new ConcurrentHashMap<>();
+
+    // Cache stdin streams to prevent premature closure
+    // IMPORTANT: Never close these streams - let the process terminate naturally
+    private final ConcurrentHashMap<Long, OutputStream> sessionStdins = new ConcurrentHashMap<>();
 
     public SessionProcessManager(SimpMessagingTemplate messagingTemplate, SessionRepository sessionRepository) {
         this.messagingTemplate = messagingTemplate;
@@ -44,53 +55,125 @@ public class SessionProcessManager {
     }
 
     /**
-     * Start a new process for a session
+     * Start a new PTY process for a session
      *
      * @param sessionId  the session ID
      * @param command    the command array to execute
      * @param workingDir the working directory
-     * @return the started process
+     * @return the started PTY process
      */
-    public Process startProcess(Long sessionId, String[] command, Path workingDir) {
+    public PtyProcess startProcess(Long sessionId, String[] command, Path workingDir) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.directory(workingDir.toFile());
-            pb.environment().putAll(System.getenv());
-            // Remove CLAUDECODE env var to allow nested Claude Code sessions
-            pb.environment().remove("CLAUDECODE");
+            boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
 
-            // Don't merge stderr - we want to handle them separately
-            Process process = pb.start();
+            // Build environment variables
+            Map<String, String> env = new HashMap<>(System.getenv());
+
+            // Remove CLAUDE-related environment variables to allow nested Claude Code sessions
+            // The parent Claude Code sets these vars which prevents child sessions from running
+            // IMPORTANT: Only remove CLAUDE* vars, NOT ANTHROPIC* vars (API credentials needed by Claude CLI)
+            int removedCount = 0;
+            java.util.List<String> removedKeys = new java.util.ArrayList<>();
+            for (String key : new java.util.HashSet<>(env.keySet())) {
+                String upperKey = key.toUpperCase();
+                if (upperKey.startsWith("CLAUDE")) {  // Only remove CLAUDE*, preserve ANTHROPIC* API credentials
+                    removedKeys.add(key + "=" + env.get(key));
+                    env.remove(key);
+                    removedCount++;
+                }
+            }
+            log.info("[Session-{}] Removed {} CLAUDE env vars: {}", sessionId, removedCount, removedKeys);
+
+            // Use dumb terminal to disable color output - prevents ANSI escape codes
+            // NO_COLOR=1 provides additional hint to tools that support it
+            env.put("TERM", "dumb");
+            env.put("NO_COLOR", "1");
+
+            log.debug("[Session-{}] Environment cleaned | Removed CLAUDE* vars (preserved ANTHROPIC* API creds) | TERM=dumb | NO_COLOR=1", sessionId);
+
+            // Build PTY process - use WinPTY instead of ConPTY
+            // ConPTY on Windows 10 has a known EOF signal bug that closes streams prematurely
+            // See: https://github.com/microsoft/terminal/discussions/15006
+            PtyProcess process = new PtyProcessBuilder()
+                    .setCommand(command)
+                    .setDirectory(workingDir.toString())
+                    .setEnvironment(env)
+                    .setUseWinConPty(false)  // Use WinPTY to avoid ConPTY EOF bug
+                    .start();
 
             // Store process reference
             activeProcesses.put(sessionId, process);
 
+            // Cache stdin stream reference - NEVER close this until process terminates
+            // This prevents the Ink framework from detecting EOF and exiting prematurely
+            OutputStream stdin = process.getOutputStream();
+            sessionStdins.put(sessionId, stdin);
+            log.debug("[Session-{}] Cached stdin stream reference", sessionId);
+
             // Store output buffer for this session
             sessionOutputs.put(sessionId, new StringBuilder());
 
-            // Setup stdin writer for interactive input
-            BufferedWriter writer = new BufferedWriter(
-                    new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
-            processInputs.put(sessionId, writer);
+            // Track process start time
+            sessionStartTimes.put(sessionId, System.currentTimeMillis());
 
-            // Start stdout reader thread
-            executor.submit(() -> readStream(sessionId, process.getInputStream(), "stdout"));
+            // PtyProcess doesn't expose PID directly on all platforms
+            // We use -1 as placeholder since PID is only for logging
+            long pid = -1;
+            processPids.put(sessionId, pid);
 
-            // Start stderr reader thread
-            executor.submit(() -> readStream(sessionId, process.getErrorStream(), "stderr"));
+            // Enhanced logging with thread info
+            String threadName = Thread.currentThread().getName();
+            long threadId = Thread.currentThread().getId();
+            log.info("[Session-{}] PTY process started | PID: {} | Thread: {}({}) | Command: {} | WorkingDir: {}",
+                sessionId, pid, threadName, threadId, String.join(" ", command), workingDir);
 
-            log.info("Started process for session {}: {}", sessionId, String.join(" ", command));
+            // Start PTY output reader thread with identifiable name
+            executor.submit(() -> {
+                Thread.currentThread().setName("session-" + sessionId + "-pty-reader");
+                readPtyStream(sessionId, process.getInputStream());
+            });
+
+            // Broadcast running status with PID so frontend can display it immediately
+            broadcastStatus(sessionId, "RUNNING");
+
+            // Heartbeat: Send newline after startup to wake up interactive CLI (e.g., Ink framework)
+            // This solves the issue where the CLI outputs welcome message then enters raw mode,
+            // causing stdout to appear "stuck" because it's waiting for user input.
+            executor.submit(() -> {
+                try {
+                    // Wait for CLI to finish initialization (welcome screen output)
+                    Thread.sleep(500);
+
+                    // Check if process is still alive before sending heartbeat
+                    if (process.isAlive()) {
+                        // Use cached stdin stream - NEVER close this!
+                        OutputStream heartbeatStdin = sessionStdins.get(sessionId);
+                        if (heartbeatStdin != null) {
+                            // Send empty newline to wake up the interactive CLI's input loop
+                            heartbeatStdin.write('\n');
+                            heartbeatStdin.flush();
+                            log.info("[Session-{}] Sent heartbeat newline to wake up interactive CLI", sessionId);
+                        } else {
+                            log.warn("[Session-{}] No cached stdin stream for heartbeat", sessionId);
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("[Session-{}] Heartbeat failed: {}", sessionId, e.getMessage());
+                }
+            });
+
             return process;
 
         } catch (IOException e) {
-            log.error("Failed to start process for session {}", sessionId, e);
-            throw new RuntimeException("Failed to start process", e);
+            log.error("[Session-{}] Failed to start PTY process | Command: {} | Error: {}",
+                sessionId, String.join(" ", command), e.getMessage(), e);
+            throw new RuntimeException("Failed to start PTY process", e);
         }
     }
 
     /**
-     * Stop a running process
-     * First attempts graceful termination (SIGTERM), then forces kill (SIGKILL) if needed.
+     * Stop a running PTY process
+     * PtyProcess.destroy() sends SIGTERM on Unix, we then wait for termination.
      *
      * @param sessionId the session ID
      */
@@ -98,63 +181,77 @@ public class SessionProcessManager {
         // Persist output before stopping
         persistOutput(sessionId);
 
-        Process process = activeProcesses.remove(sessionId);
-        BufferedWriter writer = processInputs.remove(sessionId);
+        PtyProcess process = activeProcesses.remove(sessionId);
+        Long pid = processPids.get(sessionId);
+        Long startTime = sessionStartTimes.get(sessionId);
+        long duration = startTime != null ? System.currentTimeMillis() - startTime : 0;
 
         if (process != null) {
-            // First attempt graceful termination (SIGTERM)
+            // Destroy the PTY process
             process.destroy();
 
             try {
-                // Wait 2 seconds for graceful termination
-                if (!process.waitFor(2, TimeUnit.SECONDS)) {
-                    log.warn("Process for session {} did not terminate gracefully, forcing...", sessionId);
-                    process.destroyForcibly();
-                    // Wait 1 second for forced termination to complete
-                    process.waitFor(1, TimeUnit.SECONDS);
+                // Wait for process to terminate (with timeout)
+                long deadline = System.currentTimeMillis() + 3000; // 3 second timeout
+                while (process.isAlive() && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(100);
                 }
-                log.info("Stopped process for session {} (exit code: {})", sessionId, process.exitValue());
+
+                if (process.isAlive()) {
+                    log.warn("[Session-{}][PID-{}] Process did not terminate gracefully after {}ms",
+                        sessionId, pid, duration);
+                }
+
+                log.info("[Session-{}][PID-{}] PTY process stopped | Duration: {}ms",
+                    sessionId, pid, duration);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                // Force kill if interrupted
-                process.destroyForcibly();
-                log.warn("Interrupted while stopping process for session {}", sessionId);
+                log.warn("[Session-{}][PID-{}] Interrupted while stopping process | Duration: {}ms",
+                    sessionId, pid, duration);
             }
         }
 
-        if (writer != null) {
-            try {
-                writer.close();
-            } catch (IOException e) {
-                log.warn("Failed to close process input for session {}", sessionId);
-            }
-        }
+        // Cleanup tracking maps
+        processPids.remove(sessionId);
+        sessionStartTimes.remove(sessionId);
 
         // Broadcast stopped status
         broadcastStatus(sessionId, "STOPPED");
     }
 
     /**
-     * Send input to a running process
+     * Send input to a running PTY process
+     * Sends raw text input + newline for interactive mode
      *
      * @param sessionId the session ID
      * @param input     the input to send
      * @return true if input was sent successfully
      */
     public boolean sendInput(Long sessionId, String input) {
-        BufferedWriter writer = processInputs.get(sessionId);
-        if (writer == null) {
-            log.warn("No active input stream for session {}", sessionId);
+        PtyProcess process = activeProcesses.get(sessionId);
+        Long pid = processPids.get(sessionId);
+
+        if (process == null || !process.isAlive()) {
+            log.warn("[Session-{}][PID-{}] No active PTY process", sessionId, pid);
             return false;
         }
 
         try {
-            writer.write(input);
-            writer.newLine();
-            writer.flush();
-            log.debug("Sent input to session {}: {}", sessionId, input);
+            // Use cached stdin stream - NEVER close this!
+            OutputStream stdin = sessionStdins.get(sessionId);
+            if (stdin == null) {
+                log.warn("[Session-{}][PID-{}] No cached stdin stream", sessionId, pid);
+                return false;
+            }
 
-            // Store input in output buffer for persistence
+            // Send raw text + newline for interactive mode
+            stdin.write(input.getBytes(StandardCharsets.UTF_8));
+            stdin.write('\n');
+            stdin.flush();
+
+            log.debug("[Session-{}][PID-{}] Sent input to PTY: {}", sessionId, pid, input);
+
+            // Store input in output buffer for persistence (display format)
             StringBuilder output = sessionOutputs.get(sessionId);
             if (output != null) {
                 output.append("> ").append(input).append("\n");
@@ -162,37 +259,43 @@ public class SessionProcessManager {
                 persistOutput(sessionId);
             }
 
-            // Echo the input to output via WebSocket
+            // Echo the input to output via WebSocket (display format)
             broadcastChunk(sessionId, "stdin", "> " + input + "\n", true);
             return true;
 
         } catch (IOException e) {
-            log.error("Failed to send input to session {}", sessionId, e);
+            log.error("[Session-{}][PID-{}] Failed to write to PTY stdin: {}", sessionId, pid, e.getMessage());
             return false;
         }
     }
 
     /**
-     * Check if a process is alive
+     * Check if a PTY process is alive
      *
      * @param sessionId the session ID
      * @return true if process is running
      */
     public boolean isProcessAlive(Long sessionId) {
-        Process process = activeProcesses.get(sessionId);
-        return process != null && process.isAlive();
+        PtyProcess process = activeProcesses.get(sessionId);
+        boolean alive = process != null && process.isAlive();
+        Long pid = processPids.get(sessionId);
+        log.debug("[Session-{}][PID-{}] Process alive check: {}", sessionId, pid, alive);
+        return alive;
     }
 
     /**
-     * Get the exit code of a process
+     * Get the exit code of a PTY process
      *
      * @param sessionId the session ID
      * @return the exit code, or -1 if process is still running or not found
      */
     public int getExitCode(Long sessionId) {
-        Process process = activeProcesses.get(sessionId);
+        PtyProcess process = activeProcesses.get(sessionId);
+        Long pid = processPids.get(sessionId);
         if (process != null && !process.isAlive()) {
-            return process.exitValue();
+            int exitCode = process.exitValue();
+            log.debug("[Session-{}][PID-{}] Exit code: {}", sessionId, pid, exitCode);
+            return exitCode;
         }
         return -1;
     }
@@ -231,7 +334,7 @@ public class SessionProcessManager {
             StringBuilder buffer = sessionOutputs.computeIfAbsent(sessionId, k -> new StringBuilder());
             buffer.setLength(0); // Clear existing
             buffer.append(storedOutput);
-            log.debug("Initialized output buffer for session {} with {} chars", sessionId, storedOutput.length());
+            log.debug("[Session-{}] Initialized output buffer with {} chars from storage", sessionId, storedOutput.length());
         }
     }
 
@@ -241,11 +344,18 @@ public class SessionProcessManager {
      * @param sessionId the session ID
      */
     public void cleanup(Long sessionId) {
+        Long pid = processPids.get(sessionId);
+        log.debug("[Session-{}][PID-{}] Cleaning up session resources", sessionId, pid);
+
         // Save output before cleanup
         persistOutput(sessionId);
         stopProcess(sessionId);
         sessionOutputs.remove(sessionId);
         lastPersistTime.remove(sessionId);
+        processPids.remove(sessionId);
+        sessionStartTimes.remove(sessionId);
+        // Just remove reference, don't close - let process terminate naturally
+        sessionStdins.remove(sessionId);
     }
 
     /**
@@ -269,70 +379,103 @@ public class SessionProcessManager {
             return;
         }
 
+        Long pid = processPids.get(sessionId);
         sessionRepository.findById(sessionId).ifPresent(session -> {
             session.setOutput(output.toString());
             sessionRepository.save(session);
-            log.debug("Persisted output for session {} ({} chars)", sessionId, output.length());
+            log.debug("[Session-{}][PID-{}] Persisted output ({} chars)", sessionId, pid, output.length());
         });
     }
 
     /**
-     * Read from an input stream and broadcast to WebSocket with character-level streaming
+     * Read from PTY input stream and broadcast to WebSocket
+     * Parses stream-json format output and extracts text content
      */
-    private void readStream(Long sessionId, InputStream inputStream, String streamName) {
+    private void readPtyStream(Long sessionId, InputStream inputStream) {
+        Long pid = processPids.get(sessionId);
+        String threadName = Thread.currentThread().getName();
+        log.info("[Session-{}][PID-{}] PTY reader thread started: {}", sessionId, pid, threadName);
+
         StringBuilder lineBuffer = new StringBuilder();
-        char[] charBuffer = new char[BUFFER_SIZE];
-        long lastFlushTime = System.currentTimeMillis();
+        byte[] byteBuffer = new byte[BUFFER_SIZE];
+        long totalBytes = 0;
 
-        try (InputStreamReader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
-            int charsRead;
-            while ((charsRead = reader.read(charBuffer)) != -1) {
-                String chunk = new String(charBuffer, 0, charsRead);
+        try {
+            int bytesRead;
+            while ((bytesRead = inputStream.read(byteBuffer)) != -1) {
+                String chunk = new String(byteBuffer, 0, bytesRead, StandardCharsets.UTF_8);
                 lineBuffer.append(chunk);
+                totalBytes += bytesRead;
 
-                long now = System.currentTimeMillis();
-                boolean shouldFlush =
-                        lineBuffer.length() >= BUFFER_SIZE ||
-                        (now - lastFlushTime) >= FLUSH_INTERVAL_MS ||
-                        chunk.contains("\n");
-
-                if (shouldFlush) {
-                    boolean isComplete = chunk.contains("\n");
-                    broadcastChunk(sessionId, streamName, lineBuffer.toString(), isComplete);
-
-                    // Store to output buffer
-                    StringBuilder output = sessionOutputs.get(sessionId);
-                    if (output != null) {
-                        output.append(lineBuffer);
-                    }
-
-                    lineBuffer.setLength(0);
-                    lastFlushTime = now;
-
-                    // Debounced persistence after each flush
-                    persistOutputDebounced(sessionId);
+                // 🔍 Diagnostic: Log raw output (first 2KB for debugging)
+                if (totalBytes <= 2048) {
+                    log.info("[Session-{}][RAW] {} bytes: {}", sessionId, bytesRead,
+                        chunk.replace("\n", "\\n").replace("\r", "\\r"));
                 }
+
+                // Process complete lines (stream-json is line-based)
+                int newlineIndex;
+                while ((newlineIndex = lineBuffer.indexOf("\n")) >= 0) {
+                    String line = lineBuffer.substring(0, newlineIndex);
+                    lineBuffer.delete(0, newlineIndex + 1);
+
+                    // Parse JSON line and extract content
+                    String displayContent = parseStreamJsonLine(line);
+
+                    if (!displayContent.isEmpty()) {
+                        // Broadcast the parsed content
+                        broadcastChunk(sessionId, "stdout", displayContent + "\n", true);
+
+                        // Store to output buffer
+                        StringBuilder output = sessionOutputs.get(sessionId);
+                        if (output != null) {
+                            output.append(displayContent).append("\n");
+                        }
+                    }
+                }
+
+                // Debounced persistence
+                persistOutputDebounced(sessionId);
             }
 
-            // Flush remaining content
+            // Process any remaining content
             if (lineBuffer.length() > 0) {
-                broadcastChunk(sessionId, streamName, lineBuffer.toString(), true);
+                String displayContent = parseStreamJsonLine(lineBuffer.toString());
+                if (!displayContent.isEmpty()) {
+                    broadcastChunk(sessionId, "stdout", displayContent, true);
 
-                StringBuilder output = sessionOutputs.get(sessionId);
-                if (output != null) {
-                    output.append(lineBuffer);
+                    StringBuilder output = sessionOutputs.get(sessionId);
+                    if (output != null) {
+                        output.append(displayContent);
+                    }
                 }
+                persistOutput(sessionId);
             }
 
         } catch (IOException e) {
-            if (!e.getMessage().contains("Stream closed")) {
-                log.debug("Stream read error for session {}: {}", sessionId, e.getMessage());
-            }
+            log.debug("[Session-{}][PID-{}] PTY stream ended: {}", sessionId, pid, e.getMessage());
         } finally {
-            // Check if process has ended
-            Process process = activeProcesses.get(sessionId);
-            if (process != null && !process.isAlive()) {
-                handleProcessEnd(sessionId, process.exitValue());
+            // 🔍 Log complete output summary for diagnostics
+            StringBuilder output = sessionOutputs.get(sessionId);
+            String outputSummary = output != null && output.length() > 0
+                ? output.substring(0, Math.min(500, output.length())).replace("\n", "\\n").replace("\r", "\\r")
+                : "(empty)";
+            log.info("[Session-{}][PID-{}] PTY reader finished | Total bytes: {} | Output preview: {}",
+                sessionId, pid, totalBytes, outputSummary);
+
+            // 🔍 Check and log detailed process state
+            PtyProcess process = activeProcesses.get(sessionId);
+            if (process != null) {
+                boolean alive = process.isAlive();
+                int exitCode = alive ? -1 : process.exitValue();
+                log.info("[Session-{}] Process state | isAlive: {} | ExitCode: {}", sessionId, alive, exitCode);
+
+                if (!alive) {
+                    handleProcessEnd(sessionId, exitCode);
+                }
+            } else {
+                // Process was removed, likely stopped intentionally
+                log.info("[Session-{}][PID-{}] Process already removed from active list", sessionId, pid);
             }
         }
     }
@@ -342,6 +485,9 @@ public class SessionProcessManager {
      */
     private void broadcastChunk(Long sessionId, String stream, String content, boolean isComplete) {
         String role = "stdin".equals(stream) ? "user" : "assistant";
+
+        log.debug("[Session-{}] Broadcasting {} chars via WebSocket (stream={}, isComplete={})",
+            sessionId, content.length(), stream, isComplete);
 
         Map<String, Object> payload = Map.of(
                 "type", "chunk",
@@ -355,10 +501,15 @@ public class SessionProcessManager {
     }
 
     /**
-     * Handle process termination
+     * Handle PTY process termination
      */
     private void handleProcessEnd(Long sessionId, int exitCode) {
-        log.info("Process ended for session {} with exit code {}", sessionId, exitCode);
+        Long pid = processPids.get(sessionId);
+        Long startTime = sessionStartTimes.get(sessionId);
+        long duration = startTime != null ? System.currentTimeMillis() - startTime : 0;
+
+        log.info("[Session-{}][PID-{}] PTY process ended | ExitCode: {} | Duration: {}ms",
+            sessionId, pid, exitCode, duration);
 
         // Persist final output
         persistOutput(sessionId);
@@ -367,27 +518,81 @@ public class SessionProcessManager {
         String status = exitCode == 0 ? "COMPLETED" : "ERROR";
         broadcastStatus(sessionId, status);
 
-        // Broadcast exit code
+        // Broadcast exit code with duration info
         Map<String, Object> payload = Map.of(
                 "type", "exit",
                 "exitCode", exitCode,
-                "status", status
+                "status", status,
+                "pid", pid != null ? pid : -1,
+                "durationMs", duration,
+                "timestamp", System.currentTimeMillis()
         );
         messagingTemplate.convertAndSend("/topic/session/" + sessionId + "/status", payload);
 
         // Cleanup
-        processInputs.remove(sessionId);
+        processPids.remove(sessionId);
+        sessionStartTimes.remove(sessionId);
     }
 
     /**
      * Broadcast status update to WebSocket subscribers
      */
     private void broadcastStatus(Long sessionId, String status) {
+        Long pid = processPids.get(sessionId);
+        Long startTime = sessionStartTimes.get(sessionId);
+        long duration = startTime != null ? System.currentTimeMillis() - startTime : 0;
+
+        log.info("[Session-{}] Broadcasting status: {} | PID: {} | Duration: {}ms",
+            sessionId, status, pid != null ? pid : -1, duration);
+
         Map<String, Object> payload = Map.of(
                 "type", "status",
                 "status", status,
+                "sessionId", sessionId,
+                "pid", pid != null ? pid : -1,
+                "durationMs", duration,
                 "timestamp", System.currentTimeMillis()
         );
         messagingTemplate.convertAndSend("/topic/session/" + sessionId + "/status", payload);
+    }
+
+    /**
+     * Parse output line - now handles raw text output from interactive mode
+     * Simply strips ANSI codes and returns clean text
+     */
+    private String parseStreamJsonLine(String line) {
+        if (line == null || line.trim().isEmpty()) {
+            return "";
+        }
+
+        // Strip any ANSI codes and return clean text
+        return stripAnsiCodes(line);
+    }
+
+    /**
+     * Strip ANSI escape codes from a string for clean display
+     * Handles comprehensive ANSI sequences: colors, cursor movement, screen clearing, etc.
+     */
+    private String stripAnsiCodes(String input) {
+        if (input == null) return "";
+
+        return input
+                // CSI sequences - ESC [ ... final_byte (comprehensive pattern)
+                // Covers: colors (SGR), cursor movement, erase, scrolling, etc.
+                .replaceAll("\\x1B\\[[0-?]*[ -/]*[@-~]", "")
+                // OSC sequences - ESC ] ... BEL or ESC ] ... ST
+                // Covers: window title, clipboard, hyperlinks, etc.
+                .replaceAll("\\x1B\\][^\\x07\\x1B]*(?:\\x07|\\x1B\\\\)", "")
+                // Character set selection - ESC ( or ESC )
+                .replaceAll("\\x1B[()][AB012]", "")
+                // Save/restore cursor
+                .replaceAll("\\x1B[78]", "")
+                // Keypad mode
+                .replaceAll("\\x1B[=>]", "")
+                // PM and APC sequences (rarely used but can appear)
+                .replaceAll("\\x1B\\^[.*?\\x1B\\\\", "")
+                .replaceAll("\\x1B_[.*?\\x1B\\\\", "")
+                // Remove remaining control characters except \n, \r, \t
+                .replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]", "");
     }
 }

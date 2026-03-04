@@ -1,0 +1,16 @@
+{
+  "name": "claude-bridge",
+  "version": "1.0.0",
+  "description": "Node.js bridge for Claude CLI integration with stream-json output",
+  "main": "claude-bridge.js",
+  "scripts": {
+    "start": "node claude-bridge.js",
+    "dev": "node --watch claude-bridge.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
