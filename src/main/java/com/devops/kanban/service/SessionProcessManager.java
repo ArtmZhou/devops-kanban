@@ -310,10 +310,15 @@ public class SessionProcessManager {
      * Broadcast output to WebSocket subscribers
      */
     private void broadcastOutput(Long sessionId, String stream, String line) {
+        // Determine role based on stream type
+        String role = "stdin".equals(stream) ? "user" : "assistant";
+
         Map<String, Object> payload = Map.of(
-                "type", "output",
+                "type", "message",
+                "role", role,
                 "stream", stream,
-                "data", line,
+                "content", line,
+                "data", line, // Keep for backward compatibility
                 "timestamp", System.currentTimeMillis()
         );
         messagingTemplate.convertAndSend("/topic/session/" + sessionId + "/output", payload);

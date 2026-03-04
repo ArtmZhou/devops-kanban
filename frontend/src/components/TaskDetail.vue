@@ -100,8 +100,8 @@
           </el-button>
         </div>
 
-        <!-- Session Terminal -->
-        <SessionTerminal
+        <!-- Session Chat -->
+        <ChatBox
           v-if="hasActiveSession || localSession"
           ref="terminalRef"
           :task="task"
@@ -140,7 +140,16 @@
               </div>
             </template>
             <div class="history-output">
-              <pre v-if="session.output">{{ session.output }}</pre>
+              <div v-if="getHistoryMessages(session).length > 0" class="history-messages">
+                <div
+                  v-for="msg in getHistoryMessages(session)"
+                  :key="msg.id"
+                  class="history-message"
+                  :class="`message-${msg.role}`"
+                >
+                  <div class="history-bubble">{{ msg.content }}</div>
+                </div>
+              </div>
               <el-empty v-else description="No output recorded" :image-size="40" />
             </div>
           </el-collapse-item>
@@ -170,7 +179,8 @@ import { Cpu, Clock } from '@element-plus/icons-vue'
 import { taskApi } from '../api/task'
 import { agentApi } from '../api/agent'
 import sessionApi from '../api/session'
-import SessionTerminal from './SessionTerminal.vue'
+import ChatBox from './ChatBox.vue'
+import { parseOutputToMessages } from '../utils/messageParser'
 
 const props = defineProps({
   task: {
@@ -411,6 +421,12 @@ const formatDuration = (startStr, endStr) => {
   }
   return `${diffSecs}s`
 }
+
+// Parse history session output into messages
+const getHistoryMessages = (session) => {
+  if (!session.output) return []
+  return parseOutputToMessages(session.output)
+}
 </script>
 
 <style scoped>
@@ -455,12 +471,44 @@ const formatDuration = (startStr, endStr) => {
   overflow-y: auto;
 }
 
-.history-output pre {
-  margin: 0;
-  font-family: 'Consolas', 'Monaco', monospace;
+.history-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-message {
+  display: flex;
+  max-width: 85%;
+}
+
+.history-message.message-user {
+  align-self: flex-end;
+}
+
+.history-message.message-assistant {
+  align-self: flex-start;
+}
+
+.history-bubble {
+  padding: 6px 10px;
+  border-radius: 10px;
   font-size: 12px;
-  white-space: pre-wrap;
-  word-break: break-all;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.history-message.message-user .history-bubble {
+  background: #409eff;
+  color: white;
+  border-radius: 10px 10px 4px 10px;
+}
+
+.history-message.message-assistant .history-bubble {
+  background: #fff;
+  color: #303133;
+  border-radius: 10px 10px 10px 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .dialog-footer {

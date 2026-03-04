@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working in this repository.
 
 ## Build and Run Commands
 
@@ -12,8 +12,35 @@ mvn spring-boot:run
 # Build JAR
 mvn package
 
-# Run tests
+# Run all tests
 mvn test
+
+# Run a single test class
+mvn test -Dtest=ProjectServiceTest
+
+# Run a single test method
+mvn test -Dtest=ProjectServiceTest#testCreateProject
+```
+
+#### Alternative: Run with Java directly (when Maven is not in PATH)
+If `mvn` is not available in the shell environment, you can run the compiled classes directly:
+
+```bash
+# Set JAVA_HOME to your Java installation
+JAVA_HOME=/Users/taowenpeng/Library/Java/JavaVirtualMachines/ms-21.0.10/Contents/Home
+
+# Run the application (requires compiled classes in target/classes)
+$JAVA_HOME/bin/java -Dfile.encoding=UTF-8 \
+  -cp "target/classes:$(cat .classpath)" \
+  com.devops.kanban.DevopsKanbanApplication
+```
+
+Or use the full classpath command:
+```bash
+/Users/taowenpeng/Library/Java/JavaVirtualMachines/ms-21.0.10/Contents/Home/bin/java \
+  -Dfile.encoding=UTF-8 \
+  -cp "/Users/taowenpeng/IdeaProjects/devops-kanban/target/classes:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-web/3.2.5/spring-boot-starter-web-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter/3.2.5/spring-boot-starter-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot/3.2.5/spring-boot-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-autoconfigure/3.2.5/spring-boot-autoconfigure-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-logging/3.2.5/spring-boot-starter-logging-3.2.5.jar:/Users/taowenpeng/.m2/repository/ch/qos/logback/logback-classic/1.4.14/logback-classic-1.4.14.jar:/Users/taowenpeng/.m2/repository/ch/qos/logback/logback-core/1.4.14/logback-core-1.4.14.jar:/Users/taowenpeng/.m2/repository/org/apache/logging/log4j/log4j-to-slf4j/2.21.1/log4j-to-slf4j-2.21.1.jar:/Users/taowenpeng/.m2/repository/org/apache/logging/log4j/log4j-api/2.21.1/log4j-api-2.21.1.jar:/Users/taowenpeng/.m2/repository/org/slf4j/jul-to-slf4j/2.0.13/jul-to-slf4j-2.0.13.jar:/Users/taowenpeng/.m2/repository/jakarta/annotation/jakarta.annotation-api/2.1.1/jakarta.annotation-api-2.1.1.jar:/Users/taowenpeng/.m2/repository/org/yaml/snakeyaml/2.2/snakeyaml-2.2.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-json/3.2.5/spring-boot-starter-json-3.2.5.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.15.4/jackson-datatype-jdk8-2.15.4.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/module/jackson-module-parameter-names/2.15.4/jackson-module-parameter-names-2.15.4.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-tomcat/3.2.5/spring-boot-starter-tomcat-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/apache/tomcat/embed/tomcat-embed-core/10.1.20/tomcat-embed-core-10.1.20.jar:/Users/taowenpeng/.m2/repository/org/apache/tomcat/embed/tomcat-embed-websocket/10.1.20/tomcat-embed-websocket-10.1.20.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-web/6.1.6/spring-web-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-beans/6.1.6/spring-beans-6.1.6.jar:/Users/taowenpeng/.m2/repository/io/micrometer/micrometer-observation/1.12.5/micrometer-observation-1.12.5.jar:/Users/taowenpeng/.m2/repository/io/micrometer/micrometer-commons/1.12.5/micrometer-commons-1.12.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-webmvc/6.1.6/spring-webmvc-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-aop/6.1.6/spring-aop-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-context/6.1.6/spring-context-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-expression/6.1.6/spring-expression-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-validation/3.2.5/spring-boot-starter-validation-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/apache/tomcat/embed/tomcat-embed-el/10.1.20/tomcat-embed-el-10.1.20.jar:/Users/taowenpeng/.m2/repository/org/hibernate/validator/hibernate-validator/8.0.1.Final/hibernate-validator-8.0.1.Final.jar:/Users/taowenpeng/.m2/repository/jakarta/validation/jakarta.validation-api/3.0.2/jakarta.validation-api-3.0.2.jar:/Users/taowenpeng/.m2/repository/org/jboss/logging/jboss-logging/3.5.3.Final/jboss-logging-3.5.3.Final.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/classmate/1.6.0/classmate-1.6.0.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-websocket/3.2.5/spring-boot-starter-websocket-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-messaging/6.1.6/spring-messaging-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-websocket/6.1.6/spring-websocket-6.1.6.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.15.4/jackson-databind-2.15.4.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.15.4/jackson-annotations-2.15.4.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.15.4/jackson-core-2.15.4.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.15.4/jackson-datatype-jsr310-2.15.4.jar:/Users/taowenpeng/.m2/repository/org/projectlombok/lombok/1.18.32/lombok-1.18.32.jar:/Users/taowenpeng/.m2/repository/org/eclipse/jgit/org.eclipse.jgit/7.2.1.202505142326-r/org.eclipse.jgit-7.2.1.202505142326-r.jar:/Users/taowenpeng/.m2/repository/com/googlecode/javaewah/JavaEWAH/1.2.3/JavaEWAH-1.2.3.jar:/Users/taowenpeng/.m2/repository/org/slf4j/slf4j-api/2.0.13/slf4j-api-2.0.13.jar:/Users/taowenpeng/.m2/repository/commons-codec/commons-codec/1.16.1/commons-codec-1.16.1.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-core/6.1.6/spring-core-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-jcl/6.1.6/spring-jcl-6.1.6.jar" \
+  com.devops.kanban.DevopsKanbanApplication
 ```
 
 ### Frontend (Vue 3)
@@ -28,6 +55,12 @@ npm run dev
 
 # Build for production
 npm run build
+
+# Run tests
+npm run test
+
+# Run tests once (CI mode)
+npm run test:run
 ```
 
 ## Architecture Overview
@@ -38,7 +71,7 @@ This is a DevOps Kanban board application for managing tasks with AI agent execu
 
 | Package | Purpose |
 |---------|---------|
-| `entity/` | Domain entities: Project, Task, TaskSource, Agent, Execution |
+| `entity/` | Domain entities: Project, Task, TaskSource, Agent, Execution, Session |
 | `dto/` | Data Transfer Objects for API requests/responses |
 | `repository/` | Repository interfaces with `impl/` containing file-based JSON implementations |
 | `service/` | Business logic including GitService for worktree management |
@@ -50,10 +83,13 @@ This is a DevOps Kanban board application for managing tasks with AI agent execu
 
 | Directory | Purpose |
 |-----------|---------|
-| `views/` | Page components (KanbanView, AgentConfig, TaskSourceConfig) |
-| `components/` | Reusable components (TaskCard, TaskDetail) |
+| `views/` | Page components (KanbanView, AgentConfig, TaskSourceConfig, ProjectListView) |
+| `components/` | Reusable components (TaskCard, TaskDetail, DiffViewer, SessionTerminal) |
 | `api/` | Axios-based API client modules |
 | `router/` | Vue Router configuration |
+| `stores/` | Pinia state management stores |
+
+**Frontend Stack**: Vue 3 + Vite + Element Plus (UI) + Pinia (state) + vue-i18n + WebSocket (STOMP over SockJS)
 
 ### Key Architectural Patterns
 
@@ -61,11 +97,13 @@ This is a DevOps Kanban board application for managing tasks with AI agent execu
 - `TaskSourceAdapter`: Implement to add new external task sources (GitHub, Jira, etc.)
 - `AgentAdapter`: Implement to add new AI agent integrations (Claude, Codex, etc.)
 
-New adapters are auto-discovered via Spring's `@Component` annotation and registered by type.
+New adapters are auto-discovered via Spring's `@Component` annotation and registered by type. See `spi/` package for interface definitions.
 
 **File-Based Storage**: Data is stored as JSON files in `./data/` directory (configurable via `app.storage.path`). Each entity type has a dedicated file per project (e.g., `tasks_1.json`).
 
 **Git Worktree Isolation**: Each task execution creates an isolated Git worktree to allow parallel agent execution without conflicts. See `GitService.createWorktree()`.
+
+**WebSocket Terminal Sessions**: Real-time bidirectional communication with AI agents via WebSocket (STOMP protocol). Sessions track agent processes and allow terminal-like interaction. See `SessionController` and `SessionService`.
 
 ### Entity Relationships
 
@@ -75,11 +113,16 @@ Project (1) ─┬─ (N) Task
               └─ (N) Agent (AI execution agents)
 
 Task (1) ────── (N) Execution (agent execution records)
+Task (1) ────── (N) Session (interactive terminal sessions)
 ```
 
 ### Task Status Flow
 
 `TODO` → `IN_PROGRESS` → `DONE` (also: `BLOCKED`, `CANCELLED`)
+
+### Session Status Flow
+
+`CREATED` → `RUNNING` ↔ `IDLE` → `STOPPED` (also: `ERROR`)
 
 ## API Reference
 
@@ -91,3 +134,104 @@ Application configuration in `src/main/resources/application.yml`:
 - Server port: 8080
 - Storage path: `./data`
 - CORS origins: `http://localhost:5173,http://localhost:3000`
+
+Frontend dev server proxies `/api` requests to backend at `http://localhost:8080` (see `frontend/vite.config.js`).
+
+## Key Dependencies
+
+**Backend**: Spring Boot 3.2.5, Java 17, JGit (Git operations), Lombok, Jackson (JSON), WebSocket/STOMP
+
+**Frontend**: Vue 3.4, Vite 5, Element Plus, Pinia, Axios, vue-router, vue-i18n, @stomp/stompjs, sockjs-client, vitest (testing)
+
+## Common Issues and Solutions
+
+### 1. Frontend API Method Name Mismatch
+**Problem**: Frontend calls `agentApi.getByProject()` but API module only exports `getAll()`.
+**Solution**: Ensure all API modules export methods with consistent naming. Check `frontend/src/api/*.js` files.
+```javascript
+// In agent.js, both methods should exist:
+const agentApi = {
+  getAll: (projectId) => api.get('/agents', { params: { projectId } }),
+  getByProject: (projectId) => api.get('/agents', { params: { projectId } }),
+  // ...other methods
+}
+```
+
+### 2. API Response Handling
+**Problem**: Frontend doesn't check `response.success` before using `response.data`.
+**Solution**: Always check API response format:
+```javascript
+const response = await someApi.call()
+if (response.success && response.data) {
+  // Use response.data
+} else {
+  // Handle error: response.message
+}
+```
+The backend returns: `{ success: true/false, message: "...", data: {...} }`
+
+### 3. JSON Data File Format
+**Problem**: JSON files with Chinese characters may have encoding issues.
+**Solution**: Use ASCII-only content for test data files, or ensure UTF-8 encoding. Validate JSON with:
+```bash
+python3 -m json.tool data/projects.json
+```
+
+### 4. Task Data Storage Structure
+**Problem**: Tasks are stored per-project as `tasks_{projectId}.json`, not a single `tasks.json`.
+**Solution**: Create task data files with correct naming:
+```
+data/
+├── projects.json
+├── tasks_1.json    # Tasks for project ID 1
+├── tasks_2.json    # Tasks for project ID 2
+├── agents.json
+└── task_sources.json
+```
+
+### 5. Vite 5 + sockjs-client Global Polyfill
+**Problem**: `sockjs-client` requires `global` variable which Vite 5 doesn't provide by default.
+**Error**: `Uncaught ReferenceError: global is not defined`
+**Solution**: Add to `frontend/vite.config.js`:
+```javascript
+export default defineConfig({
+  // ...other config
+  define: {
+    global: 'globalThis'
+  }
+})
+```
+
+### 6. Multiple Running Processes
+**Problem**: Multiple `npm run dev` or `java` processes cause port conflicts.
+**Solution**: Before starting, kill existing processes:
+```bash
+# Kill old node/vite processes
+pkill -f "vite" || true
+pkill -f "npm run dev" || true
+
+# Kill old Spring Boot processes on port 8080
+lsof -ti:8080 | xargs kill -9 2>/dev/null || true
+```
+
+### 7. Backend Startup with Missing Dependencies
+**Problem**: Running Java directly with `-cp` may miss transitive dependencies like `snakeyaml`.
+**Solution**: Prefer using `mvn spring-boot:run` or the full classpath command in CLAUDE.md. The full classpath must include ALL transitive dependencies.
+
+### 8. Backend Working Directory Must Be Project Root
+**Problem**: Backend reads data from relative path `./data`. If started from wrong directory (e.g., `frontend/`), it won't find data files.
+**Solution**: Always start backend from project root directory:
+```bash
+cd /Users/taowenpeng/IdeaProjects/devops-kanban
+# Then run the java command
+```
+**Verify**: Check with `lsof -p <PID> | grep cwd` to ensure working directory is correct.
+
+### 9. all_tasks.json Required for Task Lookup by ID
+**Problem**: `findById()` uses `all_tasks.json` to look up tasks. If this file is missing, task operations fail with "Task not found".
+**Solution**: When creating test data, ensure `all_tasks.json` exists:
+```bash
+# Generate all_tasks.json from project task files
+cat data/tasks_*.json | jq -s 'add' > data/all_tasks.json
+```
+**Note**: The backend auto-generates this file when saving tasks, but manual data creation requires this step.
