@@ -27,7 +27,7 @@ If `mvn` is not available in the shell environment, you can run the compiled cla
 
 ```bash
 # Set JAVA_HOME to your Java installation
-JAVA_HOME=/Users/taowenpeng/Library/Java/JavaVirtualMachines/ms-21.0.10/Contents/Home
+JAVA_HOME=/path/to/your/java/installation
 
 # Run the application (requires compiled classes in target/classes)
 $JAVA_HOME/bin/java -Dfile.encoding=UTF-8 \
@@ -35,11 +35,11 @@ $JAVA_HOME/bin/java -Dfile.encoding=UTF-8 \
   com.devops.kanban.DevopsKanbanApplication
 ```
 
-Or use the full classpath command:
+Or use the full classpath command (run `mvn dependency:build-classpath -Dmdep.outputFile=.classpath` to generate):
 ```bash
-/Users/taowenpeng/Library/Java/JavaVirtualMachines/ms-21.0.10/Contents/Home/bin/java \
+$JAVA_HOME/bin/java \
   -Dfile.encoding=UTF-8 \
-  -cp "/Users/taowenpeng/IdeaProjects/devops-kanban/target/classes:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-web/3.2.5/spring-boot-starter-web-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter/3.2.5/spring-boot-starter-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot/3.2.5/spring-boot-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-autoconfigure/3.2.5/spring-boot-autoconfigure-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-logging/3.2.5/spring-boot-starter-logging-3.2.5.jar:/Users/taowenpeng/.m2/repository/ch/qos/logback/logback-classic/1.4.14/logback-classic-1.4.14.jar:/Users/taowenpeng/.m2/repository/ch/qos/logback/logback-core/1.4.14/logback-core-1.4.14.jar:/Users/taowenpeng/.m2/repository/org/apache/logging/log4j/log4j-to-slf4j/2.21.1/log4j-to-slf4j-2.21.1.jar:/Users/taowenpeng/.m2/repository/org/apache/logging/log4j/log4j-api/2.21.1/log4j-api-2.21.1.jar:/Users/taowenpeng/.m2/repository/org/slf4j/jul-to-slf4j/2.0.13/jul-to-slf4j-2.0.13.jar:/Users/taowenpeng/.m2/repository/jakarta/annotation/jakarta.annotation-api/2.1.1/jakarta.annotation-api-2.1.1.jar:/Users/taowenpeng/.m2/repository/org/yaml/snakeyaml/2.2/snakeyaml-2.2.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-json/3.2.5/spring-boot-starter-json-3.2.5.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.15.4/jackson-datatype-jdk8-2.15.4.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/module/jackson-module-parameter-names/2.15.4/jackson-module-parameter-names-2.15.4.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-tomcat/3.2.5/spring-boot-starter-tomcat-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/apache/tomcat/embed/tomcat-embed-core/10.1.20/tomcat-embed-core-10.1.20.jar:/Users/taowenpeng/.m2/repository/org/apache/tomcat/embed/tomcat-embed-websocket/10.1.20/tomcat-embed-websocket-10.1.20.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-web/6.1.6/spring-web-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-beans/6.1.6/spring-beans-6.1.6.jar:/Users/taowenpeng/.m2/repository/io/micrometer/micrometer-observation/1.12.5/micrometer-observation-1.12.5.jar:/Users/taowenpeng/.m2/repository/io/micrometer/micrometer-commons/1.12.5/micrometer-commons-1.12.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-webmvc/6.1.6/spring-webmvc-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-aop/6.1.6/spring-aop-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-context/6.1.6/spring-context-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-expression/6.1.6/spring-expression-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-validation/3.2.5/spring-boot-starter-validation-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/apache/tomcat/embed/tomcat-embed-el/10.1.20/tomcat-embed-el-10.1.20.jar:/Users/taowenpeng/.m2/repository/org/hibernate/validator/hibernate-validator/8.0.1.Final/hibernate-validator-8.0.1.Final.jar:/Users/taowenpeng/.m2/repository/jakarta/validation/jakarta.validation-api/3.0.2/jakarta.validation-api-3.0.2.jar:/Users/taowenpeng/.m2/repository/org/jboss/logging/jboss-logging/3.5.3.Final/jboss-logging-3.5.3.Final.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/classmate/1.6.0/classmate-1.6.0.jar:/Users/taowenpeng/.m2/repository/org/springframework/boot/spring-boot-starter-websocket/3.2.5/spring-boot-starter-websocket-3.2.5.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-messaging/6.1.6/spring-messaging-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-websocket/6.1.6/spring-websocket-6.1.6.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.15.4/jackson-databind-2.15.4.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.15.4/jackson-annotations-2.15.4.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.15.4/jackson-core-2.15.4.jar:/Users/taowenpeng/.m2/repository/com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.15.4/jackson-datatype-jsr310-2.15.4.jar:/Users/taowenpeng/.m2/repository/org/projectlombok/lombok/1.18.32/lombok-1.18.32.jar:/Users/taowenpeng/.m2/repository/org/eclipse/jgit/org.eclipse.jgit/7.2.1.202505142326-r/org.eclipse.jgit-7.2.1.202505142326-r.jar:/Users/taowenpeng/.m2/repository/com/googlecode/javaewah/JavaEWAH/1.2.3/JavaEWAH-1.2.3.jar:/Users/taowenpeng/.m2/repository/org/slf4j/slf4j-api/2.0.13/slf4j-api-2.0.13.jar:/Users/taowenpeng/.m2/repository/commons-codec/commons-codec/1.16.1/commons-codec-1.16.1.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-core/6.1.6/spring-core-6.1.6.jar:/Users/taowenpeng/.m2/repository/org/springframework/spring-jcl/6.1.6/spring-jcl-6.1.6.jar" \
+  -cp "target/classes:$(cat .classpath)" \
   com.devops.kanban.DevopsKanbanApplication
 ```
 
@@ -222,7 +222,7 @@ lsof -ti:8080 | xargs kill -9 2>/dev/null || true
 **Problem**: Backend reads data from relative path `./data`. If started from wrong directory (e.g., `frontend/`), it won't find data files.
 **Solution**: Always start backend from project root directory:
 ```bash
-cd /Users/taowenpeng/IdeaProjects/devops-kanban
+cd /path/to/devops-kanban
 # Then run the java command
 ```
 **Verify**: Check with `lsof -p <PID> | grep cwd` to ensure working directory is correct.

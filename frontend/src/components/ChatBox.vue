@@ -219,12 +219,17 @@ const startSession = async () => {
     if (!session.value) return
   }
 
+  // Prevent duplicate start
+  if (isStarting.value) {
+    console.warn('Session is already starting')
+    return
+  }
+
   isStarting.value = true
   // Add system message
   messages.value.push(createMessage('system', 'Starting session...'))
 
   try {
-    await connectWebSocket()
     const response = await sessionApi.start(session.value.id)
     if (response.success && response.data) {
       session.value = response.data
@@ -238,6 +243,9 @@ const startSession = async () => {
         messages.value = parseOutputToMessages(response.data.output)
         scrollToBottom()
       }
+
+      // Connect WebSocket after session starts (to avoid duplicate subscriptions)
+      await connectWebSocket()
 
       // If no messages yet, show waiting message
       if (messages.value.length === 0) {
@@ -310,6 +318,12 @@ const scrollToBottom = () => {
 const connectWebSocket = async () => {
   if (!session.value) return
 
+  // Prevent duplicate connection
+  if (isConnected.value) {
+    console.log('WebSocket already connected for session', session.value.id)
+    return
+  }
+
   try {
     if (!wsService.isConnected()) {
       await wsService.connect()
@@ -319,12 +333,19 @@ const connectWebSocket = async () => {
 
     // Subscribe to output
     wsService.subscribeToOutput(session.value.id, (data) => {
-      const message = parseWebSocketData(data)
-      if (message) {
+      console.log('Received output:', data)
+      // Handle chunk message type from backend
+      if (data.type === 'chunk') {
+        const role = data.stream === 'stdin' ? 'user' : 'assistant'
         // For user messages from stdin, we already added them in sendMessage
-        // So only add non-user messages or messages we haven't seen
-        if (message.role !== 'user') {
-          messages.value.push(message)
+        // So only add non-user messages
+        if (role !== 'user') {
+          messages.value.push({
+            id: data.timestamp || Date.now(),
+            role,
+            content: data.content,
+            timestamp: data.timestamp
+          })
           scrollToBottom()
         }
       }
@@ -385,18 +406,22 @@ watch(() => props.agentId, async (newAgentId, oldAgentId) => {
 })
 
 // Watch for initialSession changes from parent
+// Only load output if session has output and messages are empty
+// Note: No immediate: true to avoid duplicate calls with onMounted
 watch(() => props.initialSession, (newSession) => {
   if (newSession) {
     session.value = newSession
-    if (newSession.output) {
+    // Only load output if messages are empty (avoid duplicate loading)
+    if (newSession.output && messages.value.length === 0) {
       messages.value = parseOutputToMessages(newSession.output)
       scrollToBottom()
     }
-    if (['RUNNING', 'IDLE'].includes(newSession.status)) {
+    // Connect WebSocket if session is running and not already connected
+    if (['RUNNING', 'IDLE'].includes(newSession.status) && !isConnected.value) {
       connectWebSocket()
     }
   }
-}, { immediate: true })
+}, { deep: true })
 
 // Auto-scroll when messages change
 watch(messages, () => {

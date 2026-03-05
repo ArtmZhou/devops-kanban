@@ -1,6 +1,5 @@
 package com.devops.kanban.service;
 
-import com.devops.kanban.config.BridgeConfig;
 import com.devops.kanban.dto.TaskDTO;
 import com.devops.kanban.entity.*;
 import com.devops.kanban.repository.AgentRepository;
@@ -33,9 +32,7 @@ public class SessionService {
     private final AgentRepository agentRepository;
     private final ProjectRepository projectRepository;
     private final GitService gitService;
-    private final SessionProcessManager processManager;
-    private final BridgeClient bridgeClient;
-    private final BridgeConfig bridgeConfig;
+    private final ClaudeCodeExecutor claudeCodeExecutor;
     private final Map<Agent.AgentType, AgentAdapter> adapters;
 
     public SessionService(
@@ -44,18 +41,14 @@ public class SessionService {
             AgentRepository agentRepository,
             ProjectRepository projectRepository,
             GitService gitService,
-            SessionProcessManager processManager,
-            BridgeClient bridgeClient,
-            BridgeConfig bridgeConfig,
+            ClaudeCodeExecutor claudeCodeExecutor,
             List<AgentAdapter> adapterList) {
         this.sessionRepository = sessionRepository;
         this.taskRepository = taskRepository;
         this.agentRepository = agentRepository;
         this.projectRepository = projectRepository;
         this.gitService = gitService;
-        this.processManager = processManager;
-        this.bridgeClient = bridgeClient;
-        this.bridgeConfig = bridgeConfig;
+        this.claudeCodeExecutor = claudeCodeExecutor;
         this.adapters = adapterList.stream()
                 .collect(Collectors.toMap(AgentAdapter::getType, Function.identity()));
     }
@@ -144,6 +137,12 @@ public class SessionService {
             throw new IllegalStateException("Session is not in a startable state: " + session.getStatus());
         }
 
+        // Double-check: ensure no process is already running for this session
+        if (claudeCodeExecutor.isAlive(sessionId)) {
+            log.warn("[Session-{}] Cannot start - process already running", sessionId);
+            throw new IllegalStateException("Session process is already running");
+        }
+
         Long taskId = session.getTaskId();
         Long agentId = session.getAgentId();
 
@@ -160,27 +159,34 @@ public class SessionService {
             log.debug("[Session-{}] Preparing worktree at: {}", sessionId, session.getWorktreePath());
             adapter.prepare(taskDTO, Paths.get(session.getWorktreePath()));
 
-            // Build command
-            String commandStr = adapter.buildCommand(agent, taskDTO, Paths.get(session.getWorktreePath()));
-            log.info("[Session-{}] Command built | AgentType: {} | Command: {}", sessionId, agent.getType(), commandStr);
+            // Get Claude CLI path from adapter
+            String claudeCliPath = getClaudeCliPath(adapter);
 
-            // Extract initial prompt (will be sent via stdin for stream-json mode)
-            String initialPrompt = extractPrompt(commandStr);
+            log.info("[Session-{}] Starting Claude Code Executor | CLI: {} | WorkDir: {}",
+                sessionId, claudeCliPath, session.getWorktreePath());
 
-            // Check if bridge mode is enabled and healthy
-            boolean useBridge = bridgeConfig.isEnabled() && bridgeClient.isHealthy();
+            // Extract initial prompt from task
+            String initialPrompt = buildInitialPrompt(taskDTO);
 
-            if (useBridge) {
-                // Use Node.js bridge for Claude CLI
-                log.info("[Session-{}] Using Node.js bridge mode | Bridge URL: {}",
-                    sessionId, bridgeConfig.getBaseUrl());
+            // Save initial prompt to session for frontend filtering
+            session.setInitialPrompt(initialPrompt);
+            session = sessionRepository.save(session);
 
-                startSessionViaBridge(session, initialPrompt);
-            } else {
-                // Fallback to PTY mode
-                log.info("[Session-{}] Using PTY mode (bridge disabled or unhealthy)", sessionId);
+            log.info("[Session-{}] Starting fresh session (no Claude session ID yet)",
+                sessionId);
 
-                startSessionViaPty(session, commandStr, initialPrompt);
+            // Start Claude Code directly using ClaudeCodeExecutor
+            // Pass null for claudeSessionId since this is the first run
+            boolean started = claudeCodeExecutor.spawn(
+                sessionId,
+                claudeCliPath,
+                Paths.get(session.getWorktreePath()),
+                initialPrompt,
+                null  // First run, no Claude session ID yet
+            );
+
+            if (!started) {
+                throw new RuntimeException("Failed to spawn Claude Code process");
             }
 
             // Update session status
@@ -188,8 +194,8 @@ public class SessionService {
             session.setLastHeartbeat(LocalDateTime.now());
             session = sessionRepository.save(session);
 
-            log.info("[Session-{}] Session started successfully | Status: {} | Worktree: {} | Mode: {}",
-                sessionId, session.getStatus(), session.getWorktreePath(), useBridge ? "bridge" : "pty");
+            log.info("[Session-{}] Session started successfully | Status: {} | Worktree: {}",
+                sessionId, session.getStatus(), session.getWorktreePath());
 
             // Start heartbeat monitor
             startHeartbeatMonitor(sessionId);
@@ -207,45 +213,45 @@ public class SessionService {
     }
 
     /**
-     * Start session via Node.js bridge
+     * Get Claude CLI path from adapter or use default
      */
-    private void startSessionViaBridge(Session session, String initialPrompt) {
-        String bridgeSessionId = session.getSessionId();
-        String workDir = session.getWorktreePath();
-
-        log.info("[Session-{}] Starting via bridge | BridgeSessionId: {} | WorkDir: {}",
-            session.getId(), bridgeSessionId, workDir);
-
-        BridgeClient.BridgeSession bridgeSession = bridgeClient.startSession(bridgeSessionId, workDir, initialPrompt);
-
-        log.info("[Session-{}] Bridge session started | PID: {} | Status: {}",
-            session.getId(), bridgeSession.getPid(), bridgeSession.getStatus());
-
-        // Start WebSocket connection to Bridge,接收实时输出
-        bridgeWebSocketClient.connectToBridge(bridgeSessionId, session.getId());
-
-        log.info("[Session-{}] WebSocket connection to Bridge initiated | BridgeSessionId: {}",
-            session.getId(), bridgeSessionId);
+    private String getClaudeCliPath(AgentAdapter adapter) {
+        if (adapter instanceof com.devops.kanban.adapter.agent.ClaudeCodeAdapter) {
+            com.devops.kanban.adapter.agent.ClaudeCodeAdapter claudeAdapter =
+                (com.devops.kanban.adapter.agent.ClaudeCodeAdapter) adapter;
+            return claudeAdapter.getClaudeCliPath();
+        }
+        // Default paths
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
+        if (isWindows) {
+            // Use APPDATA environment variable for Windows
+            String appData = System.getenv("APPDATA");
+            if (appData != null) {
+                return appData + "\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
+            } else {
+                // Fallback to user home
+                String userHome = System.getProperty("user.home");
+                return userHome + "\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
+            }
+        } else {
+            return "claude";
+        }
     }
 
     /**
-     * Start session via PTY (fallback mode)
+     * Build initial prompt from task
      */
-    private void startSessionViaPty(Session session, String commandStr, String initialPrompt) {
-        // Parse command for process
-        String[] command = parseCommand(commandStr);
+    private String buildInitialPrompt(TaskDTO task) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("Task: ").append(task.getTitle()).append("\n\n");
 
-        // Start process
-        processManager.startProcess(session.getId(), command, Paths.get(session.getWorktreePath()));
-
-        // Initialize output buffer from storage (for resuming)
-        processManager.initializeOutput(session.getId());
-
-        // Send initial prompt via stdin (for stream-json mode)
-        if (initialPrompt != null && !initialPrompt.isEmpty()) {
-            log.info("[Session-{}] Sending initial prompt via stdin", session.getId());
-            processManager.sendInput(session.getId(), initialPrompt);
+        if (task.getDescription() != null && !task.getDescription().isEmpty()) {
+            prompt.append("Description:\n").append(task.getDescription()).append("\n\n");
         }
+
+        prompt.append("Please complete this task. Make the necessary changes and ensure the code works correctly.");
+
+        return prompt.toString();
     }
 
     /**
@@ -267,29 +273,12 @@ public class SessionService {
             throw new IllegalStateException("Session is not running: " + session.getStatus());
         }
 
-        // Get final output
-        String finalOutput = processManager.getOutput(sessionId);
+        // Get final output from ClaudeCodeExecutor
+        String finalOutput = claudeCodeExecutor.getOutput(sessionId);
         log.debug("[Session-{}] Final output length: {} chars", sessionId, finalOutput != null ? finalOutput.length() : 0);
 
-        // Check if session was started via bridge
-        boolean useBridge = bridgeConfig.isEnabled() &&
-            bridgeClient.getSession(session.getSessionId()) != null;
-
-        if (useBridge) {
-            // Stop via bridge
-            log.info("[Session-{}] Stopping via bridge | BridgeSessionId: {}", sessionId, session.getSessionId());
-            bridgeClient.stopSession(session.getSessionId());
-            // Close WebSocket connection to bridge
-            bridgeWebSocketClient.disconnectFromBridge(session.getSessionId());
-
-        if (useBridge) {
-            // Stop via bridge
-            log.info("[Session-{}] Stopping via bridge | BridgeSessionId: {}", sessionId, session.getSessionId());
-            bridgeClient.stopSession(session.getSessionId());
-        } else {
-            // Stop via PTY
-            processManager.stopProcess(sessionId);
-        }
+        // Stop via ClaudeCodeExecutor
+        claudeCodeExecutor.stop(sessionId);
 
         // Update session status and output
         session.setStatus(Session.SessionStatus.STOPPED);
@@ -297,9 +286,8 @@ public class SessionService {
         session.setOutput(finalOutput);
         session = sessionRepository.save(session);
 
-        log.info("[Session-{}] Session stopped successfully | Status: {} | OutputLength: {} | Mode: {}",
-            sessionId, session.getStatus(), finalOutput != null ? finalOutput.length() : 0,
-            useBridge ? "bridge" : "pty");
+        log.info("[Session-{}] Session stopped successfully | Status: {} | OutputLength: {}",
+            sessionId, session.getStatus(), finalOutput != null ? finalOutput.length() : 0);
         return session;
     }
 
@@ -314,25 +302,84 @@ public class SessionService {
         Session session = sessionRepository.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
 
-        if (session.getStatus() != Session.SessionStatus.RUNNING &&
-            session.getStatus() != Session.SessionStatus.IDLE) {
-            log.warn("[Session-{}] Cannot send input - session not running: {}", sessionId, session.getStatus());
-            throw new IllegalStateException("Session is not accepting input: " + session.getStatus());
+        // Check if process is still running
+        if (claudeCodeExecutor.isAlive(sessionId)) {
+            // Process is running, send input directly
+            log.debug("[Session-{}] Sending input to running process: {}",
+                sessionId, input.length() > 50 ? input.substring(0, 50) + "..." : input);
+            return claudeCodeExecutor.sendInput(sessionId, input);
         }
 
-        log.debug("[Session-{}] Sending input: {}", sessionId, input.length() > 50 ? input.substring(0, 50) + "..." : input);
+        // Process has ended - check if we can resume
+        if (session.getStatus() == Session.SessionStatus.STOPPED ||
+            session.getStatus() == Session.SessionStatus.IDLE) {
+            // Resume the session with --resume flag
+            log.info("[Session-{}] Process ended, resuming with new input", sessionId);
+            return resumeSession(session, input);
+        }
 
-        // Check if session was started via bridge
-        boolean useBridge = bridgeConfig.isEnabled() &&
-            bridgeWebSocketClient.isConnected(session.getSessionId());
+        log.warn("[Session-{}] Cannot send input - session not running: {}", sessionId, session.getStatus());
+        throw new IllegalStateException("Session is not accepting input: " + session.getStatus());
+    }
 
-        if (useBridge) {
-            // Use BridgeWebSocketClient to send input
-            log.debug("[Session-{}] Bridge mode - sending input via BridgeWebSocketClient", sessionId);
-            return bridgeWebSocketClient.sendInput(session.getSessionId(), input);
-        } else {
-            log.warn("[Session-{}] PTY mode - cannot send input: {} | sessionId);
-            return processManager.sendInput(sessionId, input);
+    /**
+     * Resume a stopped session with new input
+     */
+    private boolean resumeSession(Session session, String input) {
+        Long sessionId = session.getId();
+        Long agentId = session.getAgentId();
+
+        Agent agent = agentRepository.findById(agentId)
+                .orElseThrow(() -> new IllegalArgumentException("Agent not found: " + agentId));
+
+        AgentAdapter adapter = getAdapter(agent.getType());
+        String claudeCliPath = getClaudeCliPath(adapter);
+
+        log.info("[Session-{}] Resuming session | CLI: {} | WorkDir: {} | ClaudeSessionId: {}",
+            sessionId, claudeCliPath, session.getWorktreePath(), session.getClaudeSessionId());
+
+        // Check if we have the Claude session ID for --resume
+        String claudeSessionId = session.getClaudeSessionId();
+        if (claudeSessionId == null || claudeSessionId.isEmpty()) {
+            log.warn("[Session-{}] No Claude session ID stored, cannot use --resume. Session may not continue properly.",
+                sessionId);
+        }
+
+        try {
+            // Prepare worktree
+            adapter.prepare(null, Paths.get(session.getWorktreePath()));
+
+            // Start Claude Code with --resume and the stored Claude session ID
+            boolean started = claudeCodeExecutor.spawn(
+                sessionId,
+                claudeCliPath,
+                Paths.get(session.getWorktreePath()),
+                input,  // New input as initial prompt
+                claudeSessionId  // Claude CLI's native session ID for --resume
+            );
+
+            if (!started) {
+                throw new RuntimeException("Failed to resume Claude Code process");
+            }
+
+            // Update session status
+            session.setStatus(Session.SessionStatus.RUNNING);
+            session.setLastHeartbeat(LocalDateTime.now());
+            sessionRepository.save(session);
+
+            log.info("[Session-{}] Session resumed successfully", sessionId);
+
+            // Start heartbeat monitor
+            startHeartbeatMonitor(sessionId);
+
+            return true;
+
+        } catch (Exception e) {
+            log.error("[Session-{}] Failed to resume session: {}", sessionId, e.getMessage(), e);
+            session.setStatus(Session.SessionStatus.ERROR);
+            session.setStoppedAt(LocalDateTime.now());
+            sessionRepository.save(session);
+            return false;
         }
     }
 
@@ -377,8 +424,8 @@ public class SessionService {
      * Get session output
      */
     public String getSessionOutput(Long sessionId) {
-        // First check in-memory output
-        String output = processManager.getOutput(sessionId);
+        // First check in-memory output from ClaudeCodeExecutor
+        String output = claudeCodeExecutor.getOutput(sessionId);
         if (output != null && !output.isEmpty()) {
             return output;
         }
@@ -402,16 +449,7 @@ public class SessionService {
         if (session.getStatus() == Session.SessionStatus.RUNNING ||
             session.getStatus() == Session.SessionStatus.IDLE) {
             log.debug("[Session-{}] Stopping running process before deletion", sessionId);
-
-            // Check if session was started via bridge
-            boolean useBridge = bridgeConfig.isEnabled() &&
-                bridgeClient.getSession(session.getSessionId()) != null;
-
-            if (useBridge) {
-                bridgeClient.stopSession(session.getSessionId());
-            } else {
-                processManager.stopProcess(sessionId);
-            }
+            claudeCodeExecutor.stop(sessionId);
         }
 
         // Cleanup worktree
@@ -424,11 +462,7 @@ public class SessionService {
         }
 
         // Cleanup process resources
-        processManager.cleanup(sessionId);
-
-        // Cleanup bridge session tracking and WebSocket connection
-        bridgeClient.removeSession(session.getSessionId());
-        bridgeWebSocketClient.disconnectFromBridge(session.getSessionId());
+        claudeCodeExecutor.cleanup(sessionId);
 
         // Delete session
         sessionRepository.delete(sessionId);
@@ -452,57 +486,6 @@ public class SessionService {
             throw new IllegalArgumentException("No adapter found for agent type: " + type);
         }
         return adapter;
-    }
-
-    private String[] parseCommand(String commandStr) {
-        // Parse command string for PTY process execution
-        // Working directory is already set by PtyProcessBuilder, so we don't need cd
-
-        String cmdPart = commandStr;
-        if (commandStr.startsWith("cd") && commandStr.contains("&&")) {
-            // Handle "cd path && command" format - extract just the command part
-            String[] parts = commandStr.split("&&", 2);
-            cmdPart = parts.length > 1 ? parts[1].trim() : "";
-        }
-
-        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
-
-        // Check if this is a claude command
-        boolean isClaudeCommand = cmdPart.equals("claude") || cmdPart.startsWith("claude ");
-
-        if (isWindows) {
-            if (isClaudeCommand) {
-                // Phase 8: 添加 --output-format stream-json 禁用 Ink TUI
-                // stream-json 输出 JSON 流，避免 Ink 框架的 TUI 渲染问题
-                String claudeCliPath = "C:\\Users\\Administrator\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
-                return new String[]{"node.exe", claudeCliPath, "--output-format", "stream-json"};
-            } else {
-                // For non-claude commands, use cmd.exe as before
-                return new String[]{"cmd.exe", "/c", cmdPart};
-            }
-        } else {
-            // On Unix, use bash -l (login shell) to load user environment
-            return new String[]{"bash", "-lc", cmdPart};
-        }
-    }
-
-    /**
-     * Extract initial prompt from command string (for sending via stdin)
-     */
-    private String extractPrompt(String commandStr) {
-        String cmdPart = commandStr;
-        if (commandStr.startsWith("cd") && commandStr.contains("&&")) {
-            String[] parts = commandStr.split("&&", 2);
-            cmdPart = parts.length > 1 ? parts[1].trim() : "";
-        }
-
-        // Extract prompt from --prompt "..."
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("--prompt\\s+\"([^\"]*)\"")
-                .matcher(cmdPart);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-        return null;
     }
 
     private TaskDTO toDTO(Task task) {
@@ -531,93 +514,37 @@ public class SessionService {
             log.debug("[Session-{}] Heartbeat monitor started | Thread: {}",
                 sessionId, Thread.currentThread().getName());
 
-            // Get session to check if using bridge
-            Optional<Session> sessionOpt = sessionRepository.findById(sessionId);
-            boolean useBridge = sessionOpt.isPresent() &&
-                bridgeConfig.isEnabled() &&
-                bridgeClient.getSession(sessionOpt.get().getSessionId()) != null;
-
-            if (useBridge) {
-                // Bridge mode - poll bridge for session status
-                while (true) {
-                    try {
-                        Thread.sleep(5000); // 5 seconds
-
-                        BridgeClient.BridgeSession bridgeSession = bridgeClient.getSession(
-                            sessionOpt.get().getSessionId());
-
-                        sessionRepository.findById(sessionId).ifPresent(session -> {
-                            session.setLastHeartbeat(LocalDateTime.now());
-                            sessionRepository.save(session);
-                            log.trace("[Session-{}] Heartbeat updated (bridge mode)", sessionId);
-
-                            // Check if bridge session ended
-                            if (bridgeSession == null ||
-                                "COMPLETED".equals(bridgeSession.getStatus()) ||
-                                "ERROR".equals(bridgeSession.getStatus()) ||
-                                "STOPPED".equals(bridgeSession.getStatus())) {
-
-                                log.info("[Session-{}] Bridge session ended | Status: {}",
-                                    sessionId, bridgeSession != null ? bridgeSession.getStatus() : "null");
-
-                                if (bridgeSession != null && "ERROR".equals(bridgeSession.getStatus())) {
-                                    session.setStatus(Session.SessionStatus.ERROR);
-                                } else {
-                                    session.setStatus(Session.SessionStatus.STOPPED);
-                                }
-                                session.setStoppedAt(LocalDateTime.now());
-                                sessionRepository.save(session);
-                                return; // Exit the loop
-                            }
-                        });
-
-                        // Check if session was stopped
-                        Session currentSession = sessionRepository.findById(sessionId).orElse(null);
-                        if (currentSession == null ||
-                            currentSession.getStatus() == Session.SessionStatus.STOPPED ||
-                            currentSession.getStatus() == Session.SessionStatus.ERROR) {
-                            break;
-                        }
-
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.debug("[Session-{}] Heartbeat monitor interrupted", sessionId);
-                        break;
-                    }
+            // Monitor ClaudeCodeExecutor process
+            while (claudeCodeExecutor.isAlive(sessionId)) {
+                try {
+                    Thread.sleep(5000); // 5 seconds
+                    sessionRepository.findById(sessionId).ifPresent(session -> {
+                        session.setLastHeartbeat(LocalDateTime.now());
+                        sessionRepository.save(session);
+                        log.trace("[Session-{}] Heartbeat updated", sessionId);
+                    });
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.debug("[Session-{}] Heartbeat monitor interrupted", sessionId);
+                    break;
                 }
-            } else {
-                // PTY mode - check process status
-                while (processManager.isProcessAlive(sessionId)) {
-                    try {
-                        Thread.sleep(5000); // 5 seconds
-                        sessionRepository.findById(sessionId).ifPresent(session -> {
-                            session.setLastHeartbeat(LocalDateTime.now());
-                            sessionRepository.save(session);
-                            log.trace("[Session-{}] Heartbeat updated", sessionId);
-                        });
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        log.debug("[Session-{}] Heartbeat monitor interrupted", sessionId);
-                        break;
-                    }
-                }
-
-                // Process ended - update status
-                int exitCode = processManager.getExitCode(sessionId);
-                log.info("[Session-{}] Heartbeat monitor: process ended | ExitCode: {}", sessionId, exitCode);
-
-                sessionRepository.findById(sessionId).ifPresent(session -> {
-                    if (exitCode == 0) {
-                        session.setStatus(Session.SessionStatus.STOPPED);
-                    } else {
-                        session.setStatus(Session.SessionStatus.ERROR);
-                    }
-                    session.setStoppedAt(LocalDateTime.now());
-                    sessionRepository.save(session);
-                    log.info("[Session-{}] Final status updated | Status: {} | ExitCode: {}",
-                        sessionId, session.getStatus(), exitCode);
-                });
             }
+
+            // Process ended - update status
+            int exitCode = claudeCodeExecutor.getExitCode(sessionId);
+            log.info("[Session-{}] Heartbeat monitor: process ended | ExitCode: {}", sessionId, exitCode);
+
+            sessionRepository.findById(sessionId).ifPresent(session -> {
+                if (exitCode == 0) {
+                    session.setStatus(Session.SessionStatus.STOPPED);
+                } else {
+                    session.setStatus(Session.SessionStatus.ERROR);
+                }
+                session.setStoppedAt(LocalDateTime.now());
+                sessionRepository.save(session);
+                log.info("[Session-{}] Final status updated | Status: {} | ExitCode: {}",
+                    sessionId, session.getStatus(), exitCode);
+            });
         }, "session-" + sessionId + "-heartbeat");
         heartbeatThread.setDaemon(true);
         heartbeatThread.start();

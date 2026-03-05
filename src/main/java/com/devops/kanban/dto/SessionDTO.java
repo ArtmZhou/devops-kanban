@@ -28,6 +28,7 @@ public class SessionDTO {
     private LocalDateTime lastHeartbeat;
     private LocalDateTime stoppedAt;
     private String output; // Current output buffer
+    private String initialPrompt; // Initial prompt for frontend filtering
 
     // Validation groups
     public interface Create {}

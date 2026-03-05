@@ -1,10 +1,8 @@
 package com.devops.kanban.controller;
 
-import com.devops.kanban.config.BridgeConfig;
 import com.devops.kanban.dto.ApiResponse;
 import com.devops.kanban.dto.SessionDTO;
 import com.devops.kanban.entity.Session;
-import com.devops.kanban.service.BridgeClient;
 import com.devops.kanban.service.SessionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,28 +31,6 @@ import java.util.stream.Collectors;
 public class SessionController {
 
     private final SessionService sessionService;
-    private final BridgeClient bridgeClient;
-    private final BridgeConfig bridgeConfig;
-
-    // ==================== Bridge Diagnostic ====================
-
-    /**
-     * Diagnostic endpoint to check bridge status
-     */
-    @GetMapping("/bridge/status")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getBridgeStatus() {
-        log.info("[API] GET /api/sessions/bridge/status");
-        Map<String, Object> status = new HashMap<>();
-        status.put("configEnabled", bridgeConfig.isEnabled());
-        status.put("configHost", bridgeConfig.getHost());
-        status.put("configPort", bridgeConfig.getPort());
-        status.put("baseUrl", bridgeConfig.getBaseUrl());
-
-        boolean healthy = bridgeClient.isHealthy();
-        status.put("healthy", healthy);
-
-        return ResponseEntity.ok(ApiResponse.success(status));
-    }
 
     // ==================== REST API ====================
 
@@ -273,7 +249,8 @@ public class SessionController {
                 .sessionId(session.getSessionId())
                 .startedAt(session.getStartedAt())
                 .lastHeartbeat(session.getLastHeartbeat())
-                .stoppedAt(session.getStoppedAt());
+                .stoppedAt(session.getStoppedAt())
+                .initialPrompt(session.getInitialPrompt());
 
         if (includeOutput) {
             // First check session entity output, then fall back to process manager

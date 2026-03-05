@@ -17,6 +17,46 @@ import java.nio.file.Path;
 public class ClaudeCodeAdapter implements AgentAdapter {
 
     private final ObjectMapper mapper = new ObjectMapper();
+    
+    /**
+     * Default Claude CLI path - can be overridden via configuration
+     */
+    private String claudeCliPath = null;
+
+    public ClaudeCodeAdapter() {
+        // Try to detect claude CLI path
+        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
+        if (isWindows) {
+            // Use APPDATA environment variable for Windows
+            String appData = System.getenv("APPDATA");
+            if (appData != null) {
+                this.claudeCliPath = appData + "\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
+            } else {
+                // Fallback to user home
+                String userHome = System.getProperty("user.home");
+                this.claudeCliPath = userHome + "\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
+            }
+        } else {
+            // On Unix, assume 'claude' is in PATH
+            this.claudeCliPath = "claude";
+        }
+    }
+
+    /**
+     * Get the Claude CLI path
+     * @return the path to the Claude CLI executable
+     */
+    public String getClaudeCliPath() {
+        return claudeCliPath;
+    }
+    
+    /**
+     * Set the Claude CLI path
+     * @param claudeCliPath the path to the Claude CLI executable
+     */
+    public void setClaudeCliPath(String claudeCliPath) {
+        this.claudeCliPath = claudeCliPath;
+    }
 
     @Override
     public Agent.AgentType getType() {

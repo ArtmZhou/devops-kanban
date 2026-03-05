@@ -18,10 +18,12 @@ public class Session {
     private String worktreePath;
     private String branch;
     private String sessionId;      // UUID for WebSocket topic
+    private String claudeSessionId; // Claude CLI's native session ID for --resume
     private LocalDateTime startedAt;
     private LocalDateTime lastHeartbeat;
     private LocalDateTime stoppedAt;
     private String output;  // Conversation history/output buffer
+    private String initialPrompt;  // Initial prompt passed to Claude CLI (for frontend filtering)
 
     public enum SessionStatus {
         CREATED,    // Session created but not started

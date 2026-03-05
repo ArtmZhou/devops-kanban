@@ -8,6 +8,10 @@
           :class="statusClass"
         ></span>
         <span class="status-text">{{ statusText }}</span>
+        <span v-if="session?.branch" class="branch-info">
+          <Folder />
+          {{ session.branch }}
+        </span>
       </div>
       <div class="control-buttons">
         <el-button
@@ -93,6 +97,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Folder } from '@element-plus/icons-vue'
 import wsService from '../services/websocket'
 import sessionApi from '../api/session'
 
@@ -122,6 +127,9 @@ const isStopping = ref(false)
 const isConnected = ref(false)
 const outputContainer = ref(null)
 
+// Store initial prompt for filtering
+const initialPrompt = ref(null)
+
 // Computed
 const statusClass = computed(() => {
   if (!session.value) return 'status-none'
@@ -138,6 +146,42 @@ const statusText = computed(() => {
   return session.value.status || 'Unknown'
 })
 
+// Track whether initial prompt has been filtered (only filter once)
+const initialPromptFiltered = ref(false)
+
+// Filter out initial prompt from output line
+const shouldFilterLine = (line) => {
+  if (!initialPrompt.value) return false
+  if (initialPromptFiltered.value) return false
+
+  // Check if line contains the initial prompt header
+  // The initial prompt starts with "Task: {title}"
+  const promptFirstLine = initialPrompt.value.split('\n')[0]?.trim()
+  if (!promptFirstLine) return false
+
+  // Only filter if the line starts with or exactly matches the prompt header
+  const isFiltered = line.trim().startsWith(promptFirstLine)
+  if (isFiltered) {
+    initialPromptFiltered.value = true
+  }
+  return isFiltered
+}
+
+// Add output line with filtering
+const addOutputLine = (data, stream, timestamp) => {
+  // Split by newlines and filter each line
+  const lines = data.split('\n')
+  lines.forEach(line => {
+    if (line.trim() && !shouldFilterLine(line)) {
+      outputLines.value.push({
+        data: line,
+        stream,
+        timestamp
+      })
+    }
+  })
+}
+
 // Methods
 const loadActiveSession = async () => {
   try {
@@ -145,7 +189,12 @@ const loadActiveSession = async () => {
     console.log('Load active session response:', response)
     if (response.success && response.data) {
       session.value = response.data
-      // Load existing output
+      // Store initial prompt for filtering
+      if (response.data.initialPrompt) {
+        initialPrompt.value = response.data.initialPrompt
+        console.log('Initial prompt set for filtering:', initialPrompt.value.substring(0, 50) + '...')
+      }
+      // Load existing output (already filtered on server side if needed)
       if (response.data.output) {
         const lines = response.data.output.split('\n').filter(l => l.trim())
         outputLines.value = lines.map((line, i) => ({
@@ -178,6 +227,11 @@ const createSession = async () => {
 
     if (response.success && response.data) {
       session.value = response.data
+      // Store initial prompt for filtering
+      if (response.data.initialPrompt) {
+        initialPrompt.value = response.data.initialPrompt
+        initialPromptFiltered.value = false
+      }
       emit('session-created', session.value)
       // Connect WebSocket
       connectWebSocket()
@@ -199,6 +253,12 @@ const startSession = async () => {
     if (!session.value) return
   }
 
+  // Prevent duplicate start
+  if (isStarting.value) {
+    console.warn('Session is already starting')
+    return
+  }
+
   isStarting.value = true
   // Show starting message
   outputLines.value.push({
@@ -208,14 +268,18 @@ const startSession = async () => {
   })
 
   try {
-    // Connect WebSocket first to catch early output
-    await connectWebSocket()
-
     const response = await sessionApi.start(session.value.id)
     console.log('Start session response:', response)
     if (response.success && response.data) {
       session.value = response.data
       emit('status-change', session.value.status)
+
+      // Store initial prompt for filtering
+      if (response.data.initialPrompt) {
+        initialPrompt.value = response.data.initialPrompt
+        initialPromptFiltered.value = false
+        console.log('Initial prompt set for filtering:', initialPrompt.value.substring(0, 50) + '...')
+      }
 
       // Remove the "starting" message and load actual output
       outputLines.value = []
@@ -224,14 +288,22 @@ const startSession = async () => {
       if (response.data.output) {
         const lines = response.data.output.split('\n').filter(l => l.trim())
         lines.forEach((line, i) => {
-          outputLines.value.push({
-            data: line,
-            stream: 'stdout',
-            timestamp: Date.now() + i
-          })
+          if (!shouldFilterLine(line)) {
+            outputLines.value.push({
+              data: line,
+              stream: 'stdout',
+              timestamp: Date.now() + i
+            })
+          }
         })
         scrollToBottom()
+      } else {
+        // No output yet, mark that we're ready to filter initial prompt when it appears
+        initialPromptFiltered.value = false
       }
+
+      // Connect WebSocket after session starts (to avoid duplicate subscriptions)
+      await connectWebSocket()
 
       // If no output yet, show waiting message
       if (outputLines.value.length === 0) {
@@ -301,6 +373,7 @@ const sendInput = async () => {
 
 const clearOutput = () => {
   outputLines.value = []
+  initialPromptFiltered.value = false
 }
 
 const scrollToBottom = () => {
@@ -314,6 +387,12 @@ const scrollToBottom = () => {
 const connectWebSocket = async () => {
   if (!session.value) return
 
+  // Prevent duplicate connection
+  if (isConnected.value) {
+    console.log('WebSocket already connected for session', session.value.id)
+    return
+  }
+
   try {
     if (!wsService.isConnected()) {
       console.log('Connecting to WebSocket...')
@@ -323,15 +402,12 @@ const connectWebSocket = async () => {
 
     isConnected.value = true
 
-    // Subscribe to output
+    // Subscribe to output with filtering
     wsService.subscribeToOutput(session.value.id, (data) => {
       console.log('Received output:', data)
-      if (data.type === 'output') {
-        outputLines.value.push({
-          data: data.data,
-          stream: data.stream,
-          timestamp: data.timestamp
-        })
+      if (data.type === 'chunk') {
+        // Filter out initial prompt from the chunk
+        addOutputLine(data.content, data.stream, data.timestamp)
         scrollToBottom()
       }
     })
@@ -340,14 +416,18 @@ const connectWebSocket = async () => {
     wsService.subscribeToStatus(session.value.id, (data) => {
       console.log('Received status:', data)
       if (data.type === 'status' && session.value) {
-        session.value.status = data.status
-        emit('status-change', data.status)
+        // Only update RUNNING and IDLE states to keep input area visible
+        if (['RUNNING', 'IDLE'].includes(data.status)) {
+          session.value.status = data.status
+          emit('status-change', data.status)
+        }
       }
       if (data.type === 'exit') {
-        if (session.value) {
+        // Only update status when process truly exits (non-zero exit code or user-initiated stop)
+        if (session.value && data.exitCode !== undefined) {
           session.value.status = data.status
+          emit('status-change', data.status)
         }
-        emit('status-change', data.status)
       }
     })
   } catch (e) {
@@ -370,11 +450,11 @@ const startOutputPolling = () => {
       if (response.success && response.data) {
         const currentOutput = outputLines.value.map(l => l.data).join('\n')
         if (response.data && response.data !== currentOutput) {
-          // New output available, parse and add
+          // New output available, parse and add with filtering
           const newLines = response.data.split('\n').filter(l => l.trim())
           const existingLines = new Set(outputLines.value.map(l => l.data))
           newLines.forEach((line, i) => {
-            if (!existingLines.has(line)) {
+            if (!existingLines.has(line) && !shouldFilterLine(line)) {
               outputLines.value.push({
                 data: line,
                 stream: 'stdout',
@@ -409,6 +489,11 @@ onMounted(() => {
   // Use initialSession from parent if provided, otherwise load from API
   if (props.initialSession) {
     session.value = props.initialSession
+    // Store initial prompt for filtering
+    if (props.initialSession.initialPrompt) {
+      initialPrompt.value = props.initialSession.initialPrompt
+      initialPromptFiltered.value = false
+    }
     // Load existing output from session
     if (props.initialSession.output) {
       const lines = props.initialSession.output.split('\n').filter(l => l.trim())
@@ -416,7 +501,7 @@ onMounted(() => {
         data: line,
         stream: 'stdout',
         timestamp: Date.now() + i
-      }))
+      })).filter(line => !shouldFilterLine(line.data))
       scrollToBottom()
     }
     // Connect WebSocket if session is running
@@ -439,29 +524,38 @@ watch(() => props.agentId, async (newAgentId, oldAgentId) => {
     await stopSession()
     session.value = null
     outputLines.value = []
+    initialPrompt.value = null
+    initialPromptFiltered.value = false
   }
 })
 
 // Watch for initialSession changes from parent
+// Only load output if session has output and outputLines are empty
+// Note: No immediate: true to avoid duplicate calls with onMounted
 watch(() => props.initialSession, (newSession) => {
   if (newSession) {
     session.value = newSession
-    // Load existing output from session
-    if (newSession.output) {
+    // Store initial prompt for filtering
+    if (newSession.initialPrompt) {
+      initialPrompt.value = newSession.initialPrompt
+      initialPromptFiltered.value = false
+    }
+    // Only load output if outputLines are empty (avoid duplicate loading)
+    if (newSession.output && outputLines.value.length === 0) {
       const lines = newSession.output.split('\n').filter(l => l.trim())
       outputLines.value = lines.map((line, i) => ({
         data: line,
         stream: 'stdout',
         timestamp: Date.now() + i
-      }))
+      })).filter(line => !shouldFilterLine(line.data))
       scrollToBottom()
     }
-    // Connect WebSocket if session is running
-    if (['RUNNING', 'IDLE'].includes(newSession.status)) {
+    // Connect WebSocket if session is running and not already connected
+    if (['RUNNING', 'IDLE'].includes(newSession.status) && !isConnected.value) {
       connectWebSocket()
     }
   }
-}, { immediate: true })
+}, { deep: true })
 
 // Auto-scroll when output changes
 watch(outputLines, () => {
@@ -526,6 +620,23 @@ defineExpose({
   color: #ccc;
   font-size: 12px;
   font-family: monospace;
+}
+
+.branch-info {
+  color: #67c23a;
+  font-size: 11px;
+  font-family: monospace;
+  margin-left: 12px;
+  padding: 2px 6px;
+  background: rgba(103, 194, 58, 0.1);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.branch-info :deep(.el-icon) {
+  font-size: 12px;
 }
 
 .control-buttons {
