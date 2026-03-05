@@ -27,6 +27,9 @@ const sessionApi = {
   // Send input to a session
   sendInput: (id, input) => api.post(`/sessions/${id}/input`, { input }),
 
+  // Continue a stopped session (resume with --resume flag)
+  continue: (id, input) => api.post(`/sessions/${id}/continue`, { input }),
+
   // Get session output
   getOutput: (id) => api.get(`/sessions/${id}/output`),
 
@@ -42,6 +45,7 @@ export const getSessionHistory = (taskId, includeOutput = true) => sessionApi.ge
 export const startSession = (id) => sessionApi.start(id)
 export const stopSession = (id) => sessionApi.stop(id)
 export const sendSessionInput = (id, input) => sessionApi.sendInput(id, input)
+export const continueSession = (id, input) => sessionApi.continue(id, input)
 export const getSessionOutput = (id) => sessionApi.getOutput(id)
 export const deleteSession = (id) => sessionApi.delete(id)
 

@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" :class="themeClass">
     <nav class="navbar">
       <div class="nav-links">
         <router-link to="/">{{ $t('nav.kanban') }}</router-link>
@@ -7,6 +7,22 @@
         <router-link to="/agents">{{ $t('nav.agents') }}</router-link>
       </div>
       <div class="nav-actions">
+        <button @click="toggleTheme" class="theme-toggle" :title="isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'">
+          <svg v-if="isDark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
         <select v-model="currentLocale" @change="changeLocale" class="locale-select">
           <option value="en">English</option>
           <option value="zh">中文</option>
@@ -20,15 +36,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLocale, getLocale } from './locales'
+import { useThemeStore } from './stores/theme'
 
 const { locale } = useI18n()
+const themeStore = useThemeStore()
 const currentLocale = ref('en')
+
+const isDark = computed(() => themeStore.isDark)
+const themeClass = computed(() => themeStore.themeClass)
+
+const toggleTheme = () => {
+  themeStore.toggleTheme()
+}
 
 onMounted(() => {
   currentLocale.value = getLocale()
+  themeStore.initTheme()
 })
 
 const changeLocale = () => {
@@ -37,6 +63,61 @@ const changeLocale = () => {
 </script>
 
 <style>
+/* CSS Variables for themes - Modern DesignSystem */
+.theme-dark {
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #171717;
+  --bg-tertiary: #242424;
+  --text-primary: #f0f0f0;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --border-color: #262626;
+  --border-hover: #363636;
+  --accent-color: #6366f1;
+  --accent-hover: #5558e8;
+  --accent-light: rgba(99, 102, 241, 0.1);
+  --scrollbar-thumb: #363636;
+  --scrollbar-thumb-hover: #4b5563;
+  --navbar-bg: #171s17;
+  --message-bg: #171717;
+  --modal-bg: #171717;
+  --modal-border: #363636;
+  --input-bg: #242424;
+  --input-border: #363636;
+  --input-text: #f0f0f0;
+  --panel-bg: #171717;
+  --success-color: #22c55e;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+}
+
+.theme-light {
+  --bg-primary: #f5f5f5;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f4f4f5;
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --text-muted: #a1a1aa;
+  --border-color: #e4e4e7;
+  --border-hover: #d4d4d8;
+  --accent-color: #6366f1;
+  --accent-hover: #5558e8;
+  --accent-light: rgba(99, 102, 241, 0.08);
+  --scrollbar-thumb: #d4d4d8;
+  --scrollbar-thumb-hover: #a1a1aa;
+  --navbar-bg: #ffffff;
+  --message-bg: #f4f4f5;
+  --modal-bg: #ffffff;
+  --modal-border: #e4e4e7;
+  --input-bg: #ffffff;
+  --input-border: #d4d4d8;
+  --input-text: #18181b;
+  --panel-bg: #ffffff;
+  --success-color: #22c55e;
+  --warning-color: #f59e0b;
+  --error-color: #ef4444;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -46,58 +127,123 @@ const changeLocale = () => {
 #app {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Microsoft YaHei', sans-serif;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 2rem;
-  background-color: #2c3e50;
+  padding: 12px 24px;
+  background: var(--navbar-bg);
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.3s, border-color 0.3s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .nav-links {
   display: flex;
-  gap: 0.5rem;
+  gap: 6px;
 }
 
 .navbar a {
-  color: #ecf0f1;
+  color: var(--text-secondary);
   text-decoration: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  padding: 10px 18px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .navbar a:hover {
-  background-color: #34495e;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .navbar a.router-link-active {
-  background-color: #3498db;
+  background: linear-gradient(135deg, #6366f1 0%, #5c5cff 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(92, 92, 255, 0.25);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-toggle {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent-color);
+  transform: rotate(15deg);
 }
 
 .locale-select {
-  padding: 0.4rem 0.75rem;
-  border: 1px solid #4a5568;
-  border-radius: 4px;
-  background-color: #4a5568;
-  color: #fff;
-  font-size: 0.875rem;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
 }
 
 .locale-select:hover {
-  background-color: #5a6578;
+  background-color: var(--bg-tertiary);
+  border-color: var(--accent-color);
 }
 
 .locale-select:focus {
   outline: none;
-  border-color: #3498db;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(92, 92, 255, 0.1);
 }
 
 .main-content {
-  padding: 1rem;
+  height: calc(100vh - 53px);
+  overflow: hidden;
+}
+
+/* Global scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
 }
 </style>

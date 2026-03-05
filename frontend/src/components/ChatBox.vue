@@ -39,6 +39,13 @@
       </div>
     </div>
 
+    <!-- Task summary -->
+    <div class="task-summary" v-if="task && task.description">
+      <div class="task-description">
+        <span class="description-label">简介：</span>{{ task.description }}
+      </div>
+    </div>
+
     <!-- Messages Area -->
     <div ref="messagesContainer" class="messages-area">
       <div v-if="!session" class="chat-empty">
@@ -151,6 +158,53 @@ const statusClass = computed(() => {
 const statusText = computed(() => {
   if (!session.value) return 'No Session'
   return session.value.status || 'Unknown'
+})
+
+// Task status and priority display
+const taskStatusText = computed(() => {
+  if (!props.task?.status) return ''
+  const statusMap = {
+    'TODO': 'To Do',
+    'IN_PROGRESS': 'In Progress',
+    'IN_REVIEW': 'In Review',
+    'DONE': 'Done',
+    'BLOCKED': 'Blocked'
+  }
+  return statusMap[props.task.status] || props.task.status
+})
+
+const statusTagType = computed(() => {
+  if (!props.task?.status) return 'info'
+  const typeMap = {
+    'TODO': 'info',
+    'IN_PROGRESS': 'warning',
+    'IN_REVIEW': '',
+    'DONE': 'success',
+    'BLOCKED': 'danger'
+  }
+  return typeMap[props.task.status] || 'info'
+})
+
+const taskPriorityText = computed(() => {
+  if (!props.task?.priority) return ''
+  const priorityMap = {
+    'LOW': 'Low',
+    'MEDIUM': 'Medium',
+    'HIGH': 'High',
+    'CRITICAL': 'Critical'
+  }
+  return priorityMap[props.task.priority] || props.task.priority
+})
+
+const priorityTagType = computed(() => {
+  if (!props.task?.priority) return 'info'
+  const typeMap = {
+    'LOW': 'info',
+    'MEDIUM': '',
+    'HIGH': 'warning',
+    'CRITICAL': 'danger'
+  }
+  return typeMap[props.task.priority] || 'info'
 })
 
 // Methods
@@ -522,10 +576,10 @@ defineExpose({
   display: flex;
   flex-direction: column;
   height: 500px;
-  background: #ffffff;
+  background-color: var(--bg-secondary);
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-color);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -534,8 +588,8 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .header-left {
@@ -547,7 +601,7 @@ defineExpose({
 .header-title {
   font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .header-status {
@@ -555,7 +609,7 @@ defineExpose({
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-secondary);
 }
 
 .status-dot {
@@ -565,13 +619,13 @@ defineExpose({
   background: #9ca3af;
 }
 
-.status-running .status-dot {
-  background: #22c55e;
+.status-running .status-dot {  /* 柔和绿色 */
+  background: #86efac;
   animation: pulse 1.5s infinite;
 }
 
 .status-idle .status-dot {
-  background: #eab308;
+  background: #fcd34d;
 }
 
 .status-stopped .status-dot {
@@ -579,7 +633,7 @@ defineExpose({
 }
 
 .status-error .status-dot {
-  background: #ef4444;
+  background: #f87171;
 }
 
 @keyframes pulse {
@@ -597,11 +651,59 @@ defineExpose({
   padding: 6px 12px;
 }
 
+/* Task summary styles */
+.task-summary {
+  padding: 10px 16px;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.task-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.task-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  margin-right: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-meta {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.task-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.description-label {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
 .messages-area {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  background: #ffffff;
+  background-color: var(--bg-secondary);
 }
 
 .chat-empty {
@@ -610,24 +712,24 @@ defineExpose({
   justify-content: center;
   align-items: center;
   height: 100%;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .empty-icon {
-  color: #d1d5db;
+  color: var(--text-muted);
   margin-bottom: 16px;
 }
 
 .empty-text {
   font-size: 16px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-secondary);
   margin-bottom: 4px;
 }
 
 .empty-hint {
   font-size: 13px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .messages-list {
@@ -667,7 +769,7 @@ defineExpose({
 .message-role {
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .message-user .message-role {
@@ -676,7 +778,7 @@ defineExpose({
 
 .message-time {
   font-size: 11px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 .message-content {
@@ -696,14 +798,14 @@ defineExpose({
 
 .message-assistant .message-content,
 .message-system .message-content {
-  background: #f3f4f6;
-  color: #1f2937;
+  background-color: var(--message-bg);
+  color: var(--text-primary);
   border-radius: 12px 12px 12px 4px;
 }
 
 .chat-input-container {
   position: relative;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-color);
 }
 
 .input-disabled-overlay {
@@ -712,11 +814,11 @@ defineExpose({
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
-  color: #6b7280;
+  color: var(--text-secondary);
   font-size: 13px;
   z-index: 10;
   pointer-events: none;
@@ -726,7 +828,7 @@ defineExpose({
   display: flex;
   gap: 8px;
   padding: 12px 16px;
-  background: #f9fafb;
+  background-color: var(--bg-tertiary);
 }
 
 .chat-input-wrapper.disabled {
@@ -741,7 +843,7 @@ defineExpose({
 .chat-input-wrapper .el-textarea :deep(textarea) {
   resize: none;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-color);
 }
 
 .chat-input-wrapper .el-textarea :deep(textarea:focus) {
@@ -765,11 +867,11 @@ defineExpose({
 }
 
 .messages-area::-webkit-scrollbar-thumb {
-  background: #e5e7eb;
+  background-color: var(--border-color);
   border-radius: 4px;
 }
 
 .messages-area::-webkit-scrollbar-thumb:hover {
-  background: #d1d5db;
+  background-color: var(--scrollbar-thumb);
 }
 </style>

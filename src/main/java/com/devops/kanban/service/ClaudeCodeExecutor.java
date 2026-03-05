@@ -2,6 +2,9 @@ package com.devops.kanban.service;
 
 import com.devops.kanban.entity.Session;
 import com.devops.kanban.repository.SessionRepository;
+import com.devops.kanban.util.PlatformUtils;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pty4j.PtyProcess;
 import com.pty4j.PtyProcessBuilder;
 import lombok.extern.slf4j.Slf4j;
@@ -19,8 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Executes Claude Code CLI using PTY.
@@ -40,6 +41,7 @@ public class ClaudeCodeExecutor {
     private final ConcurrentHashMap<Long, StringBuilder> sessionOutputs = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, OutputStream> sessionStdins = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Long> sessionStartTimes = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Boolean> sessionIdExtracted = new ConcurrentHashMap<>();
 
     public ClaudeCodeExecutor(SimpMessagingTemplate messagingTemplate, SessionRepository sessionRepository) {
         this.messagingTemplate = messagingTemplate;
@@ -63,18 +65,9 @@ public class ClaudeCodeExecutor {
             sessionId, claudeCliPath, worktreePath, isResume);
 
         try {
-            // 1. Build command with env -u for nested execution
-            // Use env -u to unset CLAUDEDE related variables at the command level
+            // 1. Build command directly (no env wrapper needed - we control env via ProcessBuilder)
+            // Variables not included in the env map will be automatically unset
             List<String> command = new ArrayList<>();
-            command.add("env");
-            command.add("-u");
-            command.add("CLAUDEDE");
-            command.add("-u");
-            command.add("CLAUDE_CODE_ENTRYPOINT");
-            command.add("-u");
-            command.add("CLAUDE_CODE_SESSION_ID");
-            command.add("-u");
-            command.add("CLAUDE_CODE_API_KEY");
 
             if (claudeCliPath.endsWith(".js")) {
                 command.add("node");
@@ -83,10 +76,12 @@ public class ClaudeCodeExecutor {
                 command.add(claudeCliPath);
             }
 
-            // Use print mode (-p) for clean JSON output that includes session_id
+            // Use print mode (-p) for clean output
             // Process will exit after completion, use --resume for multi-turn conversation
             command.add("-p");
             command.add("--dangerously-skip-permissions");
+            command.add("--output-format");
+            command.add("json");
 
             // Add --resume with session ID if this is a continuation
             if (claudeSessionId != null && !claudeSessionId.isEmpty()) {
@@ -102,13 +97,38 @@ public class ClaudeCodeExecutor {
                 log.info("[Session-{}] Passing initial prompt as command argument ({} chars)", sessionId, initialPrompt.length());
             }
 
-            // 2. Build minimal environment - only set necessary variables
+            // 2. Build environment - include necessary system variables
             // Do NOT copy all system env vars to avoid CLAUDEDE leakage
+            // Variables not added here will be unset in the process environment
             Map<String, String> env = new HashMap<>();
             env.put("PATH", System.getenv("PATH"));
-            env.put("HOME", System.getenv("HOME"));
-            env.put("USER", System.getenv("USER"));
-            env.put("LANG", System.getenv("LANG"));
+
+            // Platform-specific home and user variables
+            if (PlatformUtils.isWindows()) {
+                // Windows requires these system variables for proper operation
+                putIfNotNull(env, "SYSTEMROOT", System.getenv("SYSTEMROOT"));
+                putIfNotNull(env, "COMSPEC", System.getenv("COMSPEC"));
+                putIfNotNull(env, "WINDIR", System.getenv("WINDIR"));
+                putIfNotNull(env, "TEMP", System.getenv("TEMP"));
+                putIfNotNull(env, "TMP", System.getenv("TMP"));
+                putIfNotNull(env, "USERPROFILE", System.getenv("USERPROFILE"));
+                putIfNotNull(env, "USERNAME", System.getenv("USERNAME"));
+                putIfNotNull(env, "APPDATA", System.getenv("APPDATA"));
+                putIfNotNull(env, "LOCALAPPDATA", System.getenv("LOCALAPPDATA"));
+                putIfNotNull(env, "ProgramFiles", System.getenv("ProgramFiles"));
+                putIfNotNull(env, "ProgramFiles(x86)", System.getenv("ProgramFiles(x86)"));
+                // Also set HOME for compatibility with some tools (like Node.js)
+                String userProfile = System.getenv("USERPROFILE");
+                if (userProfile != null) {
+                    env.put("HOME", userProfile);
+                }
+            } else {
+                putIfNotNull(env, "HOME", System.getenv("HOME"));
+                putIfNotNull(env, "USER", System.getenv("USER"));
+                putIfNotNull(env, "TMPDIR", System.getenv("TMPDIR"));
+            }
+
+            putIfNotNull(env, "LANG", System.getenv("LANG"));
             env.put("TERM", "xterm-256color");
 
             // Add ANTHROPIC_API_KEY if available
@@ -187,22 +207,25 @@ public class ClaudeCodeExecutor {
                         chunk.substring(0, Math.min(200, chunk.length())).replace("\n", "\\n").replace("\r", "\\r"));
                 }
 
+                // Try to extract Claude CLI session ID from the raw chunk (only once)
+                // Claude CLI outputs session_id somewhere in the output
+                if (!sessionIdExtracted.getOrDefault(sessionId, false)) {
+                    String claudeSessionId = extractClaudeSessionId(chunk);
+                    if (claudeSessionId != null) {
+                        log.info("[Session-{}] Detected Claude CLI session ID: {}", sessionId, claudeSessionId);
+                        sessionIdExtracted.put(sessionId, true);
+                        // Save to session entity
+                        final String finalClaudeSessionId = claudeSessionId;
+                        sessionRepository.findById(sessionId).ifPresent(session -> {
+                            session.setClaudeSessionId(finalClaudeSessionId);
+                            sessionRepository.save(session);
+                            log.info("[Session-{}] Saved Claude session ID to session entity", sessionId);
+                        });
+                    }
+                }
+
                 // Strip ANSI codes but keep printable content
                 String cleanContent = stripAnsiCodes(chunk);
-
-                // Try to extract Claude CLI session ID from the raw chunk (before ANSI stripping)
-                // This is sent in the init message when Claude starts
-                String claudeSessionId = extractClaudeSessionId(chunk);
-                if (claudeSessionId != null) {
-                    log.info("[Session-{}] Detected Claude CLI session ID: {}", sessionId, claudeSessionId);
-                    // Save to session entity
-                    final String finalSessionId = claudeSessionId;
-                    sessionRepository.findById(sessionId).ifPresent(session -> {
-                        session.setClaudeSessionId(finalSessionId);
-                        sessionRepository.save(session);
-                        log.info("[Session-{}] Saved Claude session ID to session entity", sessionId);
-                    });
-                }
 
                 // Always broadcast, even if empty after stripping (for debugging)
                 emptyReadCount = 0;
@@ -399,16 +422,16 @@ public class ClaudeCodeExecutor {
                 .replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]", "");
     }
 
-    // Pattern to extract Claude CLI session ID from init message
-    // Format: {"type":"system","subtype":"init","session_id":"xxx",...}
+    // Pattern to extract Claude CLI session ID from JSON output
+    // Claude CLI outputs JSON with session_id field when using --json flag
     private static final Pattern CLAUDE_SESSION_ID_PATTERN = Pattern.compile(
-        "\\{[^{}]*\"type\"\\s*:\\s*\"system\"[^{}]*\"subtype\"\\s*:\\s*\"init\"[^{}]*\"session_id\"\\s*:\\s*\"([a-zA-Z0-9-]+)\"[^{}]*\\}"
+        "\"session_id\"\\s*:\\s*\"([a-zA-Z0-9_-]+)\""
     );
 
     /**
      * Extract Claude CLI session ID from output chunk.
-     * Claude CLI returns a JSON init message when it starts:
-     * {"type":"system","subtype":"init","session_id":"xxx",...}
+     * When using --json flag, Claude CLI outputs JSON with session_id field.
+     * Format: {"type":"...","session_id":"xxx",...}
      *
      * @param chunk the output chunk to parse
      * @return the session ID if found, null otherwise
@@ -417,9 +440,13 @@ public class ClaudeCodeExecutor {
         if (chunk == null || chunk.isEmpty()) {
             return null;
         }
+
+        // Extract session_id from any JSON object that contains it
         Matcher matcher = CLAUDE_SESSION_ID_PATTERN.matcher(chunk);
         if (matcher.find()) {
-            return matcher.group(1);
+            String sessionId = matcher.group(1);
+            log.info("[ClaudeCodeExecutor] Extracted session_id from JSON: {}", sessionId);
+            return sessionId;
         }
         return null;
     }
@@ -428,6 +455,16 @@ public class ClaudeCodeExecutor {
         stop(sessionId);
         sessionOutputs.remove(sessionId);
         lastPersistTime.remove(sessionId);
+        sessionIdExtracted.remove(sessionId);
         log.debug("[Session-{}] Resources cleaned up", sessionId);
+    }
+
+    /**
+     * Put a value into the map only if the value is not null.
+     */
+    private void putIfNotNull(Map<String, String> map, String key, String value) {
+        if (value != null && !value.isEmpty()) {
+            map.put(key, value);
+        }
     }
 }

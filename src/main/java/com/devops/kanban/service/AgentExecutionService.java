@@ -6,6 +6,7 @@ import com.devops.kanban.repository.AgentRepository;
 import com.devops.kanban.repository.ExecutionRepository;
 import com.devops.kanban.repository.TaskRepository;
 import com.devops.kanban.spi.AgentAdapter;
+import com.devops.kanban.util.PlatformUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -128,8 +131,11 @@ public class AgentExecutionService {
             String command = adapter.buildCommand(agent, task, worktree);
             log.info("Executing command: {}", command);
 
-            // Execute command
-            ProcessBuilder pb = new ProcessBuilder("bash", "-c", command);
+            // Execute command with platform-appropriate shell
+            List<String> shellCommand = new ArrayList<>();
+            shellCommand.addAll(Arrays.asList(PlatformUtils.getShellPrefix()));
+            shellCommand.add(command);
+            ProcessBuilder pb = new ProcessBuilder(shellCommand);
             pb.directory(worktree.toFile());
             pb.redirectErrorStream(true);
 

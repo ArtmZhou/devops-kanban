@@ -1,206 +1,312 @@
 <template>
-  <div class="kanban-view">
-    <!-- Header with project selector and add task button -->
-    <div class="kanban-header">
-      <div class="project-selector">
-        <label for="project-select">{{ $t('project.projectName') }}:</label>
-        <select
-          id="project-select"
-          v-model="selectedProjectId"
-          @change="onProjectChange"
-          :disabled="loading.projects"
-        >
-          <option value="" disabled>{{ $t('project.selectProject') }}</option>
-          <option
-            v-for="project in projects"
-            :key="project.id"
-            :value="project.id"
+  <div class="app-container">
+    <!-- Left Sidebar - Task List -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="project-selector">
+          <select
+            v-model="selectedProjectId"
+            @change="onProjectChange"
+            :disabled="loading.projects"
           >
-            {{ project.name }}
-          </option>
-        </select>
-      </div>
-      <button
-        class="btn btn-primary add-task-btn"
-        @click="openTaskModal()"
-        :disabled="!selectedProjectId"
-      >
-        {{ $t('task.addTask') }}
-      </button>
-    </div>
-
-    <!-- Loading state for projects -->
-    <div v-if="loading.projects" class="loading-state">
-      <div class="spinner"></div>
-      <p>{{ $t('common.loading') }}</p>
-    </div>
-
-    <!-- Loading state for tasks -->
-    <div v-else-if="selectedProjectId && loading.tasks" class="loading-state">
-      <div class="spinner"></div>
-      <p>{{ $t('common.loading') }}</p>
-    </div>
-
-    <!-- Empty state when no project selected -->
-    <div v-else-if="!selectedProjectId" class="empty-state">
-      <p>{{ $t('project.noProject') }}</p>
-    </div>
-
-    <!-- Kanban board -->
-    <div v-else class="kanban-board">
-      <div
-        v-for="column in columns"
-        :key="column.status"
-        class="kanban-column"
-        :class="column.status.toLowerCase()"
-        @dragover.prevent
-        @drop="onDrop($event, column.status)"
-      >
-        <div class="column-header">
-          <span class="column-title">{{ $t(`status.${column.status}`) }}</span>
-          <span class="task-count">{{ getTasksByStatus(column.status).length }}</span>
+            <option value="" disabled>{{ $t('project.selectProject') }}</option>
+            <option
+              v-for="project in projects"
+              :key="project.id"
+              :value="project.id"
+            >
+              {{ project.name }}
+            </option>
+          </select>
         </div>
-        <div class="column-content">
-          <div
-            v-for="task in getTasksByStatus(column.status)"
-            :key="task.id"
-            class="task-card"
-            draggable="true"
-            @dragstart="onDragStart($event, task)"
-            @click="onTaskClick(task)"
-          >
-            <div class="task-title">{{ task.title }}</div>
-            <div class="task-meta">
-              <span
-                class="priority-badge"
-                :class="getPriorityClass(task.priority)"
-              >
-                {{ $t(`priority.${task.priority}`) }}
+        <button
+          class="btn btn-primary btn-icon"
+          @click="openTaskModal()"
+          :disabled="!selectedProjectId"
+          title="New Task"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Task Filters -->
+      <div class="task-filters">
+        <button
+          v-for="filter in filters"
+          :key="filter.value"
+          class="filter-btn"
+          :class="{ active: activeFilter === filter.value }"
+          @click="activeFilter = filter.value"
+        >
+          {{ filter.label }}
+          <span class="filter-count">{{ getTasksByFilter(filter.value).length }}</span>
+        </button>
+      </div>
+
+      <!-- Task List -->
+      <div class="task-list">
+        <div
+          v-for="task in filteredTasks"
+          :key="task.id"
+          class="task-item"
+          :class="{
+            'task-selected': selectedTask?.id === task.id,
+            'task-running': isTaskRunning(task.id)
+          }"
+          @click="selectTask(task)"
+          @dblclick="openTaskModal(task)"
+        >
+          <div class="task-item-content">
+            <div class="task-item-main">
+              <span class="task-item-status" :class="getStatusClass(task.status)"></span>
+              <span class="task-item-title">{{ task.title }}</span>
+              <span class="task-item-priority" :class="getPriorityClass(task.priority)">
+                {{ getPriorityLabel(task.priority) }}
               </span>
-              <div class="task-actions">
-                <button
-                  class="edit-btn"
-                  @click.stop="openTaskModal(task)"
-                  :title="$t('task.editTask')"
-                >
-                  ✎
-                </button>
-                <button
-                  class="run-btn"
-                  :class="{ running: isTaskRunning(task.id) }"
-                  @click.stop="onTaskRun(task)"
-                  :title="isTaskRunning(task.id) ? 'Running...' : 'Run with AI'"
-                >
-                  <span v-if="isTaskRunning(task.id)" class="spinner-icon"></span>
-                  <span v-else>&#9654;</span>
-                </button>
-                <span v-if="task.assignee" class="assignee">
-                  {{ getAssigneeInitials(task.assignee) }}
-                </span>
+            </div>
+            <div class="task-item-meta">
+              <button
+                class="edit-btn"
+                @click.stop="openTaskModal(task)"
+                title="Edit Task"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button
+                class="delete-btn"
+                @click.stop="deleteTask(task.id)"
+                title="Delete Task"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div v-if="filteredTasks.length === 0" class="empty-tasks">
+          <p>{{ $t('task.noTasks') }}</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="chat-main">
+      <div v-if="!selectedTask" class="chat-welcome">
+        <div class="welcome-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </div>
+        <h2>Welcome to DevOps Kanban</h2>
+        <p>Select a task from the sidebar to start working with AI</p>
+      </div>
+
+      <div v-else ref="chatContainer" class="chat-container">
+        <!-- Chat Header -->
+        <div class="chat-header">
+          <div class="chat-header-info">
+            <h3 class="chat-task-title">{{ selectedTask.title }}</h3>
+            <div class="chat-session-status" :class="getSessionStatusClass()">
+              <span class="status-dot"></span>
+              <span>{{ getSessionStatusText() }}</span>
+            </div>
+          </div>
+          <div class="chat-header-actions">
+            <button
+              v-if="!activeSession || activeSession.status === 'STOPPED'"
+              class="btn btn-primary btn-sm"
+              @click="startSession"
+              :loading="isStarting"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5,3 19,12 5,21"></polygon>
+              </svg>
+              Start
+            </button>
+            <button
+              v-if="activeSession && (activeSession.status === 'RUNNING' || activeSession.status === 'IDLE')"
+              class="btn btn-danger btn-sm"
+              @click="stopSession"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="6" y="6" width="12" height="12"></rect>
+              </svg>
+              Stop
+            </button>
+            <button
+              class="btn btn-ghost btn-sm"
+              @click="clearChat"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3,6 5,6 21,6"></polyline>
+                <path d="M19,6v14a2,2 0,0 1-2,2H7a2,2 0,0 1-2-2V6m3,0V4a2,2 0,0 1,2-2h4a2,2 0,0 1,2,2v2"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Task Summary -->
+        <div class="task-summary" v-if="selectedTask && selectedTask.description">
+          <div class="task-summary-description">
+            <span class="description-label">简介：</span>{{ selectedTask.description }}
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div ref="messagesContainer" class="messages-container">
+          <div v-if="messages.length === 0" class="messages-empty">
+            <p>Start the session to begin the conversation</p>
+          </div>
+          <div v-else class="messages-list">
+            <div
+              v-for="msg in messages"
+              :key="msg.id"
+              class="message"
+              :class="`message-${msg.role}`"
+            >
+              <div class="message-avatar">
+                <span v-if="msg.role === 'user'">👤</span>
+                <span v-else>🤖</span>
+              </div>
+              <div class="message-content">
+                <div class="message-header">
+                  <span class="message-role">{{ getMessageRole(msg.role) }}</span>
+                  <span class="message-time">{{ formatMessageTime(msg.timestamp) }}</span>
+                </div>
+                <div class="message-body">{{ formatMessageContent(msg.content) }}</div>
               </div>
             </div>
           </div>
-          <div v-if="getTasksByStatus(column.status).length === 0" class="empty-column">
-            <p>{{ $t('task.noTasks') }}</p>
+        </div>
+
+        <!-- Input Area -->
+        <div class="chat-input-container">
+          <div class="chat-input-wrapper">
+            <textarea
+              v-model="inputText"
+              class="chat-input"
+              placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+              :disabled="!canSendMessages"
+              @keydown.enter.exact.prevent="sendMessage"
+              rows="1"
+              ref="chatInput"
+            ></textarea>
+            <button
+              class="send-btn"
+              :disabled="!inputText.trim() || !canSendMessages"
+              @click="sendMessage"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22,2 15,22 11,13 2,9 22,2"></polygon>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </main>
 
-    <!-- Task detail modal -->
+    <!-- Right Panel - Code Changes -->
+    <aside class="changes-panel" :class="{ 'panel-collapsed': isPanelCollapsed }">
+      <div class="panel-header">
+        <h4>Code Changes</h4>
+        <button class="collapse-btn" @click="isPanelCollapsed = !isPanelCollapsed">
+          <svg v-if="!isPanelCollapsed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15,18 9,12 15,6"></polyline>
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9,18 15,12 9,6"></polyline>
+          </svg>
+        </button>
+      </div>
+      <div class="panel-content" v-show="!isPanelCollapsed">
+        <div v-if="!activeSession" class="panel-empty">
+          <p>No active session</p>
+        </div>
+        <div v-else-if="fileChanges.length === 0" class="panel-empty">
+          <p>No file changes yet</p>
+        </div>
+        <div v-else class="file-changes">
+          <div
+            v-for="file in fileChanges"
+            :key="file.path"
+            class="file-change"
+            @click="toggleFileDiff(file.path)"
+          >
+            <div class="file-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14,2 14,8 20,8"></polyline>
+              </svg>
+              <span class="file-path">{{ file.path }}</span>
+              <span class="file-status" :class="file.status">{{ file.status }}</span>
+            </div>
+            <div v-if="expandedDiffs.has(file.path)" class="file-diff">
+              <pre class="diff-content">{{ file.diff }}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Task Modal -->
     <div v-if="showTaskModal" class="modal-overlay" @click.self="closeTaskModal">
       <div class="modal">
         <div class="modal-header">
-          <h2>{{ isEditing ? $t('task.editTask') : $t('task.createTask') }}</h2>
+          <h2>{{ isEditing ? 'Edit Task' : 'New Task' }}</h2>
           <button class="modal-close" @click="closeTaskModal">&times;</button>
         </div>
         <div class="modal-body">
-          <form @submit.prevent="saveTask">
+          <div class="form-group">
+            <label>Title</label>
+            <input
+              v-model="taskForm.title"
+              type="text"
+              placeholder="Task title"
+            />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea
+              v-model="taskForm.description"
+              rows="4"
+              placeholder="Task description"
+            ></textarea>
+          </div>
+          <div class="form-row">
             <div class="form-group">
-              <label for="task-title">{{ $t('task.taskTitle') }} *</label>
-              <input
-                id="task-title"
-                v-model="taskForm.title"
-                type="text"
-                required
-                :placeholder="$t('task.taskTitle')"
-              />
-            </div>
-            <div class="form-group">
-              <label for="task-description">{{ $t('task.taskDescription') }}</label>
-              <textarea
-                id="task-description"
-                v-model="taskForm.description"
-                rows="4"
-                :placeholder="$t('task.taskDescription')"
-              ></textarea>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="task-status">{{ $t('task.status') }}</label>
-                <select id="task-status" v-model="taskForm.status">
-                  <option
-                    v-for="column in columns"
-                    :key="column.status"
-                    :value="column.status"
-                  >
-                    {{ $t(`status.${column.status}`) }}
-                  </option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label for="task-priority">{{ $t('task.priority') }}</label>
-                <select id="task-priority" v-model="taskForm.priority">
-                  <option value="LOW">{{ $t('priority.LOW') }}</option>
-                  <option value="MEDIUM">{{ $t('priority.MEDIUM') }}</option>
-                  <option value="HIGH">{{ $t('priority.HIGH') }}</option>
-                  <option value="CRITICAL">{{ $t('priority.CRITICAL') }}</option>
-                </select>
-              </div>
+              <label>Status</label>
+              <select v-model="taskForm.status">
+                <option value="TODO">To Do</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="IN_REVIEW">In Review</option>
+                <option value="DONE">Done</option>
+                <option value="BLOCKED">Blocked</option>
+              </select>
             </div>
             <div class="form-group">
-              <label for="task-assignee">{{ $t('task.assignee') }}</label>
-              <input
-                id="task-assignee"
-                v-model="taskForm.assignee"
-                type="text"
-                :placeholder="$t('task.assignee')"
-              />
+              <label>Priority</label>
+              <select v-model="taskForm.priority">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+                <option value="CRITICAL">Critical</option>
+              </select>
             </div>
-          </form>
+          </div>
         </div>
         <div class="modal-footer">
-          <button
-            v-if="isEditing"
-            class="btn btn-danger"
-            @click="deleteTask"
-            :disabled="loading.saving"
-          >
-            {{ $t('common.delete') }}
-          </button>
           <div class="modal-actions">
-            <button
-              v-if="isEditing"
-              class="btn btn-success"
-              @click="openAgentSelectorFromModal"
-              :disabled="loading.saving"
-            >
-              Run with AI
-            </button>
-            <button
-              class="btn btn-secondary"
-              @click="closeTaskModal"
-              :disabled="loading.saving"
-            >
-              {{ $t('common.cancel') }}
-            </button>
-            <button
-              class="btn btn-primary"
-              @click="saveTask"
-              :disabled="loading.saving"
-            >
-              {{ loading.saving ? $t('common.loading') : $t('common.save') }}
-            </button>
+            <button class="btn btn-secondary" @click="closeTaskModal">Cancel</button>
+            <button class="btn btn-primary" @click="saveTask">Save</button>
           </div>
         </div>
       </div>
@@ -208,65 +314,63 @@
 
     <!-- Agent Selector Dialog -->
     <AgentSelector
+      v-if="showAgentSelector"
       v-model="showAgentSelector"
       :project-id="selectedProjectId"
-      :task="selectedTask"
-      @select="onAgentSelected"
-    />
-
-    <!-- Fixed Terminal Panel -->
-    <TerminalPanel
-      ref="terminalPanelRef"
-      :sessions="activeSessions"
-      :current-session-id="currentSessionId"
-      @close="onSessionClose"
-      @switch="onSessionSwitch"
-      @stop="onSessionStop"
+      :task="pendingTask"
+      @select="handleAgentSelect"
     />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import projectApi from '../api/project.js'
 import taskApi from '../api/task.js'
 import sessionApi from '../api/session.js'
+import agentApi from '../api/agent.js'
+import wsService from '../services/websocket'
 import AgentSelector from '../components/AgentSelector.vue'
-import TerminalPanel from '../components/TerminalPanel.vue'
 
-const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-// Column definitions
-const columns = [
-  { status: 'TODO' },
-  { status: 'IN_PROGRESS' },
-  { status: 'IN_REVIEW' },
-  { status: 'DONE' },
-  { status: 'BLOCKED' }
+// Filters
+const filters = [
+  { value: 'all', label: 'All' },
+  { value: 'TODO', label: 'To Do' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'DONE', label: 'Done' }
 ]
 
 // State
 const projects = ref([])
 const tasks = ref([])
 const selectedProjectId = ref('')
+const selectedTask = ref(null)
+const activeFilter = ref('all')
 const showTaskModal = ref(false)
 const isEditing = ref(false)
 const editingTaskId = ref(null)
-const draggedTask = ref(null)
-
-// Agent selector state
-const showAgentSelector = ref(false)
-const selectedTask = ref(null)
-
-// Session state
-const activeSessions = ref([])
-const currentSessionId = ref(null)
+const activeSession = ref(null)
+const messages = ref([])
+const inputText = ref('')
+const isStarting = ref(false)
+const isStopping = ref(false)
+const isConnected = ref(false)
+const messagesContainer = ref(null)
+const chatInput = ref(null)
+const chatContainer = ref(null)
+const isPanelCollapsed = ref(false)
+const expandedDiffs = ref(new Set())
+const fileChanges = ref([])
 const runningTasks = ref(new Set())
-const terminalPanelRef = ref(null)
+
+// Agent selector
+const showAgentSelector = ref(false)
+const pendingTask = ref(null)
 
 const loading = reactive({
   projects: false,
@@ -282,9 +386,64 @@ const taskForm = reactive({
   assignee: ''
 })
 
+// Computed
+const filteredTasks = computed(() => {
+  if (activeFilter.value === 'all') return tasks.value
+  return tasks.value.filter(t => t.status === activeFilter.value)
+})
+
+const canSendMessages = computed(() => {
+  return activeSession.value &&
+    (activeSession.value.status === 'RUNNING' || activeSession.value.status === 'IDLE') &&
+    isConnected.value
+})
+
 // Methods
-const getTasksByStatus = (status) => {
-  return tasks.value.filter(task => task.status === status)
+const getTasksByFilter = (filter) => {
+  if (filter === 'all') return tasks.value
+  return tasks.value.filter(t => t.status === filter)
+}
+
+const getStatusClass = (status) => {
+  const classes = {
+    TODO: 'status-todo',
+    IN_PROGRESS: 'status-progress',
+    IN_REVIEW: 'status-review',
+    DONE: 'status-done',
+    BLOCKED: 'status-blocked'
+  }
+  return classes[status] || 'status-todo'
+}
+
+const getStatusLabel = (status) => {
+  const labels = {
+    TODO: 'To Do',
+    IN_PROGRESS: 'In Progress',
+    IN_REVIEW: 'In Review',
+    DONE: 'Done',
+    BLOCKED: 'Blocked'
+  }
+  return labels[status] || status
+}
+
+const getPriorityClass = (priority) => {
+  const classes = {
+    LOW: 'priority-low',
+    MEDIUM: 'priority-medium',
+    HIGH: 'priority-high',
+    CRITICAL: 'priority-critical'
+  }
+  return classes[priority] || 'priority-medium'
+}
+
+const getPriorityLabel = (priority) => {
+  const labels = {
+    LOW: '低',
+    MEDIUM: '中',
+    HIGH: '高',
+    CRITICAL: '紧急'
+  }
+  return labels[priority] || 'M'
 }
 
 const fetchProjects = async () => {
@@ -294,7 +453,6 @@ const fetchProjects = async () => {
     projects.value = response.data || response || []
 
     if (projects.value.length > 0 && !selectedProjectId.value) {
-      // Try to get project ID from URL query param
       const projectIdFromUrl = route.query.projectId
       if (projectIdFromUrl && projects.value.find(p => String(p.id) === String(projectIdFromUrl))) {
         selectedProjectId.value = projectIdFromUrl
@@ -317,8 +475,7 @@ const fetchTasks = async () => {
   try {
     const response = await taskApi.getByProject(selectedProjectId.value)
     tasks.value = response.data || response || []
-    // Load active sessions after tasks are loaded
-    await loadActiveSessions()
+    await loadActiveSession()
   } catch (error) {
     console.error('Failed to fetch tasks:', error)
     tasks.value = []
@@ -328,9 +485,13 @@ const fetchTasks = async () => {
 }
 
 const onProjectChange = () => {
-  // Update URL query param to persist selection
   router.replace({ query: { projectId: selectedProjectId.value } })
   fetchTasks()
+}
+
+const selectTask = (task) => {
+  selectedTask.value = task
+  loadActiveSession()
 }
 
 const openTaskModal = (task = null) => {
@@ -393,719 +554,1305 @@ const saveTask = async () => {
   }
 }
 
-const deleteTask = async () => {
-  if (!editingTaskId.value) return
-  if (!confirm(t('task.deleteConfirm'))) return
+const deleteTask = async (taskId) => {
+  try {
+    await ElMessageBox.confirm(
+      'Are you sure you want to delete this task? This action cannot be undone.',
+      'Delete Task',
+      {
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+        type: 'warning'
+      }
+    )
+  } catch {
+    return // User cancelled
+  }
 
   loading.saving = true
   try {
-    await taskApi.delete(editingTaskId.value)
-    tasks.value = tasks.value.filter(t => t.id !== editingTaskId.value)
+    await taskApi.delete(taskId)
+    tasks.value = tasks.value.filter(t => t.id !== taskId)
+    if (selectedTask.value?.id === taskId) {
+      selectedTask.value = null
+    }
     closeTaskModal()
+    ElMessage.success('Task deleted successfully')
   } catch (error) {
     console.error('Failed to delete task:', error)
+    ElMessage.error('Failed to delete task')
   } finally {
     loading.saving = false
   }
 }
 
-// Agent selector and session management
-const openAgentSelectorFromModal = () => {
-  selectedTask.value = tasks.value.find(t => t.id === editingTaskId.value)
-  showAgentSelector.value = true
-}
-
-const onTaskRun = (task) => {
-  selectedTask.value = task
-  showAgentSelector.value = true
-}
-
-/**
- * Handle task card click event
- * - If has active session, switch to that session
- * - If no active session, do nothing
- */
-const onTaskClick = (task) => {
-  const activeSession = activeSessions.value.find(s => s.taskId === task.id)
-  if (activeSession) {
-    currentSessionId.value = activeSession.id
-  }
-}
-
-const onAgentSelected = async ({ agentId, task }) => {
-  showAgentSelector.value = false
-
-  // 关闭任务详情弹窗，返回看板页面
-  closeTaskModal()
-
-  if (!task) {
-    task = selectedTask.value
-  }
-
+const handleAgentSelect = async ({ agentId, agent, task }) => {
   if (!task) return
 
   try {
-    // Check if task already has an active session
-    const existingResponse = await sessionApi.getActiveByTask(task.id)
-    const existingSession = existingResponse.data !== undefined ? existingResponse.data : existingResponse
-    // Only use existing session if it has a valid id
-    if (existingSession && existingSession.id) {
-      // Add to active sessions if not already there
-      if (!activeSessions.value.find(s => s.id === existingSession.id)) {
-        activeSessions.value.push({
-          ...existingSession,
-          taskTitle: task.title
-        })
-      }
-      currentSessionId.value = existingSession.id
-      runningTasks.value.add(task.id)
-      return
-    }
-
-    // Create new session
     const response = await sessionApi.create(task.id, agentId)
-    const session = response.data || response
+    activeSession.value = response.data || response
 
-    // Add to active sessions
-    activeSessions.value.push({
-      ...session,
-      taskTitle: task.title
-    })
-    currentSessionId.value = session.id
-    runningTasks.value.add(task.id)
+    // Auto-start
+    await sessionApi.start(activeSession.value.id)
 
-    // Auto-start the session
-    await sessionApi.start(session.id)
+    // Send initial message
+    const initialMessage = `请帮我完成这个任务：${task.title}\n${task.description ? '\n任务描述：\n' + task.description : ''}\n请分析任务需求并开始实施。`
+    await sessionApi.sendInput(activeSession.value.id, initialMessage)
 
-    // Send initial task description message
-    const initialMessage = buildInitialTaskMessage(task)
-    await sessionApi.sendInput(session.id, initialMessage)
+    await connectWebSocket()
+    showAgentSelector.value = false
+    pendingTask.value = null
+  } catch (error) {
+    console.error('Failed to create session:', error)
+    alert('Failed to create session: ' + (error.message || 'Unknown error'))
+  }
+}
 
-    // Update session status
-    const sessionIndex = activeSessions.value.findIndex(s => s.id === session.id)
-    if (sessionIndex !== -1) {
-      activeSessions.value[sessionIndex].status = 'RUNNING'
+const startSession = async () => {
+  if (!selectedTask.value) return
+
+  isStarting.value = true
+  try {
+    // Check if session exists
+    if (!activeSession.value) {
+      // Get agents to auto-select first one
+      const agentsResponse = await agentApi.getAll(selectedProjectId.value)
+      const agents = agentsResponse.data || agentsResponse || []
+
+      if (agents.length === 0) {
+        alert('No agents available. Please configure an agent first.')
+        return
+      }
+
+      const sessionResponse = await sessionApi.create(selectedTask.value.id, agents[0].id)
+      activeSession.value = sessionResponse.data || sessionResponse
     }
 
-    // Add initial message to TerminalPanel's output display
-    if (terminalPanelRef.value) {
-      terminalPanelRef.value.addOutput(session.id, {
-        data: initialMessage,
-        stream: 'stdin',
-        timestamp: Date.now()
-      })
+    const startResponse = await sessionApi.start(activeSession.value.id)
+    activeSession.value = startResponse.data || startResponse
+
+    await connectWebSocket()
+  } catch (error) {
+    console.error('Failed to start session:', error)
+  } finally {
+    isStarting.value = false
+  }
+}
+
+const stopSession = async () => {
+  if (!activeSession.value) return
+
+  isStopping.value = true
+  try {
+    const response = await sessionApi.stop(activeSession.value.id)
+    activeSession.value = response.data || response
+  } catch (error) {
+    console.error('Failed to stop session:', error)
+  } finally {
+    isStopping.value = false
+  }
+}
+
+const clearChat = () => {
+  messages.value = []
+}
+
+const sendMessage = async () => {
+  if (!inputText.value.trim() || !activeSession.value) return
+
+  const input = inputText.value.trim()
+  inputText.value = ''
+
+  messages.value.push({
+    id: Date.now(),
+    role: 'user',
+    content: input,
+    timestamp: Date.now()
+  })
+
+  try {
+    if (isConnected.value) {
+      wsService.sendInput(activeSession.value.id, input)
+    } else {
+      await sessionApi.sendInput(activeSession.value.id, input)
     }
   } catch (error) {
-    console.error('Failed to create/start session:', error)
+    console.error('Failed to send message:', error)
   }
+
+  nextTick(() => scrollToBottom())
 }
 
-const onSessionClose = async (sessionId) => {
-  const session = activeSessions.value.find(s => s.id === sessionId)
+const loadActiveSession = async () => {
+  if (!selectedTask.value) return
 
-  // Stop session if running
-  if (session && (session.status === 'RUNNING' || session.status === 'IDLE')) {
-    try {
-      await sessionApi.stop(sessionId)
-    } catch (e) {
-      console.error('Failed to stop session:', e)
-    }
-  }
-
-  // Remove from active sessions
-  activeSessions.value = activeSessions.value.filter(s => s.id !== sessionId)
-
-  // Update running tasks
-  if (session) {
-    const task = tasks.value.find(t => t.title === session.taskTitle)
-    if (task) {
-      runningTasks.value.delete(task.id)
-    }
-  }
-
-  // Switch to another session if current was closed
-  if (currentSessionId.value === sessionId) {
-    currentSessionId.value = activeSessions.value[0]?.id || null
-  }
-}
-
-const onSessionSwitch = (sessionId) => {
-  currentSessionId.value = sessionId
-}
-
-const onSessionStop = async (sessionId) => {
   try {
-    await sessionApi.stop(sessionId)
-    const session = activeSessions.value.find(s => s.id === sessionId)
-    if (session) {
-      session.status = 'STOPPED'
-      const task = tasks.value.find(t => t.title === session.taskTitle)
-      if (task) {
-        runningTasks.value.delete(task.id)
-      }
+    const response = await sessionApi.getActiveByTask(selectedTask.value.id)
+    const session = response.data !== undefined ? response.data : response
+
+    if (session && session.id) {
+      activeSession.value = session
+      await connectWebSocket()
+      loadSessionOutput()
     }
   } catch (e) {
-    console.error('Failed to stop session:', e)
+    // No active session
   }
+}
+
+const loadSessionOutput = async () => {
+  if (!activeSession.value?.output) return
+
+  const lines = activeSession.value.output.split('\n').filter(l => l.trim())
+  messages.value = lines.map((line, i) => ({
+    id: `history-${i}`,
+    role: line.startsWith('$') || line.startsWith('>') ? 'user' : 'assistant',
+    content: line,
+    timestamp: Date.now() + i
+  }))
+
+  nextTick(() => scrollToBottom())
+}
+
+const connectWebSocket = async () => {
+  if (!activeSession.value || isConnected.value) return
+
+  try {
+    if (!wsService.isConnected()) {
+      await wsService.connect()
+    }
+
+    isConnected.value = true
+
+    wsService.subscribeToOutput(activeSession.value.id, (data) => {
+      if (data.type === 'chunk') {
+        const role = data.stream === 'stdin' ? 'user' : 'assistant'
+        messages.value.push({
+          id: Date.now(),
+          role,
+          content: data.content,
+          timestamp: data.timestamp
+        })
+        nextTick(() => scrollToBottom())
+      }
+    })
+
+    wsService.subscribeToStatus(activeSession.value.id, (data) => {
+      if (data.type === 'status' && activeSession.value) {
+        activeSession.value.status = data.status
+      }
+      if (data.type === 'exit') {
+        activeSession.value.status = data.status
+      }
+    })
+  } catch (error) {
+    console.error('Failed to connect WebSocket:', error)
+    isConnected.value = false
+  }
+}
+
+const getSessionStatusClass = () => {
+  if (!activeSession.value) return ''
+  const status = activeSession.value.status?.toLowerCase()
+  return `session-${status}`
+}
+
+const getSessionStatusText = () => {
+  if (!activeSession.value) return 'No Session'
+  return activeSession.value.status || 'Unknown'
+}
+
+const getMessageRole = (role) => {
+  return role === 'user' ? 'You' : 'Assistant'
+}
+
+const formatMessageTime = (timestamp) => {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+const formatMessageContent = (content) => {
+  return content
+}
+
+const formatMessage = (content) => {
+  // Simple markdown-like formatting
+  return content
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>')
+}
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  })
+}
+
+const toggleFileDiff = (path) => {
+  if (expandedDiffs.value.has(path)) {
+    expandedDiffs.value.delete(path)
+  } else {
+    expandedDiffs.value.add(path)
+  }
+  expandedDiffs.value = new Set(expandedDiffs.value)
 }
 
 const isTaskRunning = (taskId) => {
   return runningTasks.value.has(taskId)
 }
 
-/**
- * Build initial task description message
- */
-const buildInitialTaskMessage = (task) => {
-  let message = `请帮我完成这个任务：${task.title}\n`
-  if (task.description && task.description.trim()) {
-    message += `\n任务描述：\n${task.description}\n`
+// Watch for task selection changes
+watch([selectedTask], async () => {
+  if (selectedTask.value) {
+    await loadActiveSession()
   }
-  message += '\n请分析任务需求并开始实施。'
-  return message
-}
+})
 
-const loadActiveSessions = async () => {
-  if (!selectedProjectId.value) return
+// Watch for active session changes to update runningTasks
+watch([activeSession], () => {
+  // Clear all running tasks
+  runningTasks.value.clear()
 
-  try {
-    // Get all tasks and check for active sessions
-    for (const task of tasks.value) {
-      try {
-        const response = await sessionApi.getActiveByTask(task.id)
-        const session = response.data !== undefined ? response.data : response
-        if (session && session.id) {
-          if (!activeSessions.value.find(s => s.id === session.id)) {
-            activeSessions.value.push({
-              ...session,
-              taskTitle: task.title
-            })
-            runningTasks.value.add(task.id)
-          }
-        }
-      } catch (e) {
-        // No active session for this task
-      }
-    }
-
-    // Set current session to first active
-    if (activeSessions.value.length > 0 && !currentSessionId.value) {
-      currentSessionId.value = activeSessions.value[0].id
-    }
-  } catch (error) {
-    console.error('Failed to load active sessions:', error)
+  // Add task from active session if running
+  if (activeSession.value?.task_id &&
+      (activeSession.value.status === 'RUNNING' || activeSession.value.status === 'IDLE')) {
+    runningTasks.value.add(activeSession.value.task_id)
   }
-}
-
-// Drag and drop handlers
-const onDragStart = (event, task) => {
-  draggedTask.value = task
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', task.id)
-}
-
-const onDrop = async (event, newStatus) => {
-  event.preventDefault()
-
-  if (!draggedTask.value || draggedTask.value.status === newStatus) {
-    draggedTask.value = null
-    return
-  }
-
-  const task = draggedTask.value
-  const oldStatus = task.status
-
-  task.status = newStatus
-
-  try {
-    await taskApi.updateStatus(task.id, newStatus)
-  } catch (error) {
-    console.error('Failed to update task status:', error)
-    task.status = oldStatus
-  }
-
-  draggedTask.value = null
-}
-
-// Utility functions
-const getPriorityClass = (priority) => {
-  const classes = {
-    LOW: 'priority-low',
-    MEDIUM: 'priority-medium',
-    HIGH: 'priority-high',
-    CRITICAL: 'priority-critical'
-  }
-  return classes[priority] || 'priority-medium'
-}
-
-const getAssigneeInitials = (assignee) => {
-  if (!assignee) return ''
-  return assignee
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase())
-    .slice(0, 2)
-    .join('')
-}
+}, { immediate: true, deep: true })
 
 // Lifecycle
 onMounted(() => {
   fetchProjects()
 })
 
-onUnmounted(() => {
-  // Clean up sessions on unmount
-  activeSessions.value = []
-  currentSessionId.value = null
-  runningTasks.value.clear()
-})
+// Auto-resize textarea
+const autoResizeTextarea = () => {
+  if (chatInput.value) {
+    chatInput.value.style.height = 'auto'
+    chatInput.value.style.height = Math.min(chatInput.value.scrollHeight, 200) + 'px'
+  }
+}
+
+watch(inputText, autoResizeTextarea)
 </script>
 
 <style scoped>
-.kanban-view {
-  padding: 1.5rem;
-  height: 100%;
+.app-container {
   display: flex;
-  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  color: var(--text-primary);
+  overflow: hidden;
 }
 
-.kanban-header {
+/* Sidebar */
+.sidebar {
+  width: 340px;
+  min-width: 340px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  flex-direction: column;
+  box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-header {
+  display: flex;
+  padding: 16px;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(180deg, var(--bg-tertiary) 0%, transparent 100%);
 }
 
 .project-selector {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.project-selector label {
-  font-weight: 500;
-  color: #4a5568;
+  flex: 1;
 }
 
 .project-selector select {
-  padding: 0.5rem 1rem;
-  border: 1px solid #cbd5e0;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  background: white;
-  min-width: 200px;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+.project-selector select:hover {
+  border-color: var(--accent-color);
 }
 
 .project-selector select:focus {
   outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(92, 92, 255, 0.15);
 }
 
 .btn {
-  padding: 0.5rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
   border: none;
-  border-radius: 6px;
-  font-size: 0.875rem;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .btn-primary {
-  background: #4299e1;
+  background: linear-gradient(135deg, #6366f1 0%, #5c5cff 100%);
   color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: #3182ce;
-}
-
-.btn-secondary {
-  background: #e2e8f0;
-  color: #4a5568;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #cbd5e0;
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
 .btn-danger {
-  background: #e53e3e;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   color: white;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
 }
 
-.btn-danger:hover:not(:disabled) {
-  background: #c53030;
+.btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
 }
 
-.loading-state,
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  color: #718096;
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
-.spinner {
+.btn-secondary:hover {
+  background: var(--hover-bg);
+  border-color: var(--accent-color);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.btn-icon {
+  padding: 10px;
   width: 40px;
   height: 40px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #4299e1;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin-bottom: 1rem;
+  justify-content: center;
+  border-radius: 10px;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.kanban-board {
+/* Task Filters */
+.task-filters {
   display: flex;
-  gap: 1rem;
+  padding: 12px 16px 12px 12px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.filter-btn {
   flex: 1;
-  overflow-x: auto;
-  padding-bottom: 1rem;
-  margin-right: 420px; /* Make room for right-side terminal panel (400px + 20px buffer) */
-}
-
-.kanban-column {
-  flex: 0 0 280px;
-  background: #f7fafc;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 200px);
-}
-
-.column-header {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem;
-  border-bottom: 2px solid;
+  gap: 6px;
 }
 
-.column-title {
-  font-weight: 600;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.filter-btn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
-.task-count {
-  background: rgba(0, 0, 0, 0.1);
-  padding: 0.25rem 0.5rem;
+.filter-btn.active {
+  background: var(--accent-color);
+  color: white;
+  box-shadow: 0 2px 8px rgba(92, 92, 255, 0.25);
+}
+
+.filter-count {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 8px;
   border-radius: 12px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
-.kanban-column.todo {
-  border-top: 3px solid #a0aec0;
-}
-.kanban-column.todo .column-header {
-  border-color: #a0aec0;
-  color: #4a5568;
+.filter-btn:not(.active) .filter-count {
+  background: var(--bg-primary);
 }
 
-.kanban-column.in_progress {
-  border-top: 3px solid #4299e1;
-}
-.kanban-column.in_progress .column-header {
-  border-color: #4299e1;
-  color: #2b6cb0;
-}
-
-.kanban-column.in_review {
-  border-top: 3px solid #9f7aea;
-}
-.kanban-column.in_review .column-header {
-  border-color: #9f7aea;
-  color: #6b46c1;
-}
-
-.kanban-column.done {
-  border-top: 3px solid #48bb78;
-}
-.kanban-column.done .column-header {
-  border-color: #48bb78;
-  color: #276749;
-}
-
-.kanban-column.blocked {
-  border-top: 3px solid #e53e3e;
-}
-.kanban-column.blocked .column-header {
-  border-color: #e53e3e;
-  color: #c53030;
-}
-
-.column-content {
+/* Task List */
+.task-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0.5rem;
+  padding: 12px;
 }
 
-.task-card {
-  background: white;
-  border-radius: 6px;
-  padding: 0.875rem;
-  margin-bottom: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.task-item {
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border: 1px solid #e2e8f0;
+  border: 1px solid transparent;
+  background: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
 }
 
-.task-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
+.task-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: transparent;
+  transition: all 0.2s ease;
 }
 
-.task-title {
-  font-weight: 500;
-  color: #2d3748;
-  margin-bottom: 0.75rem;
-  font-size: 0.875rem;
-  line-height: 1.4;
+.task-item:hover {
+  transform: translateX(2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--border-color);
 }
 
-.task-meta {
+.task-item:hover::before {
+  background: var(--accent-color);
+}
+
+.task-item.task-selected {
+  background: linear-gradient(135deg, rgba(92, 92, 255, 0.08) 0%, rgba(92, 92, 255, 0.03) 100%);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+.task-item.task-selected::before {
+  background: var(--accent-color);
+}
+
+.task-item.task-running {
+  border-color: #22c55e;
+  animation: pulse-border 2s infinite;
+}
+
+.task-item.task-running::before {
+  background: #22c55e;
+}
+
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.2); }
+  50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1); }
+}
+
+.task-item-content {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-item-main {
+  display: flex;
   align-items: center;
+  gap: 10px;
 }
 
-.priority-badge {
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  text-transform: uppercase;
-}
-
-.priority-low {
-  background: #c6f6d5;
-  color: #276749;
-}
-
-.priority-medium {
-  background: #fefcbf;
-  color: #975a16;
-}
-
-.priority-high {
-  background: #fed7d7;
-  color: #c53030;
-}
-
-.priority-critical {
-  background: #c53030;
-  color: white;
-}
-
-.assignee {
-  width: 28px;
-  height: 28px;
+.task-item-status {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: #4299e1;
-  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.status-todo { background: #6b7280; color: #6b7280; }
+.status-progress { background: #3b82f6; color: #3b82f6; }
+.status-review { background: #a78bfa; color: #a78bfa; }
+.status-done { background: #22c55e; color: #22c55e; }
+.status-blocked { background: #ef4444; color: #ef4444; }
+
+.task-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+  flex: 1;
+}
+
+.task-item-meta {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.task-item-priority {
+  font-size: 10px;
   font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.task-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.run-btn {
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 4px;
-  background: #48bb78;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.7rem;
-  transition: all 0.2s ease;
-}
-
-.run-btn:hover {
-  background: #38a169;
-  transform: scale(1.1);
-}
-
-.run-btn.running {
-  background: #718096;
-  cursor: not-allowed;
-}
+.priority-low { background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+.priority-medium { background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+.priority-high { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+.priority-critical { background: rgba(239, 68, 68, 0.2); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3); }
 
 .edit-btn {
-  background: transparent;
-  border: none;
+  background: rgba(92, 92, 255, 0.1);
+  border: 1px solid rgba(92, 92, 255, 0.2);
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  padding: 4px 6px;
-  font-size: 14px;
-  color: #666;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.task-card:hover .edit-btn {
-  opacity: 1;
+  transition: all 0.2s ease;
+  color: var(--accent-color);
 }
 
 .edit-btn:hover {
-  color: #409eff;
-}
-
-.spinner-icon {
-  width: 12px;
-  height: 12px;
-  border: 2px solid white;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.btn-success {
-  background: #48bb78;
+  background: var(--accent-color);
   color: white;
+  border-color: var(--accent-color);
+  transform: scale(1.05);
 }
 
-.btn-success:hover:not(:disabled) {
-  background: #38a169;
+.delete-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #ef4444;
 }
 
-.empty-column {
+.delete-btn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+  transform: scale(1.05);
+}
+
+.run-btn {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #22c55e;
+}
+
+.run-btn:hover {
+  background: #22c55e;
+  color: white;
+  border-color: #22c55e;
+  transform: scale(1.05);
+}
+
+.running-indicator {
+  color: #3b82f6;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.empty-tasks {
   text-align: center;
-  padding: 2rem 1rem;
-  color: #a0aec0;
-  font-size: 0.875rem;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
+/* Chat Main */
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  background: var(--bg-primary);
+}
+
+.chat-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+}
+
+.welcome-icon {
+  color: var(--accent-color);
+  margin-bottom: 24px;
+  opacity: 0.6;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.chat-welcome h2 {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.chat-welcome p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Chat Container */
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, transparent 100%);
+}
+
+.chat-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-task-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.chat-session-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 20px;
+  width: fit-content;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #666;
+}
+
+.session-running .status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  animation: pulse 1.5s infinite;
+}
+
+.session-idle .status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.session-stopped .status-dot {
+  background: #666;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+/* Messages */
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  min-height: 0;
+  background: linear-gradient(180deg, transparent 0%, var(--bg-primary) 100%);
+}
+
+.messages-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 60px 40px;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.message {
+  display: flex;
+  gap: 12px;
+  max-width: 85%;
+  animation: messageIn 0.3s ease;
+}
+
+@keyframes messageIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.message-assistant {
+  align-self: flex-start;
+}
+
+.message-avatar {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border-radius: 50%;
+}
+
+.message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 0 4px;
+}
+
+.message-role {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.message-time {
+  color: var(--text-muted);
+}
+
+.message-body {
+  background: var(--bg-secondary);
+  padding: 14px 18px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.message-user .message-body {
+  background: linear-gradient(135deg, #6366f1 0%, #5c5cff 100%);
+  color: white;
+  border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 4px 12px rgba(92, 92, 255, 0.25);
+}
+
+.message-assistant .message-body {
+  border-radius: 16px 16px 16px 4px;
+  border: 1px solid var(--border-color);
+}
+
+/* Task Summary */
+.task-summary {
+  padding: 16px 24px;
+  margin: 0 24px;
+  background: linear-gradient(135deg, rgba(92, 92, 255, 0.05) 0%, rgba(92, 92, 255, 0.02) 100%);
+  border: 1px solid rgba(92, 92, 255, 0.15);
+  border-radius: 12px;
+}
+
+.task-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.task-summary-title{
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.task-summary-meta{
+  display: flex;
+  gap: 8px;
+}
+
+.task-summary-status{
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-summary-status.status-todo{
+  background: rgba(107, 114, 128, 0.15);
+  color: #6b7280;
+}
+
+.task-summary-status.status-progress{
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.task-summary-status.status-review{
+  background: rgba(167, 139, 250, 0.15);
+  color: #a78bfa;
+}
+
+.task-summary-status.status-done{
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.task-summary-status.status-blocked{
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.task-summary-priority{
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.task-summary-description{
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.task-summary-description .description-label {
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+/* Chat Input */
+.chat-input-container {
+  padding: 16px 24px 24px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.chat-input-wrapper {
+  display: flex;
+  gap: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 10px;
+  transition: all 0.2s ease;
+}
+
+.chat-input-wrapper:focus-within {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(92, 92, 255, 0.1);
+}
+
+.chat-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  max-height: 200px;
+  font-family: inherit;
+  padding: 4px;
+}
+
+.chat-input:focus {
+  outline: none;
+}
+
+.chat-input::placeholder {
+  color: var(--text-muted);
+}
+
+.send-btn {
+  background: linear-gradient(135deg, #6366f1 0%, #5c5cff 100%);
+  border: none;
+  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(92, 92, 255, 0.25);
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(92, 92, 255, 0.35);
+}
+
+.send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Changes Panel */
+.changes-panel {
+  width: 320px;
+  min-width: 320px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  box-shadow: -2px 0 20px rgba(0, 0, 0, 0.1);
+}
+
+.changes-panel.panel-collapsed {
+  width: 48px;
+  min-width: 48px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(180deg, var(--bg-tertiary) 0%, transparent 100%);
+}
+
+.panel-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.collapse-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.collapse-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--accent-color);
+}
+
+.panel-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.panel-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 60px 20px;
+  font-size: 13px;
+}
+
+.file-changes {
+  padding: 12px;
+}
+
+.file-change {
+  margin-bottom: 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.file-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.file-header:hover {
+  background: var(--hover-bg);
+}
+
+.file-path {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-status {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.file-status.added {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.file-status.modified {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.file-status.deleted {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.file-diff {
+  background: var(--bg-primary);
+  border-radius: 0 0 10px 10px;
+}
+
+.diff-content {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal {
-  background: white;
-  border-radius: 12px;
+  background: var(--bg-secondary);
+  border-radius: 16px;
   width: 100%;
-  max-width: 500px;
+  max-width: 520px;
   max-height: 90vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border-color);
+  background: linear-gradient(180deg, var(--bg-tertiary) 0%, transparent 100%);
 }
 
 .modal-header h2 {
   margin: 0;
-  font-size: 1.125rem;
-  color: #2d3748;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .modal-close {
-  background: none;
+  background: transparent;
   border: none;
-  font-size: 1.5rem;
-  color: #a0aec0;
+  font-size: 20px;
+  color: var(--text-secondary);
   cursor: pointer;
-  padding: 0;
+  padding: 4px 8px;
   line-height: 1;
+  border-radius: 6px;
+  transition: all 0.2s ease;
 }
 
 .modal-close:hover {
-  color: #4a5568;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
 }
 
 .modal-body {
-  padding: 1.5rem;
+  padding: 24px;
   overflow-y: auto;
 }
 
-.modal-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #e2e8f0;
-  background: #f7fafc;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 18px;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.375rem;
+  margin-bottom: 8px;
+  font-size: 13px;
   font-weight: 500;
-  color: #4a5568;
-  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
 .form-group input,
 .form-group textarea,
 .form-group select {
   width: 100%;
-  padding: 0.625rem 0.75rem;
-  border: 1px solid #cbd5e0;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  padding: 12px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s ease;
 }
 
 .form-group input:focus,
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(92, 92, 255, 0.1);
 }
 
 .form-group textarea {
@@ -1115,42 +1862,138 @@ onUnmounted(() => {
 
 .form-row {
   display: flex;
-  gap: 1rem;
+  gap: 16px;
 }
 
 .form-row .form-group {
   flex: 1;
 }
 
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+}
+
+/* Mobile responsive styles */
+@media (max-width: 1024px) {
+  .changes-panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 99;
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .changes-panel.panel-collapsed {
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+
 @media (max-width: 768px) {
-  .kanban-header {
+  .app-container{
     flex-direction: column;
-    gap: 1rem;
-    align-items: stretch;
   }
 
-  .project-selector {
-    flex-direction: column;
-    align-items: stretch;
+  .sidebar{
+    width: 100%;
+    min-width: 100%;
+    height: 220px;
+    min-height: 220px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
   }
 
-  .project-selector select {
+  .task-list{
+    padding: 8px;
+  }
+
+  .task-item{
+    padding: 12px 14px;
+    border-radius: 10px;
+  }
+
+  .task-item-title{
+    font-size: 12px;
+  }
+
+  .chat-header{
+    padding: 14px 18px;
+  }
+
+  .chat-task-title{
+    font-size: 15px;
+  }
+
+  .chat-header-actions{
+    gap: 6px;
+  }
+
+  .messages-container{
+    padding: 18px;
+  }
+
+  .message{
+    max-width: 92%;
+  }
+
+  .chat-input-container{
+    padding: 14px 18px 18px;
+  }
+
+  .modal{
+    max-width: calc(100% - 32px);
+    margin: 16px;
+    border-radius: 14px;
+  }
+
+  .form-row{
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .changes-panel{
+    width: 100%;
     min-width: 100%;
   }
 
-  .kanban-board {
-    flex-direction: column;
-    margin-right: 0;
-    margin-bottom: 0;
+  .changes-panel.panel-collapsed{
+    height: 48px;
   }
 
-  .kanban-column {
-    flex: 0 0 auto;
-    max-height: 300px;
-  }
-
-  .form-row {
-    flex-direction: column;
+  .welcome-icon svg{
+    width: 48px;
+    height: 48px;
   }
 }
 </style>

@@ -487,7 +487,7 @@ defineExpose({
 }
 
 .no-sessions {
-  color: #666;
+  color: var(--text-muted);
   font-size: 12px;
   padding: 8px;
   text-align: center;
@@ -542,7 +542,7 @@ defineExpose({
   justify-content: center;
   align-items: center;
   height: 100%;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .output-line {

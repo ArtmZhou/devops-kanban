@@ -1,5 +1,6 @@
 package com.devops.kanban.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -9,9 +10,11 @@ import lombok.Builder;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonInclude(JsonInclude.Include.ALWAYS)
 public class ApiResponse<T> {
     private boolean success;
     private String message;
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     private T data;
     private String error;
 

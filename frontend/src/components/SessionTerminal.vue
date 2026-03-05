@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="session-terminal">
     <!-- Header with status -->
     <div class="terminal-header">
@@ -11,6 +11,10 @@
         <span v-if="session?.branch" class="branch-info">
           <Folder />
           {{ session.branch }}
+        </span>
+        <span v-if="session?.claudeSessionId" class="claude-session-id">
+          <Key />
+          <span class="id-text">{{ session.claudeSessionId.substring(0, 8) }}</span>
         </span>
       </div>
       <div class="control-buttons">
@@ -34,6 +38,15 @@
           Stop
         </el-button>
         <el-button
+          v-if="session && session.status === 'STOPPED'"
+          type="primary"
+          size="small"
+          :loading="isContinuing"
+          @click="continueSession"
+        >
+          Continue
+        </el-button>
+        <el-button
           v-if="session"
           type="info"
           size="small"
@@ -42,6 +55,20 @@
         >
           Clear
         </el-button>
+      </div>
+    </div>
+
+    <!-- Task summary -->
+    <div class="task-summary" v-if="task">
+      <div class="task-summary-header">
+        <span class="task-title">{{ task.title }}</span>
+        <div class="task-meta">
+          <el-tag :type="statusTagType" size="small">{{ taskStatusText }}</el-tag>
+          <el-tag :type="priorityTagType" size="small">{{ taskPriorityText }}</el-tag>
+        </div>
+      </div>
+      <div class="task-description" v-if="task.description">
+        {{ task.description }}
       </div>
     </div>
 
@@ -91,13 +118,31 @@
         </template>
       </el-input>
     </div>
+
+    <!-- Input area for stopped session (Continue mode) -->
+    <div class="terminal-input continue-mode" v-if="session && session.status === 'STOPPED'">
+      <el-input
+        v-model="inputText"
+        placeholder="Type a message to continue the session with --resume..."
+        @keyup.enter="continueSession"
+      >
+        <template #prefix>
+          <span class="input-prompt">&gt;</span>
+        </template>
+        <template #append>
+          <el-button type="primary" :disabled="!inputText.trim()" @click="continueSession">
+            Continue
+          </el-button>
+        </template>
+      </el-input>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Folder } from '@element-plus/icons-vue'
+import { Folder, Key } from '@element-plus/icons-vue'
 import wsService from '../services/websocket'
 import sessionApi from '../api/session'
 
@@ -124,6 +169,7 @@ const outputLines = ref([])
 const inputText = ref('')
 const isStarting = ref(false)
 const isStopping = ref(false)
+const isContinuing = ref(false)
 const isConnected = ref(false)
 const outputContainer = ref(null)
 
@@ -144,6 +190,53 @@ const statusClass = computed(() => {
 const statusText = computed(() => {
   if (!session.value) return 'No Session'
   return session.value.status || 'Unknown'
+})
+
+// Task status and priority display
+const taskStatusText = computed(() => {
+  if (!props.task?.status) return ''
+  const statusMap = {
+    'TODO': 'To Do',
+    'IN_PROGRESS': 'In Progress',
+    'IN_REVIEW': 'In Review',
+    'DONE': 'Done',
+    'BLOCKED': 'Blocked'
+  }
+  return statusMap[props.task.status] || props.task.status
+})
+
+const statusTagType = computed(() => {
+  if (!props.task?.status) return 'info'
+  const typeMap = {
+    'TODO': 'info',
+    'IN_PROGRESS': 'warning',
+    'IN_REVIEW': '',
+    'DONE': 'success',
+    'BLOCKED': 'danger'
+  }
+  return typeMap[props.task.status] || 'info'
+})
+
+const taskPriorityText = computed(() => {
+  if (!props.task?.priority) return ''
+  const priorityMap = {
+    'LOW': 'Low',
+    'MEDIUM': 'Medium',
+    'HIGH': 'High',
+    'CRITICAL': 'Critical'
+  }
+  return priorityMap[props.task.priority] || props.task.priority
+})
+
+const priorityTagType = computed(() => {
+  if (!props.task?.priority) return 'info'
+  const typeMap = {
+    'LOW': 'info',
+    'MEDIUM': '',
+    'HIGH': 'warning',
+    'CRITICAL': 'danger'
+  }
+  return typeMap[props.task.priority] || 'info'
 })
 
 // Track whether initial prompt has been filtered (only filter once)
@@ -351,7 +444,59 @@ const stopSession = async () => {
   }
 }
 
-const sendInput = async () => {
+
+const continueSession = async () => {
+  if (!inputText.value.trim() || !session.value) return
+
+  const input = inputText.value.trim()
+  inputText.value = ''
+
+  isContinuing.value = true
+  // Show continuing message
+  outputLines.value.push({
+    data: 'Continuing session...',
+    stream: 'stdout',
+    timestamp: Date.now()
+  })
+
+  try {
+    const response = await sessionApi.continue(session.value.id, input)
+    console.log('Continue session response:', response)
+    if (response.success && response.data) {
+      session.value = response.data
+      emit('status-change', session.value.status)
+
+      // Keep existing output lines - do NOT clear them
+      // The conversation history is preserved for context
+      outputLines.value.push({
+        data: '--- Session resumed with --resume ---',
+        stream: 'stdout',
+        timestamp: Date.now()
+      })
+
+      // Connect WebSocket after session continues
+      await connectWebSocket()
+    } else {
+      outputLines.value.push({
+        data: 'Error: ' + (response.message || 'Failed to continue session'),
+        stream: 'stderr',
+        timestamp: Date.now()
+      })
+      ElMessage.error(response.message || 'Failed to continue session')
+    }
+  } catch (e) {
+    console.error('Failed to continue session:', e)
+    outputLines.value.push({
+      data: 'Error: ' + (e.response?.data?.message || e.message || 'Failed to continue session'),
+      stream: 'stderr',
+      timestamp: Date.now()
+    })
+    ElMessage.error(e.response?.data?.message || e.message || 'Failed to continue session')
+  } finally {
+    isContinuing.value = false
+  }
+}
+﻿const sendInput = async () => {
   if (!inputText.value.trim() || !session.value) return
 
   const input = inputText.value.trim()
@@ -567,6 +712,7 @@ defineExpose({
   createSession,
   startSession,
   stopSession,
+  continueSession,
   clearOutput,
   session
 })
@@ -577,7 +723,7 @@ defineExpose({
   display: flex;
   flex-direction: column;
   height: 400px;
-  background: #1e1e1e;
+  background-color: var(--bg-secondary);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -587,8 +733,8 @@ defineExpose({
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3d3d3d;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .status-indicator {
@@ -606,10 +752,10 @@ defineExpose({
 
 .status-none { background: #666; }
 .status-created { background: #409eff; }
-.status-running { background: #67c23a; animation: pulse 1s infinite; }
-.status-idle { background: #e6a23c; }
+.status-running { background: #86efac; animation: pulse 1s infinite; }
+.status-idle { background: #fcd34d; }
 .status-stopped { background: #909399; }
-.status-error { background: #f56c6c; }
+.status-error { background: #f87171; }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -617,7 +763,7 @@ defineExpose({
 }
 
 .status-text {
-  color: #ccc;
+  color: var(--text-secondary);
   font-size: 12px;
   font-family: monospace;
 }
@@ -639,9 +785,69 @@ defineExpose({
   font-size: 12px;
 }
 
+.claude-session-id {
+  color: #909399;
+  font-size: 11px;
+  font-family: monospace;
+  margin-left: 12px;
+  padding: 2px 6px;
+  background: rgba(144, 147, 153, 0.1);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.claude-session-id :deep(.el-icon) {
+  font-size: 12px;
+}
+
 .control-buttons {
   display: flex;
   gap: 8px;
+}
+
+/* Task summary styles */
+.task-summary {
+  padding: 10px 12px;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.task-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.task-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  flex: 1;
+  margin-right: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-meta {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.task-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 .terminal-output {
@@ -658,11 +864,11 @@ defineExpose({
   justify-content: center;
   align-items: center;
   height: 100%;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .terminal-placeholder :deep(.el-empty__description p) {
-  color: #666;
+  color: var(--text-muted);
 }
 
 .output-line {
@@ -671,7 +877,7 @@ defineExpose({
 }
 
 .output-line.stdout {
-  color: #d4d4d4;
+  color: var(--text-primary);
 }
 
 .output-line.stderr {
@@ -683,7 +889,7 @@ defineExpose({
 }
 
 .history-indicator {
-  color: #909399;
+  color: var(--text-secondary);
   font-style: italic;
   margin-bottom: 8px;
   padding: 4px 8px;
@@ -702,24 +908,24 @@ defineExpose({
 
 .terminal-input {
   padding: 8px 12px;
-  background: #2d2d2d;
-  border-top: 1px solid #3d3d3d;
+  background-color: var(--bg-tertiary);
+  border-top: 1px solid var(--border-color);
 }
 
 .terminal-input :deep(.el-input__wrapper) {
-  background: #1e1e1e;
+  background-color: var(--bg-secondary);
   box-shadow: none;
-  border: 1px solid #3d3d3d;
+  border: 1px solid var(--border-color);
 }
 
 .terminal-input :deep(.el-input__inner) {
-  color: #d4d4d4;
+  color: var(--text-primary);
   font-family: 'Consolas', 'Monaco', monospace;
 }
 
 .terminal-input :deep(.el-input-group__append) {
-  background: #3d3d3d;
-  border-color: #3d3d3d;
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
 }
 
 .input-prompt {
@@ -728,21 +934,54 @@ defineExpose({
   font-weight: bold;
 }
 
+/* Continue mode styling */
+.terminal-input.continue-mode {
+  background-color: var(--bg-tertiary);
+  border-top: 1px solid var(--border-color);
+}
+
+.terminal-input.continue-mode :deep(.el-input__wrapper) {
+  background-color: var(--bg-secondary);
+  box-shadow: none;
+  border: 1px solid var(--border-color);
+}
+
+.terminal-input.continue-mode :deep(.el-input__inner) {
+  color: var(--text-primary);
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.terminal-input.continue-mode :deep(.el-input-group__append) {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.terminal-input.continue-mode :deep(.el-button) {
+  background: #67c23a;
+  border-color: #67c23a;
+  color: white;
+}
+
+.terminal-input.continue-mode :deep(.el-button:hover) {
+  background: #85cf62;
+  border-color: #85cf62;
+}
+
 /* Scrollbar styling */
 .terminal-output::-webkit-scrollbar {
   width: 8px;
 }
 
 .terminal-output::-webkit-scrollbar-track {
-  background: #1e1e1e;
+  background: var(--bg-primary);
 }
 
 .terminal-output::-webkit-scrollbar-thumb {
-  background: #3d3d3d;
+  background: var(--border-color);
   border-radius: 4px;
 }
 
 .terminal-output::-webkit-scrollbar-thumb:hover {
-  background: #4d4d4d;
+  background: var(--border-hover);
 }
 </style>

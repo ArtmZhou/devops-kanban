@@ -4,6 +4,7 @@ import com.devops.kanban.dto.TaskDTO;
 import com.devops.kanban.entity.Agent;
 import com.devops.kanban.entity.Execution;
 import com.devops.kanban.spi.AgentAdapter;
+import com.devops.kanban.util.PlatformUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
@@ -24,17 +25,15 @@ public class ClaudeCodeAdapter implements AgentAdapter {
     private String claudeCliPath = null;
 
     public ClaudeCodeAdapter() {
-        // Try to detect claude CLI path
-        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
-        if (isWindows) {
+        // Try to detect claude CLI path using platform-aware logic
+        if (PlatformUtils.isWindows()) {
             // Use APPDATA environment variable for Windows
             String appData = System.getenv("APPDATA");
             if (appData != null) {
                 this.claudeCliPath = appData + "\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
             } else {
                 // Fallback to user home
-                String userHome = System.getProperty("user.home");
-                this.claudeCliPath = userHome + "\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
+                this.claudeCliPath = PlatformUtils.getHomeDirectory() + "\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
             }
         } else {
             // On Unix, assume 'claude' is in PATH
@@ -93,8 +92,11 @@ public class ClaudeCodeAdapter implements AgentAdapter {
                 .replace("{taskId}", String.valueOf(task.getId()))
                 .replace("{taskTitle}", escapeShell(task.getTitle()));
 
-        // Wrap with cd to worktree
-        return String.format("cd \"%s\" && %s", worktreePath, command);
+        // Build platform-appropriate cd command
+        String cdCommand = PlatformUtils.buildCdCommand(worktreePath.toString());
+        String separator = PlatformUtils.getCommandSeparator();
+
+        return String.format("%s %s %s", cdCommand, separator, command);
     }
 
     @Override
@@ -134,8 +136,7 @@ public class ClaudeCodeAdapter implements AgentAdapter {
     }
 
     private String escapeShell(String s) {
-        if (s == null) return "";
-        return s.replace("\"", "\\\"").replace("$", "\\$").replace("`", "\\`");
+        return PlatformUtils.escapeShell(s);
     }
 
     private String extractSummary(String output) {

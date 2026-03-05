@@ -187,6 +187,42 @@ public class SessionController {
     }
 
     /**
+     * Continue a stopped session with new input
+     * This will resume the session using Claude CLI's --resume flag
+     */
+    @PostMapping("/{id}/continue")
+    public ResponseEntity<ApiResponse<SessionDTO>> continueSession(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        String input = body.get("input");
+        if (input == null || input.trim().isEmpty()) {
+            log.warn("[API] POST /api/sessions/{}/continue - empty input rejected", id);
+            return ResponseEntity.ok(ApiResponse.error("Input is required"));
+        }
+
+        log.info("[API] POST /api/sessions/{}/continue | Length: {} chars", id, input.length());
+        try {
+            boolean success = sessionService.continueSession(id, input);
+            if (success) {
+                Session session = sessionService.getSession(id)
+                        .orElseThrow(() -> new IllegalStateException("Session not found after continue"));
+                log.info("[API] Session continued successfully | SessionId: {} | Status: {}", id, session.getStatus());
+                return ResponseEntity.ok(ApiResponse.success("Session continued", toDTO(session)));
+            } else {
+                log.warn("[API] Failed to continue session | SessionId: {}", id);
+                return ResponseEntity.ok(ApiResponse.error("Failed to continue session"));
+            }
+        } catch (IllegalStateException e) {
+            log.warn("[API] Session continue failed - invalid state | SessionId: {} | Error: {}", id, e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        } catch (Exception e) {
+            log.error("[API] Failed to continue session | SessionId: {} | Error: {}", id, e.getMessage(), e);
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Failed to continue session: " + e.getMessage()));
+        }
+    }
+
+    /**
      * Get session output
      */
     @GetMapping("/{id}/output")
@@ -250,7 +286,8 @@ public class SessionController {
                 .startedAt(session.getStartedAt())
                 .lastHeartbeat(session.getLastHeartbeat())
                 .stoppedAt(session.getStoppedAt())
-                .initialPrompt(session.getInitialPrompt());
+                .initialPrompt(session.getInitialPrompt())
+                .claudeSessionId(session.getClaudeSessionId());
 
         if (includeOutput) {
             // First check session entity output, then fall back to process manager

@@ -7,6 +7,7 @@ import com.devops.kanban.repository.ProjectRepository;
 import com.devops.kanban.repository.SessionRepository;
 import com.devops.kanban.repository.TaskRepository;
 import com.devops.kanban.spi.AgentAdapter;
+import com.devops.kanban.util.PlatformUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -221,17 +222,13 @@ public class SessionService {
                 (com.devops.kanban.adapter.agent.ClaudeCodeAdapter) adapter;
             return claudeAdapter.getClaudeCliPath();
         }
-        // Default paths
-        boolean isWindows = System.getProperty("os.name").toLowerCase().contains("windows");
-        if (isWindows) {
-            // Use APPDATA environment variable for Windows
+        // Default paths using PlatformUtils
+        if (PlatformUtils.isWindows()) {
             String appData = System.getenv("APPDATA");
             if (appData != null) {
                 return appData + "\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
             } else {
-                // Fallback to user home
-                String userHome = System.getProperty("user.home");
-                return userHome + "\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
+                return PlatformUtils.getHomeDirectory() + "\\AppData\\Roaming\\npm\\node_modules\\@anthropic-ai\\claude-code\\cli.js";
             }
         } else {
             return "claude";
@@ -341,8 +338,11 @@ public class SessionService {
         // Check if we have the Claude session ID for --resume
         String claudeSessionId = session.getClaudeSessionId();
         if (claudeSessionId == null || claudeSessionId.isEmpty()) {
-            log.warn("[Session-{}] No Claude session ID stored, cannot use --resume. Session may not continue properly.",
-                sessionId);
+            log.error("[Session-{}] No Claude session ID stored, cannot use --resume.", sessionId);
+            throw new IllegalStateException(
+                "Cannot resume session: Claude CLI session ID not found. " +
+                "The session may have been created without running Claude CLI. " +
+                "Please start a new session instead.");
         }
 
         try {
@@ -381,6 +381,31 @@ public class SessionService {
             sessionRepository.save(session);
             return false;
         }
+    }
+
+    /**
+     * Continue a stopped session with new input
+     * This is a public wrapper for resumeSession that can be called from the controller
+     *
+     * @param sessionId the session ID
+     * @param input     the input to send (will trigger resume if session is stopped)
+     * @return true if session was continued successfully
+     */
+    public boolean continueSession(Long sessionId, String input) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
+
+        log.info("[Session-{}] Continue session requested | CurrentStatus: {}", sessionId, session.getStatus());
+
+        // Verify session is in a resumable state
+        if (session.getStatus() != Session.SessionStatus.STOPPED &&
+            session.getStatus() != Session.SessionStatus.IDLE) {
+            log.warn("[Session-{}] Cannot continue - session not stopped or idle: {}", sessionId, session.getStatus());
+            throw new IllegalStateException("Session can only be continued when STOPPED or IDLE, current status: " + session.getStatus());
+        }
+
+        // Delegate to resumeSession
+        return resumeSession(session, input);
     }
 
     /**

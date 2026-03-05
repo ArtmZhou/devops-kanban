@@ -29,6 +29,7 @@ public class SessionDTO {
     private LocalDateTime stoppedAt;
     private String output; // Current output buffer
     private String initialPrompt; // Initial prompt for frontend filtering
+    private String claudeSessionId; // Claude CLI native session ID for --resume
 
     // Validation groups
     public interface Create {}

@@ -4,6 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DevOps Kanban</title>
+    <script>
+      // Apply theme immediately to prevent flash of unstyled content
+      (function() {
+        const theme = localStorage.getItem('theme')
+        if (theme === 'light') {
+          document.documentElement.classList.add('theme-light')
+        } else {
+          document.documentElement.classList.add('theme-dark')
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

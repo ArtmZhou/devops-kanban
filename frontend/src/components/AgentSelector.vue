@@ -97,12 +97,17 @@ const loading = ref(false)
 const starting = ref(false)
 
 const loadAgents = async () => {
-  if (!props.projectId) return
+  console.log('loadAgents called, projectId:', props.projectId, 'type:', typeof props.projectId)
+  if (!props.projectId) {
+    console.log('projectId is falsy, returning early')
+    return
+  }
 
   loading.value = true
   try {
     const response = await agentApi.getAll(props.projectId)
-    agents.value = response.data || response || []
+    // Backend returns ApiResponse { success, data, message }
+    agents.value = Array.isArray(response) ? response : (response.data || [])
     // Auto-select first agent if only one available
     if (agents.value.length === 1) {
       selectedAgentId.value = agents.value[0].id
