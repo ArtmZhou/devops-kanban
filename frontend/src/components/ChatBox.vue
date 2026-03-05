@@ -636,6 +636,7 @@ const disconnectWebSocket = () => {
   if (session.value) {
     wsService.unsubscribeFromSession(session.value.id)
   }
+  isConnected.value = false
 }
 
 // Lifecycle
