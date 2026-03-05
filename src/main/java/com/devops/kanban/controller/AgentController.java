@@ -21,10 +21,13 @@ public class AgentController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<AgentDTO>>> getAgents(
             @RequestParam(required = false) Long projectId) {
+        System.out.println("[AgentController] getAgents called with projectId: " + projectId);
         if (projectId == null) {
+            System.out.println("[AgentController] projectId is null, returning error");
             return ResponseEntity.ok(ApiResponse.error("projectId is required"));
         }
         List<AgentDTO> agents = agentService.findByProjectId(projectId);
+        System.out.println("[AgentController] Found " + agents.size() + " agents for project " + projectId);
         return ResponseEntity.ok(ApiResponse.success(agents));
     }
 

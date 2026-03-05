@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Loading,
@@ -97,23 +97,26 @@ const loading = ref(false)
 const starting = ref(false)
 
 const loadAgents = async () => {
-  console.log('loadAgents called, projectId:', props.projectId, 'type:', typeof props.projectId)
-  if (!props.projectId) {
-    console.log('projectId is falsy, returning early')
+  console.log('[AgentSelector] loadAgents called, projectId:', props.projectId, 'type:', typeof props.projectId)
+  // Check for null or undefined specifically, allow 0 and non-empty strings
+  if (props.projectId == null || props.projectId === '') {
+    console.log('[AgentSelector] projectId is null/undefined/empty, returning early')
     return
   }
 
   loading.value = true
   try {
     const response = await agentApi.getAll(props.projectId)
+    console.log('[AgentSelector] agentApi.getAll response:', response)
     // Backend returns ApiResponse { success, data, message }
     agents.value = Array.isArray(response) ? response : (response.data || [])
+    console.log('[AgentSelector] agents.value:', agents.value)
     // Auto-select first agent if only one available
     if (agents.value.length === 1) {
       selectedAgentId.value = agents.value[0].id
     }
   } catch (e) {
-    console.error('Failed to load agents:', e)
+    console.error('[AgentSelector] Failed to load agents:', e)
     ElMessage.error('Failed to load agents')
   } finally {
     loading.value = false
@@ -161,6 +164,14 @@ watch(dialogVisible, (val) => {
   if (val) {
     selectedAgentId.value = null
     starting.value = false
+    console.log('Dialog opened, projectId:', props.projectId, 'type:', typeof props.projectId)
+    loadAgents()
+  }
+})
+
+// Load agents when component is mounted (for v-if case)
+onMounted(() => {
+  if (dialogVisible.value) {
     loadAgents()
   }
 })

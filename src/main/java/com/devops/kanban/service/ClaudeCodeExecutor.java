@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 public class ClaudeCodeExecutor {
 
     private static final int BUFFER_SIZE = 4096;
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final SimpMessagingTemplate messagingTemplate;
     private final SessionRepository sessionRepository;
@@ -39,6 +40,7 @@ public class ClaudeCodeExecutor {
 
     private final ConcurrentHashMap<Long, PtyProcess> activeProcesses = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, StringBuilder> sessionOutputs = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, StringBuilder> sessionRawJson = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, OutputStream> sessionStdins = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Long> sessionStartTimes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Boolean> sessionIdExtracted = new ConcurrentHashMap<>();
@@ -149,6 +151,7 @@ public class ClaudeCodeExecutor {
             activeProcesses.put(sessionId, process);
             sessionStartTimes.put(sessionId, System.currentTimeMillis());
             sessionOutputs.put(sessionId, new StringBuilder());
+            sessionRawJson.put(sessionId, new StringBuilder());
 
             OutputStream stdin = process.getOutputStream();
             sessionStdins.put(sessionId, stdin);
@@ -194,9 +197,14 @@ public class ClaudeCodeExecutor {
         byte[] buffer = new byte[BUFFER_SIZE];
         int bytesRead;
         long totalBytes = 0;
-        int emptyReadCount = 0;
 
         try {
+            StringBuilder rawJsonBuilder = sessionRawJson.get(sessionId);
+            if (rawJsonBuilder == null) {
+                rawJsonBuilder = new StringBuilder();
+                sessionRawJson.put(sessionId, rawJsonBuilder);
+            }
+
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 String chunk = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
                 totalBytes += bytesRead;
@@ -207,44 +215,84 @@ public class ClaudeCodeExecutor {
                         chunk.substring(0, Math.min(200, chunk.length())).replace("\n", "\\n").replace("\r", "\\r"));
                 }
 
-                // Try to extract Claude CLI session ID from the raw chunk (only once)
-                // Claude CLI outputs session_id somewhere in the output
-                if (!sessionIdExtracted.getOrDefault(sessionId, false)) {
-                    String claudeSessionId = extractClaudeSessionId(chunk);
-                    if (claudeSessionId != null) {
-                        log.info("[Session-{}] Detected Claude CLI session ID: {}", sessionId, claudeSessionId);
-                        sessionIdExtracted.put(sessionId, true);
-                        // Save to session entity
-                        final String finalClaudeSessionId = claudeSessionId;
-                        sessionRepository.findById(sessionId).ifPresent(session -> {
-                            session.setClaudeSessionId(finalClaudeSessionId);
-                            sessionRepository.save(session);
-                            log.info("[Session-{}] Saved Claude session ID to session entity", sessionId);
-                        });
-                    }
-                }
-
-                // Strip ANSI codes but keep printable content
-                String cleanContent = stripAnsiCodes(chunk);
-
-                // Always broadcast, even if empty after stripping (for debugging)
-                emptyReadCount = 0;
-                StringBuilder output = sessionOutputs.get(sessionId);
-                if (output != null) {
-                    output.append(cleanContent);
-                }
-                if (!cleanContent.isEmpty()) {
-                    broadcastChunk(sessionId, "stdout", cleanContent, false);
-                    log.debug("[Session-{}] Broadcast {} chars", sessionId, cleanContent.length());
-                } else {
-                    // Still log when we get content before ANSI stripping
-                    log.debug("[Session-{}] Received {} bytes, but empty after ANSI strip", sessionId, bytesRead);
-                }
-
-                persistOutputDebounced(sessionId);
+                // Accumulate raw JSON output
+                rawJsonBuilder.append(chunk);
             }
 
             log.info("[Session-{}] Output stream ended | Total bytes read: {}", sessionId, totalBytes);
+
+            // Parse the complete JSON output
+            String rawOutput = rawJsonBuilder.toString().trim();
+
+            // Strip ANSI escape codes before parsing JSON
+            String cleanJson = stripAnsiCodes(rawOutput);
+            log.debug("[Session-{}] Cleaned JSON (first 500 chars): {}", sessionId,
+                cleanJson.substring(0, Math.min(500, cleanJson.length())));
+
+            if (!cleanJson.isEmpty()) {
+                try {
+                    // Find JSON object in the output (may have leading/trailing garbage)
+                    int jsonStart = cleanJson.indexOf('{');
+                    int jsonEnd = cleanJson.lastIndexOf('}');
+                    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                        String jsonString = cleanJson.substring(jsonStart, jsonEnd + 1);
+                        JsonNode jsonNode = objectMapper.readTree(jsonString);
+
+                        // Extract session_id
+                        if (jsonNode.has("session_id")) {
+                            String claudeSessionId = jsonNode.get("session_id").asText();
+                            log.info("[Session-{}] Extracted Claude session ID from JSON: {}", sessionId, claudeSessionId);
+                            sessionIdExtracted.put(sessionId, true);
+                            sessionRepository.findById(sessionId).ifPresent(session -> {
+                                session.setClaudeSessionId(claudeSessionId);
+                                sessionRepository.save(session);
+                                log.info("[Session-{}] Saved Claude session ID to session entity", sessionId);
+                            });
+                        }
+
+                        // Extract result field for display
+                        if (jsonNode.has("result")) {
+                            String result = jsonNode.get("result").asText();
+                            log.info("[Session-{}] Extracted result from JSON ({} chars)", sessionId, result.length());
+
+                            // Store and broadcast the extracted result
+                            StringBuilder output = sessionOutputs.get(sessionId);
+                            if (output != null) {
+                                output.append(result);
+                            }
+                            broadcastChunk(sessionId, "stdout", result, true);
+                            log.info("[Session-{}] Broadcast result ({} chars)", sessionId, result.length());
+                        } else {
+                            log.warn("[Session-{}] JSON output does not contain 'result' field", sessionId);
+                            // Fall back to raw output
+                            StringBuilder output = sessionOutputs.get(sessionId);
+                            if (output != null) {
+                                output.append(cleanJson);
+                            }
+                            broadcastChunk(sessionId, "stdout", cleanJson, true);
+                        }
+
+                        persistOutputDebounced(sessionId);
+                    } else {
+                        log.warn("[Session-{}] No valid JSON object found in output", sessionId);
+                        StringBuilder output = sessionOutputs.get(sessionId);
+                        if (output != null) {
+                            output.append(cleanJson);
+                        }
+                        broadcastChunk(sessionId, "stdout", cleanJson, true);
+                    }
+
+                } catch (Exception e) {
+                    log.warn("[Session-{}] Failed to parse JSON output: {} | Clean output: {}",
+                        sessionId, e.getMessage(), cleanJson.substring(0, Math.min(500, cleanJson.length())));
+                    // Fall back to raw output
+                    StringBuilder output = sessionOutputs.get(sessionId);
+                    if (output != null) {
+                        output.append(cleanJson);
+                    }
+                    broadcastChunk(sessionId, "stdout", cleanJson, true);
+                }
+            }
 
         } catch (IOException e) {
             log.debug("[Session-{}] Output read error: {}", sessionId, e.getMessage());
@@ -336,7 +384,8 @@ public class ClaudeCodeExecutor {
         log.info("[Session-{}] Process exited | Code: {} | Duration: {}ms",
             sessionId, exitCode, duration);
 
-        String status = exitCode == 0 ? "COMPLETED" : "ERROR";
+        // Use STOPPED for successful exit (can be resumed), ERROR for failures
+        String status = exitCode == 0 ? "STOPPED" : "ERROR";
         broadcastStatus(sessionId, status);
 
         Map<String, Object> payload = new HashMap<>();
@@ -404,56 +453,35 @@ public class ClaudeCodeExecutor {
         });
     }
 
+    /**
+     * Strip ANSI escape codes and control characters from input string.
+     * PTY output contains escape sequences and line wrapping that need to be removed before JSON parsing.
+     */
     private String stripAnsiCodes(String input) {
         if (input == null) return "";
         // More comprehensive ANSI escape sequence removal
         return input
-                // CSI sequences (most common ANSI codes)
+                // CSI sequences (most common ANSI codes): ESC [ ... <final byte>
                 .replaceAll("\\x1B\\[[0-?]*[ -/]*[@-~]", "")
-                // OSC sequences (operating system commands)
+                // OSC sequences (operating system commands): ESC ] ... BEL or ESC ] ... ESC \
                 .replaceAll("\\x1B\\][^\\x07\\x1B]*(?:\\x07|\\x1B\\\\)", "")
-                // Character set selection
+                // Character set selection: ESC ( or ESC )
                 .replaceAll("\\x1B[()][AB012]", "")
                 // Reverse index and next line
                 .replaceAll("\\x1B[78]", "")
                 // Application mode
                 .replaceAll("\\x1B[=>]", "")
-                // Remove control characters but KEEP newlines (0x0A) and tabs (0x09)
-                .replaceAll("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]", "");
-    }
-
-    // Pattern to extract Claude CLI session ID from JSON output
-    // Claude CLI outputs JSON with session_id field when using --json flag
-    private static final Pattern CLAUDE_SESSION_ID_PATTERN = Pattern.compile(
-        "\"session_id\"\\s*:\\s*\"([a-zA-Z0-9_-]+)\""
-    );
-
-    /**
-     * Extract Claude CLI session ID from output chunk.
-     * When using --json flag, Claude CLI outputs JSON with session_id field.
-     * Format: {"type":"...","session_id":"xxx",...}
-     *
-     * @param chunk the output chunk to parse
-     * @return the session ID if found, null otherwise
-     */
-    private String extractClaudeSessionId(String chunk) {
-        if (chunk == null || chunk.isEmpty()) {
-            return null;
-        }
-
-        // Extract session_id from any JSON object that contains it
-        Matcher matcher = CLAUDE_SESSION_ID_PATTERN.matcher(chunk);
-        if (matcher.find()) {
-            String sessionId = matcher.group(1);
-            log.info("[ClaudeCodeExecutor] Extracted session_id from JSON: {}", sessionId);
-            return sessionId;
-        }
-        return null;
+                // Remove all control characters including CR (0x0D) and LF (0x0A)
+                // PTY wraps long lines, inserting \r\n in the middle of JSON strings
+                .replaceAll("[\\x00-\\x1F\\x7F]", "")
+                // Also remove any remaining [X sequences (simplified ANSI without ESC)
+                .replaceAll("\\[[0-9;]*[A-Za-z]", "");
     }
 
     public void cleanup(Long sessionId) {
         stop(sessionId);
         sessionOutputs.remove(sessionId);
+        sessionRawJson.remove(sessionId);
         lastPersistTime.remove(sessionId);
         sessionIdExtracted.remove(sessionId);
         log.debug("[Session-{}] Resources cleaned up", sessionId);

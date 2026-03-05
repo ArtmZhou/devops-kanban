@@ -16,7 +16,10 @@ public class AgentService {
     private final AgentRepository agentRepository;
 
     public List<AgentDTO> findByProjectId(Long projectId) {
-        return agentRepository.findByProjectId(projectId).stream()
+        System.out.println("[AgentService] findByProjectId called with projectId: " + projectId);
+        List<Agent> agents = agentRepository.findByProjectId(projectId);
+        System.out.println("[AgentService] Found " + agents.size() + " agents in repository");
+        return agents.stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }

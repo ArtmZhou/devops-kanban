@@ -14,7 +14,7 @@
         </span>
         <span v-if="session?.claudeSessionId" class="claude-session-id">
           <Key />
-          <span class="id-text">{{ session.claudeSessionId.substring(0, 8) }}</span>
+          <span class="id-text">{{ session.claudeSessionId }}</span>
         </span>
       </div>
       <div class="control-buttons">

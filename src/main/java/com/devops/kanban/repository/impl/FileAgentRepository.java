@@ -70,9 +70,11 @@ public class FileAgentRepository implements AgentRepository {
 
     @Override
     public List<Agent> findByProjectId(Long projectId) {
-        return readAll().stream()
-                .filter(a -> a.getProjectId().equals(projectId))
+        List<Agent> allAgents = readAll();
+        List<Agent> filtered = allAgents.stream()
+                .filter(a -> a.getProjectId() != null && a.getProjectId().equals(projectId))
                 .collect(Collectors.toList());
+        return filtered;
     }
 
     @Override
