@@ -880,6 +880,10 @@ const onDragEnd = async (evt) => {
 // ChatBox event handlers
 const onSessionCreated = (session) => {
   activeSession.value = session;
+  // Start timer if session is already running
+  if (session.status === 'RUNNING' || session.status === 'IDLE') {
+    startTaskTimer(session.taskId)
+  }
 };
 
 const onSessionStopped = () => {

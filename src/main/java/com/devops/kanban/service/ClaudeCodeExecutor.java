@@ -134,7 +134,16 @@ public class ClaudeCodeExecutor {
                 putIfNotNull(env, "TMPDIR", System.getenv("TMPDIR"));
             }
 
-            putIfNotNull(env, "LANG", System.getenv("LANG"));
+            // Force UTF-8 encoding for proper emoji and unicode support
+            env.put("LANG", "en_US.UTF-8");
+            env.put("LC_ALL", "en_US.UTF-8");
+            if (PlatformUtils.isWindows()) {
+                // Python UTF-8 mode (helps with some CLI tools)
+                env.put("PYTHONUTF8", "1");
+                env.put("PYTHONIOENCODING", "utf-8");
+                // Node.js UTF-8
+                env.put("NODE_OPTIONS", "--no-warnings");
+            }
             env.put("TERM", "xterm-256color");
 
             // Add ANTHROPIC_API_KEY if available

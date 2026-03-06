@@ -306,7 +306,7 @@ const initializeSession = async (sessionData, isHistory = false) => {
 
     // Handle initialPrompt: check if it was parsed as assistant message (wrong role)
     // and convert it to user message, or add it if not present
-    if (sessionData.initialPrompt && messages.value.length > 0) {
+    if (sessionData.initialPrompt) {
       const initialPromptContent = sessionData.initialPrompt
       // Check if initialPrompt already exists with correct role
       const hasUserInitialPrompt = messages.value.some(msg =>
@@ -446,6 +446,7 @@ const startSession = async () => {
 
     if (response.success && response.data) {
       setSession(response.data)
+      // Emit status change immediately after setting session status
       emit('status-change', session.value.status)
 
       if (response.data.initialPrompt) {
@@ -460,7 +461,7 @@ const startSession = async () => {
 
         // Handle initialPrompt: check if it was parsed as assistant message (wrong role)
         // and convert it to user message, or add it if not present
-        if (response.data.initialPrompt && messages.value.length > 0) {
+        if (response.data.initialPrompt) {
           const initialPromptContent = response.data.initialPrompt
           // Check if initialPrompt already exists with correct role
           const hasUserInitialPrompt = messages.value.some(msg =>
