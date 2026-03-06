@@ -261,7 +261,7 @@ const loadSessionForTask = async (task) => {
     if (sessionResponse.data) {
       localSession.value = sessionResponse.data
       selectedAgentId.value = sessionResponse.data.agentId
-      console.log('[TaskDetail] Set localSession to active session:', localSession.value.id)
+      console.log('[TaskDetail] Set localSession to active session:', localSession.value.id, 'claudeSessionId:', localSession.value.claudeSessionId, 'output:', localSession.value.output ? 'has output' : 'no output')
     } else if (agents.value.length > 0) {
       // Auto-select first agent and create session
       selectedAgentId.value = agents.value[0].id
@@ -362,6 +362,7 @@ const createNewSession = async () => {
     console.log('Create session response:', response)
     if (response.success && response.data) {
       localSession.value = response.data
+      console.log('[TaskDetail] Created new session:', localSession.value.id, 'claudeSessionId:', localSession.value.claudeSessionId, 'output:', localSession.value.output ? 'has output' : 'no output')
       ElMessage.success('Session created')
     } else {
       ElMessage.error(response.message || 'Failed to create session')

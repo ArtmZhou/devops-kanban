@@ -47,7 +47,34 @@ export function parseOutputToMessages(outputText) {
     messages.push(currentMessage)
   }
 
-  return messages
+  // Filter out echo duplication: assistant message starting with user message content
+  const filteredMessages = []
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i]
+    if (msg.role === MessageRole.USER) {
+      filteredMessages.push(msg)
+      continue
+    }
+    // For assistant messages, check if it duplicates the previous user message
+    if (msg.role === MessageRole.ASSISTANT && i > 0) {
+      const prevMsg = messages[i - 1]
+      if (prevMsg.role === MessageRole.USER) {
+        const userContent = prevMsg.content.trim()
+        const assistantContent = msg.content.trim()
+        // If assistant message starts with user message, remove the duplicate part
+        if (userContent && assistantContent.startsWith(userContent)) {
+          const remaining = assistantContent.substring(userContent.length).trim()
+          if (remaining) {
+            filteredMessages.push(createMessage(MessageRole.ASSISTANT, remaining))
+          }
+          continue
+        }
+      }
+    }
+    filteredMessages.push(msg)
+  }
+
+  return filteredMessages
 }
 
 /**

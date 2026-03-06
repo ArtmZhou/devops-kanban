@@ -263,6 +263,12 @@ const getMessageRole = (role) => {
 // Unified session initialization function
 const initializeSession = async (sessionData, isHistory = false) => {
   console.log('[ChatBox] Initializing session:', sessionData?.id, sessionData?.status, 'isHistory:', isHistory)
+  console.log('[ChatBox] Session data:', {
+    id: sessionData?.id,
+    claudeSessionId: sessionData?.claudeSessionId,
+    output: sessionData?.output ? 'has output (' + sessionData.output.length + ' chars)' : 'no output',
+    initialPrompt: sessionData?.initialPrompt ? 'has initial prompt' : 'no initial prompt'
+  })
 
   setSession(sessionData)
 
@@ -298,18 +304,35 @@ const initializeSession = async (sessionData, isHistory = false) => {
       messages.value = parsedMessages.filter(msg => !shouldFilterContent(msg.content))
     }
 
-    // Add initialPrompt as user message at the beginning if there are messages
-    // Check if already exists to avoid duplicate
-    const hasInitialPrompt = messages.value.some(msg =>
-      msg.role === 'user' && msg.content === sessionData.initialPrompt
-    )
-    if (sessionData.initialPrompt && messages.value.length > 0 && !hasInitialPrompt) {
-      messages.value.unshift({
-        id: `initial-prompt-${sessionData.id}`,
-        role: 'user',
-        content: sessionData.initialPrompt,
-        timestamp: sessionData.startedAt
-      })
+    // Handle initialPrompt: check if it was parsed as assistant message (wrong role)
+    // and convert it to user message, or add it if not present
+    if (sessionData.initialPrompt && messages.value.length > 0) {
+      const initialPromptContent = sessionData.initialPrompt
+      // Check if initialPrompt already exists with correct role
+      const hasUserInitialPrompt = messages.value.some(msg =>
+        msg.role === 'user' && msg.content === initialPromptContent
+      )
+
+      if (!hasUserInitialPrompt) {
+        // Check if initialPrompt was wrongly parsed as assistant message
+        const assistantMsgIndex = messages.value.findIndex(msg =>
+          msg.role === 'assistant' && msg.content === initialPromptContent
+        )
+
+        if (assistantMsgIndex !== -1) {
+          // Convert the assistant message to user message
+          messages.value[assistantMsgIndex].role = 'user'
+          messages.value[assistantMsgIndex].id = `initial-prompt-${sessionData.id}`
+        } else {
+          // initialPrompt not found in parsed messages, add it as user message
+          messages.value.unshift({
+            id: `initial-prompt-${sessionData.id}`,
+            role: 'user',
+            content: initialPromptContent,
+            timestamp: sessionData.startedAt
+          })
+        }
+      }
     }
 
     scrollToBottom()
@@ -435,18 +458,35 @@ const startSession = async () => {
         const parsedMessages = parseOutputToMessages(response.data.output)
         messages.value = parsedMessages.filter(msg => !shouldFilterContent(msg.content))
 
-        // Add initialPrompt as user message at the beginning if there are messages
-        // Check if already exists to avoid duplicate
-        const hasInitialPrompt = messages.value.some(msg =>
-          msg.role === 'user' && msg.content === response.data.initialPrompt
-        )
-        if (response.data.initialPrompt && messages.value.length > 0 && !hasInitialPrompt) {
-          messages.value.unshift({
-            id: `initial-prompt-${response.data.id}`,
-            role: 'user',
-            content: response.data.initialPrompt,
-            timestamp: response.data.startedAt
-          })
+        // Handle initialPrompt: check if it was parsed as assistant message (wrong role)
+        // and convert it to user message, or add it if not present
+        if (response.data.initialPrompt && messages.value.length > 0) {
+          const initialPromptContent = response.data.initialPrompt
+          // Check if initialPrompt already exists with correct role
+          const hasUserInitialPrompt = messages.value.some(msg =>
+            msg.role === 'user' && msg.content === initialPromptContent
+          )
+
+          if (!hasUserInitialPrompt) {
+            // Check if initialPrompt was wrongly parsed as assistant message
+            const assistantMsgIndex = messages.value.findIndex(msg =>
+              msg.role === 'assistant' && msg.content === initialPromptContent
+            )
+
+            if (assistantMsgIndex !== -1) {
+              // Convert the assistant message to user message
+              messages.value[assistantMsgIndex].role = 'user'
+              messages.value[assistantMsgIndex].id = `initial-prompt-${response.data.id}`
+            } else {
+              // initialPrompt not found in parsed messages, add it as user message
+              messages.value.unshift({
+                id: `initial-prompt-${response.data.id}`,
+                role: 'user',
+                content: initialPromptContent,
+                timestamp: response.data.startedAt
+              })
+            }
+          }
         }
 
         scrollToBottom()
@@ -666,7 +706,12 @@ onMounted(async () => {
     initializeSession(props.initialSession)
   } else {
     console.log('[ChatBox] No initialSession, loading from server')
-    await loadActiveSession()
+    const activeSession = await loadActiveSession()
+    if (!activeSession) {
+      // No active session, load last history session
+      console.log('[ChatBox] No active session, loading last history session')
+      await loadLastHistorySession()
+    }
   }
 })
 
@@ -933,6 +978,8 @@ defineExpose({
   display: flex;
   flex-direction: column;
   gap: 20px;
+  tab-size: 2;
+  -moz-tab-size: 2;
 }
 
 .message {
@@ -985,7 +1032,10 @@ defineExpose({
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI Emoji', 'Noto Color Emoji', 'Apple Color Emoji', sans-serif;
+  letter-spacing: 0;
+  tab-size: 2;
+  -moz-tab-size: 2;
 }
 
 .message-user .message-content {

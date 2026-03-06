@@ -154,13 +154,28 @@ public class ClaudeCodeExecutor {
 
             activeProcesses.put(sessionId, process);
             sessionStartTimes.put(sessionId, System.currentTimeMillis());
-            StringBuilder outputBuilder = new StringBuilder();
+
+            // Preserve existing output when resuming session
+            StringBuilder outputBuilder = sessionOutputs.get(sessionId);
+            if (outputBuilder == null) {
+                outputBuilder = new StringBuilder();
+                // Try to load existing output from database (for resume scenarios)
+                final StringBuilder finalBuilder = outputBuilder;
+                sessionRepository.findById(sessionId).ifPresent(session -> {
+                    String existingOutput = session.getOutput();
+                    if (existingOutput != null && !existingOutput.isEmpty()) {
+                        finalBuilder.append(existingOutput);
+                        log.info("[Session-{}] Loaded existing output from database ({} chars)",
+                            sessionId, existingOutput.length());
+                    }
+                });
+            }
             sessionOutputs.put(sessionId, outputBuilder);
             sessionRawJson.put(sessionId, new StringBuilder());
 
             // Record initial prompt as user input (for message parsing)
             if (initialPrompt != null && !initialPrompt.isEmpty()) {
-                outputBuilder.append("> ").append(initialPrompt).append("\n");
+                outputBuilder.append("\n> ").append(initialPrompt).append("\n");
                 log.info("[Session-{}] Recorded initial prompt as user input ({} chars)", sessionId, initialPrompt.length());
             }
 
@@ -268,13 +283,34 @@ public class ClaudeCodeExecutor {
                             String result = jsonNode.get("result").asText();
                             log.info("[Session-{}] Extracted result from JSON ({} chars)", sessionId, result.length());
 
+                            // Remove initialPrompt prefix from result if present (avoid echo duplication)
+                            Session sessionOpt = sessionRepository.findById(sessionId).orElse(null);
+                            if (sessionOpt != null) {
+                                String prompt = sessionOpt.getInitialPrompt();
+                                if (prompt != null && !prompt.isEmpty()) {
+                                    // Trim both strings for comparison to handle whitespace differences
+                                    String trimmedResult = result.trim();
+                                    String trimmedPrompt = prompt.trim();
+                                    if (trimmedResult.startsWith(trimmedPrompt)) {
+                                        // Find the actual position in original result to preserve formatting
+                                        int idx = result.indexOf(trimmedPrompt);
+                                        if (idx >= 0) {
+                                            result = result.substring(idx + trimmedPrompt.length()).trim();
+                                            log.info("[Session-{}] Removed initialPrompt echo from result (prompt: '{}')", sessionId, trimmedPrompt);
+                                        }
+                                    }
+                                }
+                            }
+
                             // Store and broadcast the extracted result
                             StringBuilder output = sessionOutputs.get(sessionId);
-                            if (output != null) {
+                            if (output != null && !result.isEmpty()) {
                                 output.append(result);
                             }
-                            broadcastChunk(sessionId, "stdout", result, true);
-                            log.info("[Session-{}] Broadcast result ({} chars)", sessionId, result.length());
+                            if (!result.isEmpty()) {
+                                broadcastChunk(sessionId, "stdout", result, true);
+                                log.info("[Session-{}] Broadcast result ({} chars)", sessionId, result.length());
+                            }
                         } else {
                             log.warn("[Session-{}] JSON output does not contain 'result' field", sessionId);
                             // Fall back to raw output

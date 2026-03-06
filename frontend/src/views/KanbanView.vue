@@ -40,11 +40,11 @@
           <div class="column-header">
             <span class="column-status status-todo"></span>
             <span class="column-title">待处理</span>
-            <span class="column-count">{{ todoTasks.length }}</span>
+            <span class="column-count">{{ localTodoTasks.length }}</span>
           </div>
           <div class="column-content">
             <draggable
-              v-model:list="todoTasks"
+              :list="localTodoTasks"
               group="tasks"
               :animation="200"
               ghost-class="ghost-card"
@@ -97,7 +97,7 @@
                 </div>
               </template>
             </draggable>
-            <div v-if="todoTasks.length === 0" class="empty-column">
+            <div v-if="localTodoTasks.length === 0" class="empty-column">
               <p>暂无待处理任务</p>
             </div>
           </div>
@@ -108,11 +108,11 @@
           <div class="column-header">
             <span class="column-status status-design"></span>
             <span class="column-title">设计</span>
-            <span class="column-count">{{ designTasks.length }}</span>
+            <span class="column-count">{{ localDesignTasks.length }}</span>
           </div>
           <div class="column-content">
             <draggable
-              v-model:list="designTasks"
+              :list="localDesignTasks"
               group="tasks"
               :animation="200"
               ghost-class="ghost-card"
@@ -165,7 +165,7 @@
                 </div>
               </template>
             </draggable>
-            <div v-if="designTasks.length === 0" class="empty-column">
+            <div v-if="localDesignTasks.length === 0" class="empty-column">
               <p>暂无设计任务</p>
             </div>
           </div>
@@ -176,11 +176,11 @@
           <div class="column-header">
             <span class="column-status status-development"></span>
             <span class="column-title">开发</span>
-            <span class="column-count">{{ developmentTasks.length }}</span>
+            <span class="column-count">{{ localDevelopmentTasks.length }}</span>
           </div>
           <div class="column-content">
             <draggable
-              v-model:list="developmentTasks"
+              :list="localDevelopmentTasks"
               group="tasks"
               :animation="200"
               ghost-class="ghost-card"
@@ -233,7 +233,7 @@
                 </div>
               </template>
             </draggable>
-            <div v-if="developmentTasks.length === 0" class="empty-column">
+            <div v-if="localDevelopmentTasks.length === 0" class="empty-column">
               <p>暂无开发任务</p>
             </div>
           </div>
@@ -244,11 +244,11 @@
           <div class="column-header">
             <span class="column-status status-testing"></span>
             <span class="column-title">测试</span>
-            <span class="column-count">{{ testingTasks.length }}</span>
+            <span class="column-count">{{ localTestingTasks.length }}</span>
           </div>
           <div class="column-content">
             <draggable
-              v-model:list="testingTasks"
+              :list="localTestingTasks"
               group="tasks"
               :animation="200"
               ghost-class="ghost-card"
@@ -301,7 +301,7 @@
                 </div>
               </template>
             </draggable>
-            <div v-if="testingTasks.length === 0" class="empty-column">
+            <div v-if="localTestingTasks.length === 0" class="empty-column">
               <p>暂无测试任务</p>
             </div>
           </div>
@@ -312,11 +312,11 @@
           <div class="column-header">
             <span class="column-status status-release"></span>
             <span class="column-title">发布</span>
-            <span class="column-count">{{ releaseTasks.length }}</span>
+            <span class="column-count">{{ localReleaseTasks.length }}</span>
           </div>
           <div class="column-content">
             <draggable
-              v-model:list="releaseTasks"
+              :list="localReleaseTasks"
               group="tasks"
               :animation="200"
               ghost-class="ghost-card"
@@ -369,7 +369,7 @@
                 </div>
               </template>
             </draggable>
-            <div v-if="releaseTasks.length === 0" class="empty-column">
+            <div v-if="localReleaseTasks.length === 0" class="empty-column">
               <p>暂无发布任务</p>
             </div>
           </div>
@@ -380,11 +380,11 @@
           <div class="column-header">
             <span class="column-status status-done"></span>
             <span class="column-title">已完成</span>
-            <span class="column-count">{{ doneTasks.length }}</span>
+            <span class="column-count">{{ localDoneTasks.length }}</span>
           </div>
           <div class="column-content">
             <draggable
-              v-model:list="doneTasks"
+              :list="localDoneTasks"
               group="tasks"
               :animation="200"
               ghost-class="ghost-card"
@@ -437,7 +437,7 @@
                 </div>
               </template>
             </draggable>
-            <div v-if="doneTasks.length === 0" class="empty-column">
+            <div v-if="localDoneTasks.length === 0" class="empty-column">
               <p>暂无已完成任务</p>
             </div>
           </div>
@@ -471,7 +471,7 @@
           <p>选择一个任务开始与 AI 对话</p>
         </div>
 
-        <div v-else class="chat-content">
+        <div v-else-if="!isSessionLoading" class="chat-content">
           <!-- ChatBox Component -->
           <ChatBox
             ref="chatBoxRef"
@@ -583,6 +583,7 @@ const activeSession = ref(null)
 const chatBoxRef = ref(null)
 const runningTasks = ref(new Set())
 const isChatCollapsed = ref(false)
+const isSessionLoading = ref(false)
 
 // Agent selector
 const showAgentSelector = ref(false)
@@ -606,31 +607,39 @@ const taskForm = reactive({
 const tasks = computed(() => taskStore.tasks)
 const projects = computed(() => projectStore.projects)
 
-// Refs for each column - these will be updated when tasks change
-const todoTasks = ref(taskStore.tasksByStatus.TODO || [])
-const designTasks = ref(taskStore.tasksByStatus.DESIGN || [])
-const developmentTasks = ref(taskStore.tasksByStatus.DEVELOPMENT || [])
-const testingTasks = ref(taskStore.tasksByStatus.TESTING || [])
-const releaseTasks = ref(taskStore.tasksByStatus.RELEASE || [])
-const doneTasks = ref(taskStore.tasksByStatus.DONE || [])
+// Computed for each column - directly from store
+const todoTasks = computed(() => taskStore.tasksByStatus.TODO || [])
+const designTasks = computed(() => taskStore.tasksByStatus.DESIGN || [])
+const developmentTasks = computed(() => taskStore.tasksByStatus.DEVELOPMENT || [])
+const testingTasks = computed(() => taskStore.tasksByStatus.TESTING || [])
+const releaseTasks = computed(() => taskStore.tasksByStatus.RELEASE || [])
+const doneTasks = computed(() => taskStore.tasksByStatus.DONE || [])
 
-// Flag to prevent watch from firing during drag operations
-let isDragging = false
+// Local reactive arrays for draggable (synced from computed)
+const localTodoTasks = ref([])
+const localDesignTasks = ref([])
+const localDevelopmentTasks = ref([])
+const localTestingTasks = ref([])
+const localReleaseTasks = ref([])
+const localDoneTasks = ref([])
 
-// Watch for changes in taskStore and update column refs
-watch(
-  () => taskStore.tasks,
-  () => {
-    if (isDragging) return
-    todoTasks.value = taskStore.tasksByStatus.TODO || []
-    designTasks.value = taskStore.tasksByStatus.DESIGN || []
-    developmentTasks.value = taskStore.tasksByStatus.DEVELOPMENT || []
-    testingTasks.value = taskStore.tasksByStatus.TESTING || []
-    releaseTasks.value = taskStore.tasksByStatus.RELEASE || []
-    doneTasks.value = taskStore.tasksByStatus.DONE || []
-  },
-  { deep: true }
-)
+// Watch store changes and sync to local arrays
+watch(todoTasks, (newVal) => { localTodoTasks.value = [...newVal] }, { immediate: true })
+watch(designTasks, (newVal) => { localDesignTasks.value = [...newVal] }, { immediate: true })
+watch(developmentTasks, (newVal) => { localDevelopmentTasks.value = [...newVal] }, { immediate: true })
+watch(testingTasks, (newVal) => { localTestingTasks.value = [...newVal] }, { immediate: true })
+watch(releaseTasks, (newVal) => { localReleaseTasks.value = [...newVal] }, { immediate: true })
+watch(doneTasks, (newVal) => { localDoneTasks.value = [...newVal] }, { immediate: true })
+
+// Helper to update all column refs from store (kept for other uses)
+const updateColumnRefs = () => {
+  localTodoTasks.value = [...(taskStore.tasksByStatus.TODO || [])]
+  localDesignTasks.value = [...(taskStore.tasksByStatus.DESIGN || [])]
+  localDevelopmentTasks.value = [...(taskStore.tasksByStatus.DEVELOPMENT || [])]
+  localTestingTasks.value = [...(taskStore.tasksByStatus.TESTING || [])]
+  localReleaseTasks.value = [...(taskStore.tasksByStatus.RELEASE || [])]
+  localDoneTasks.value = [...(taskStore.tasksByStatus.DONE || [])]
+}
 
 const getStatusClass = (status) => {
   const classes = {
@@ -700,6 +709,7 @@ const fetchTasks = async () => {
 
   try {
     await taskStore.fetchTasks(selectedProjectId.value)
+    updateColumnRefs()
     await loadActiveSession()
   } catch (error) {
     console.error('Failed to fetch tasks:', error)
@@ -712,9 +722,11 @@ const onProjectChange = () => {
   fetchTasks()
 }
 
-const selectTask = (task) => {
+const selectTask = async (task) => {
+  isSessionLoading.value = true
   selectedTask.value = task
-  loadActiveSession()
+  await loadActiveSession()
+  isSessionLoading.value = false
 }
 
 const openTaskModal = (task = null) => {
@@ -807,7 +819,8 @@ const deleteTask = async (taskId) => {
 // Drag and drop handler
 const onDragEnd = async (evt) => {
   // Get the new status from the target column's data-status attribute
-  const newStatus = evt.to?.getAttribute('data-status')
+  // evt.to is the draggable container, need to find parent .kanban-column
+  const newStatus = evt.to?.closest('.kanban-column')?.getAttribute('data-status')
 
   if (!newStatus) {
     ElMessage.error('无法确定目标列状态')
@@ -834,31 +847,15 @@ const onDragEnd = async (evt) => {
     return
   }
 
-  // Prevent watch from overwriting the drag changes
-  isDragging = true
-
-  // Update task status in store (this will trigger the watch, but it's blocked by isDragging)
-  const index = taskStore.tasks.findIndex(t => String(t.id) === String(taskId))
-  if (index !== -1) {
-    taskStore.tasks[index] = { ...taskStore.tasks[index], status: newStatus }
-  }
-
-  // Call API to persist
+  // Call API to persist (vuedraggable already updated the local arrays)
   try {
     await taskStore.updateTaskStatus(taskId, newStatus)
     ElMessage.success(`任务已移动到 ${getStatusLabel(newStatus)}`)
   } catch (error) {
-    // Revert on error
-    if (index !== -1) {
-      taskStore.tasks[index] = { ...taskStore.tasks[index], status: task.status }
-    }
+    // Revert on error - sync local arrays back from store
+    updateColumnRefs()
     console.error('Failed to update task status:', error)
     ElMessage.error('更新任务状态失败')
-  } finally {
-    // Allow watch to sync after a short delay
-    setTimeout(() => {
-      isDragging = false
-    }, 100)
   }
 }
 
@@ -1092,7 +1089,13 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 12px;
-  min-height: 0;
+  min-height: 200px; /* 确保空列也能接收拖拽 */
+}
+
+/* 让 draggable 组件填满列区域，确保整个区域都能接收拖拽 */
+.column-content > div:first-child {
+  min-height: 180px;
+  padding-bottom: 60px; /* 底部留足空间，支持从下往上拖入 */
 }
 
 /* Task Card */
