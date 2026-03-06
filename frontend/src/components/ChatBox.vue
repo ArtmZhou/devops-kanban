@@ -439,6 +439,17 @@ const startSession = async () => {
   isStarting.value = true
   messages.value.push({ id: Date.now(), role: 'system', content: 'Starting session...' })
 
+  // Add initialPrompt as user message immediately (don't wait for API response)
+  if (session.value.initialPrompt) {
+    messages.value.push({
+      id: `initial-prompt-${session.value.id}`,
+      role: 'user',
+      content: session.value.initialPrompt,
+      timestamp: new Date().toISOString()
+    })
+    setInitialPrompt(session.value.initialPrompt)
+  }
+
   try {
     const response = await fetch(`/api/sessions/${session.value.id}/start`, {
       method: 'POST'
@@ -453,51 +464,21 @@ const startSession = async () => {
         setInitialPrompt(response.data.initialPrompt)
       }
 
+      // Remove the "Starting session..." system message
       messages.value = messages.value.filter(m => m.role !== 'system')
 
+      // Process output if available (only add assistant messages, user message already added)
       if (response.data.output) {
         const parsedMessages = parseOutputToMessages(response.data.output)
-        messages.value = parsedMessages.filter(msg => !shouldFilterContent(msg.content))
-
-        // Handle initialPrompt: check if it was parsed as assistant message (wrong role)
-        // and convert it to user message, or add it if not present
-        if (response.data.initialPrompt) {
-          const initialPromptContent = response.data.initialPrompt
-          // Check if initialPrompt already exists with correct role
-          const hasUserInitialPrompt = messages.value.some(msg =>
-            msg.role === 'user' && msg.content === initialPromptContent
-          )
-
-          if (!hasUserInitialPrompt) {
-            // Check if initialPrompt was wrongly parsed as assistant message
-            const assistantMsgIndex = messages.value.findIndex(msg =>
-              msg.role === 'assistant' && msg.content === initialPromptContent
-            )
-
-            if (assistantMsgIndex !== -1) {
-              // Convert the assistant message to user message
-              messages.value[assistantMsgIndex].role = 'user'
-              messages.value[assistantMsgIndex].id = `initial-prompt-${response.data.id}`
-            } else {
-              // initialPrompt not found in parsed messages, add it as user message
-              messages.value.unshift({
-                id: `initial-prompt-${response.data.id}`,
-                role: 'user',
-                content: initialPromptContent,
-                timestamp: response.data.startedAt
-              })
-            }
-          }
-        }
-
+        // Only add assistant messages, filter out user messages to avoid duplicates
+        const assistantMessages = parsedMessages.filter(msg =>
+          msg.role === 'assistant' && !shouldFilterContent(msg.content)
+        )
+        messages.value.push(...assistantMessages)
         scrollToBottom()
       }
 
       await setupWebSocket(session.value.id)
-
-      if (messages.value.length === 0) {
-        messages.value.push({ id: Date.now(), role: 'assistant', content: 'Session started. Waiting for output...' })
-      }
     } else {
       messages.value.push({ id: Date.now(), role: 'system', content: 'Error: ' + (response.message || 'Failed to start session') })
       ElMessage.error(response.message || 'Failed to start session')

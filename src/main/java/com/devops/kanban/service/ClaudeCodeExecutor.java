@@ -71,36 +71,53 @@ public class ClaudeCodeExecutor {
             sessionId, claudeCliPath, worktreePath, isResume);
 
         try {
-            // 1. Build command directly (no env wrapper needed - we control env via ProcessBuilder)
-            // Variables not included in the env map will be automatically unset
+            // 1. Build command - on Windows, wrap with cmd /c to set UTF-8 code page first
+            // This is critical for emoji/unicode support on Windows (CP936/GBK vs UTF-8)
             List<String> command = new ArrayList<>();
+            List<String> innerCommand = new ArrayList<>();
 
             if (claudeCliPath.endsWith(".js")) {
-                command.add("node");
-                command.add(claudeCliPath);
+                innerCommand.add("node");
+                innerCommand.add(claudeCliPath);
             } else {
-                command.add(claudeCliPath);
+                innerCommand.add(claudeCliPath);
             }
 
             // Use print mode (-p) for clean output
             // Process will exit after completion, use --resume for multi-turn conversation
-            command.add("-p");
-            command.add("--dangerously-skip-permissions");
-            command.add("--output-format");
-            command.add("json");
+            innerCommand.add("-p");
+            innerCommand.add("--dangerously-skip-permissions");
+            innerCommand.add("--output-format");
+            innerCommand.add("json");
 
             // Add --resume with session ID if this is a continuation
             if (claudeSessionId != null && !claudeSessionId.isEmpty()) {
-                command.add("--resume");
-                command.add(claudeSessionId);
+                innerCommand.add("--resume");
+                innerCommand.add(claudeSessionId);
                 log.info("[Session-{}] Using --resume with Claude session ID: {}", sessionId, claudeSessionId);
             }
 
             // Pass initial prompt as command argument (works in interactive mode too)
             // Frontend will filter this from the output to avoid duplication
             if (initialPrompt != null && !initialPrompt.isEmpty()) {
-                command.add(initialPrompt);
+                innerCommand.add(initialPrompt);
                 log.info("[Session-{}] Passing initial prompt as command argument ({} chars)", sessionId, initialPrompt.length());
+            }
+
+            if (PlatformUtils.isWindows()) {
+                // On Windows: wrap with cmd /c to set UTF-8 code page (65001) before running command
+                // This ensures PTY output is UTF-8 encoded instead of default GBK/CP936
+                command.add("cmd");
+                command.add("/c");
+                command.add("chcp");
+                command.add("65001");
+                command.add(">nul");
+                command.add("&&");
+                command.addAll(innerCommand);
+                log.info("[Session-{}] Using Windows UTF-8 code page wrapper (chcp 65001)", sessionId);
+            } else {
+                // On Unix: use command directly (UTF-8 is default)
+                command.addAll(innerCommand);
             }
 
             // 2. Build environment - include necessary system variables
@@ -241,6 +258,12 @@ public class ClaudeCodeExecutor {
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 String chunk = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
                 totalBytes += bytesRead;
+
+                // Detect encoding issues (replacement character indicates UTF-8 decode failure)
+                if (chunk.contains("\uFFFD")) {
+                    log.warn("[Session-{}] Encoding issue detected: replacement character (U+FFFD) found in output. " +
+                        "This usually means the PTY is not using UTF-8 encoding.", sessionId);
+                }
 
                 // Log raw chunk for debugging (first 10KB only)
                 if (totalBytes <= 10240) {
