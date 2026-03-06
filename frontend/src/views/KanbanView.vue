@@ -443,10 +443,6 @@
           </div>
         </div>
 
-        <!-- Empty state when no tasks at all -->
-        <div v-if="tasks.length === 0" class="empty-board">
-          <p>{{ $t('task.noTasks') }}</p>
-        </div>
       </div>
 
       <!-- Chat Container -->
@@ -690,7 +686,8 @@ const fetchProjects = async () => {
     await projectStore.fetchProjects()
 
     if (projectStore.projects.length > 0 && !selectedProjectId.value) {
-      const projectIdFromUrl = route.query.projectId
+      // 优先使用路径参数，其次使用查询参数
+      const projectIdFromUrl = route.params.projectId || route.query.projectId
       if (projectIdFromUrl && projectStore.projects.find(p => String(p.id) === String(projectIdFromUrl))) {
         selectedProjectId.value = projectIdFromUrl
       } else {
@@ -718,7 +715,7 @@ const fetchTasks = async () => {
 }
 
 const onProjectChange = () => {
-  router.replace({ query: { projectId: selectedProjectId.value } })
+  router.replace({ path: `/kanban/${selectedProjectId.value}` })
   fetchTasks()
 }
 
