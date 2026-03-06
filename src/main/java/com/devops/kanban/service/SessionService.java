@@ -100,10 +100,29 @@ public class SessionService {
         }
         Path localPath = Paths.get(project.getLocalPath());
 
-        // Create worktree for isolation
-        String branch = "session-" + taskId + "-" + System.currentTimeMillis();
-        log.debug("[Session] Creating worktree | LocalPath: {} | Branch: {}", localPath, branch);
-        Path worktree = gitService.createWorktree(localPath, task.getProjectId(), branch);
+        // Check for existing worktree from any previous session (including stopped ones)
+        String worktreePath;
+        String branch;
+        List<Session> allTaskSessions = sessionRepository.findByTaskId(taskId);
+        Optional<Session> sessionWithWorktree = allTaskSessions.stream()
+            .filter(s -> s.getWorktreePath() != null && !s.getWorktreePath().isBlank())
+            .findFirst();
+
+        if (sessionWithWorktree.isPresent()) {
+            // Reuse existing worktree
+            Session priorSession = sessionWithWorktree.get();
+            worktreePath = priorSession.getWorktreePath();
+            branch = priorSession.getBranch();
+            log.info("[Session] Reusing existing worktree for task {} | Worktree: {} | Branch: {}",
+                taskId, worktreePath, branch);
+        } else {
+            // Create new worktree for isolation
+            branch = "task-" + taskId + "-" + System.currentTimeMillis();
+            log.debug("[Session] Creating new worktree | LocalPath: {} | Branch: {}", localPath, branch);
+            Path worktree = gitService.createWorktree(localPath, task.getProjectId(), branch);
+            worktreePath = worktree.toString();
+            log.info("[Session] Created new worktree for task {} | Worktree: {}", taskId, worktreePath);
+        }
 
         // Generate initialPrompt at creation time so frontend can display it
         TaskDTO taskDTO = converter.toDTO(task);
@@ -114,7 +133,7 @@ public class SessionService {
                 .taskId(taskId)
                 .agentId(agentId)
                 .status(Session.SessionStatus.CREATED)
-                .worktreePath(worktree.toString())
+                .worktreePath(worktreePath)
                 .branch(branch)
                 .sessionId(UUID.randomUUID().toString())
                 .startedAt(LocalDateTime.now())

@@ -19,6 +19,10 @@
         <span v-if="session?.claudeSessionId" class="claude-session-id">
           Session: {{ session.claudeSessionId }}
         </span>
+        <span v-if="session?.worktreePath" class="worktree-info" :title="session.worktreePath">
+          <Folder style="width: 12px; height: 12px;" />
+          {{ getWorktreeName(session.worktreePath) }}
+        </span>
       </div>
       <div class="header-actions">
         <el-button
@@ -125,7 +129,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Position, VideoPlay, VideoPause, Delete, ChatDotRound, ChatLineRound, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import { Position, VideoPlay, VideoPause, Delete, ChatDotRound, ChatLineRound, ArrowUp, ArrowDown, Folder } from '@element-plus/icons-vue'
 import DevTools from './DevTools.vue'
 import { useSessionManager } from '../composables/useSessionManager'
 import { useWebSocketConnection } from '../composables/useWebSocketConnection'
@@ -258,6 +262,13 @@ const formatMessageTime = (timestamp) => {
 
 const getMessageRole = (role) => {
   return role === 'user' ? 'You' : 'Assistant'
+}
+
+// Extract worktree name from full path
+const getWorktreeName = (path) => {
+  if (!path) return ''
+  const parts = path.replace(/\\/g, '/').split('/')
+  return parts[parts.length - 1] || path
 }
 
 // Unified session initialization function
@@ -901,6 +912,19 @@ defineExpose({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.worktree-info {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  background: rgba(103, 194, 58, 0.1);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: default;
 }
 
 .status-dot {
