@@ -70,6 +70,9 @@
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
                       </span>
+                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
+                        {{ formatTaskElapsedTime(element.id) }}
+                      </span>
                     </div>
                     <div class="task-card-actions">
                       <button
@@ -137,6 +140,9 @@
                       <span class="task-card-title">{{ element.title }}</span>
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
+                      </span>
+                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
+                        {{ formatTaskElapsedTime(element.id) }}
                       </span>
                     </div>
                     <div class="task-card-actions">
@@ -206,6 +212,9 @@
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
                       </span>
+                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
+                        {{ formatTaskElapsedTime(element.id) }}
+                      </span>
                     </div>
                     <div class="task-card-actions">
                       <button
@@ -273,6 +282,9 @@
                       <span class="task-card-title">{{ element.title }}</span>
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
+                      </span>
+                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
+                        {{ formatTaskElapsedTime(element.id) }}
                       </span>
                     </div>
                     <div class="task-card-actions">
@@ -342,6 +354,9 @@
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
                       </span>
+                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
+                        {{ formatTaskElapsedTime(element.id) }}
+                      </span>
                     </div>
                     <div class="task-card-actions">
                       <button
@@ -409,6 +424,9 @@
                       <span class="task-card-title">{{ element.title }}</span>
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
+                      </span>
+                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
+                        {{ formatTaskElapsedTime(element.id) }}
                       </span>
                     </div>
                     <div class="task-card-actions">
@@ -578,6 +596,9 @@ const editingTaskId = ref(null)
 const activeSession = ref(null)
 const chatBoxRef = ref(null)
 const runningTasks = ref(new Set())
+const taskStartTimes = ref(new Map()) // Store start time for each running task
+const taskElapsedSeconds = ref({}) // Reactive object for elapsed seconds display
+let runningTimer = null
 const isChatCollapsed = ref(false)
 const isSessionLoading = ref(false)
 
@@ -862,12 +883,23 @@ const onSessionCreated = (session) => {
 };
 
 const onSessionStopped = () => {
-  // Session stopped, refresh if needed
+  // Session stopped, stop timer for current task
+  if (selectedTask.value) {
+    stopTaskTimer(selectedTask.value.id)
+  }
 };
 
 const onStatusChange = (status) => {
   if (activeSession.value) {
     activeSession.value.status = status;
+  }
+  // Start/stop timer based on status
+  if (selectedTask.value) {
+    if (status === 'RUNNING' || status === 'IDLE') {
+      startTaskTimer(selectedTask.value.id)
+    } else if (status === 'STOPPED' || status === 'ERROR' || status === 'COMPLETED') {
+      stopTaskTimer(selectedTask.value.id)
+    }
   }
 };
 const handleAgentSelect = ({ agentId, agent, task }) => {
@@ -903,13 +935,59 @@ const isTaskRunning = (taskId) => {
   return runningTasks.value.has(taskId)
 }
 
+// Start task running timer
+const startTaskTimer = (taskId) => {
+  runningTasks.value.add(taskId)
+  taskStartTimes.value.set(taskId, Date.now())
+  taskElapsedSeconds.value[taskId] = 0
+
+  // Start global timer if not running
+  if (!runningTimer) {
+    runningTimer = setInterval(() => {
+      const now = Date.now()
+      runningTasks.value.forEach(id => {
+        const startTime = taskStartTimes.value.get(id)
+        if (startTime) {
+          taskElapsedSeconds.value[id] = Math.floor((now - startTime) / 1000)
+        }
+      })
+    }, 1000)
+  }
+}
+
+// Stop task running timer
+const stopTaskTimer = (taskId) => {
+  runningTasks.value.delete(taskId)
+  taskStartTimes.value.delete(taskId)
+  delete taskElapsedSeconds.value[taskId]
+
+  // Stop global timer if no tasks running
+  if (runningTasks.value.size === 0 && runningTimer) {
+    clearInterval(runningTimer)
+    runningTimer = null
+  }
+}
+
+// Format elapsed time for display
+const formatTaskElapsedTime = (taskId) => {
+  const seconds = taskElapsedSeconds.value[taskId] || 0
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes}m ${remainingSeconds}s`
+}
+
 // Lifecycle
 onMounted(() => {
   fetchProjects()
 })
 
 onUnmounted(() => {
-
+  // Clean up timer
+  if (runningTimer) {
+    clearInterval(runningTimer)
+    runningTimer = null
+  }
 })
 
 </script>
@@ -1168,6 +1246,23 @@ onUnmounted(() => {
 .priority-medium { background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
 .priority-high { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
 .priority-critical { background: rgba(239, 68, 68, 0.2); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+.task-running-time {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  flex-shrink: 0;
+  animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
 
 .task-card-actions {
   display: flex;
