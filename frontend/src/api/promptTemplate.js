@@ -15,3 +15,6 @@ export const updatePromptTemplate = (id, data) => api.put(`/prompt-templates/${i
 
 // Reset prompt template to default
 export const resetPromptTemplate = (id) => api.post(`/prompt-templates/${id}/reset`)
+
+// Initialize default prompt templates
+export const initializeDefaults = () => api.post('/prompt-templates/initialize')

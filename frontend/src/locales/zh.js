@@ -296,6 +296,7 @@ export default {
     template: '模板',
     phase: '阶段',
     instruction: '指令',
+    instructionPlaceholder: '请输入提示词指令...',
     isDefault: '是否默认',
     default: '默认',
     editTemplate: '编辑模板',
@@ -306,8 +307,11 @@ export default {
     resetFailed: '重置模板失败',
     initializeSuccess: '默认模板已初始化',
     initializeFailed: '初始化默认值失败',
+    initializeConfirm: '确认初始化',
+    initializeConfirmMessage: '确定要初始化默认提示词模板吗？这将覆盖现有模板。',
     loadFailed: '加载提示词模板失败',
     updateSuccess: '模板更新成功',
-    updateFailed: '更新模板失败'
+    updateFailed: '更新模板失败',
+    noTemplates: '暂无模板，请点击初始化默认值'
   }
 }

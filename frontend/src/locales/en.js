@@ -296,6 +296,7 @@ export default {
     template: 'Template',
     phase: 'Phase',
     instruction: 'Instruction',
+    instructionPlaceholder: 'Enter instruction...',
     isDefault: 'Is Default',
     default: 'Default',
     editTemplate: 'Edit Template',
@@ -306,8 +307,11 @@ export default {
     resetFailed: 'Failed to reset template',
     initializeSuccess: 'Default templates initialized',
     initializeFailed: 'Failed to initialize defaults',
+    initializeConfirm: 'Confirm Initialization',
+    initializeConfirmMessage: 'Are you sure you want to initialize default prompt templates? This will overwrite existing templates.',
     loadFailed: 'Failed to load prompt templates',
     updateSuccess: 'Template updated successfully',
-    updateFailed: 'Failed to update template'
+    updateFailed: 'Failed to update template',
+    noTemplates: 'No templates, click to initialize defaults'
   }
 }
