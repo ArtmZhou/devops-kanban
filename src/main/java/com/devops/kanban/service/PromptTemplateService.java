@@ -6,7 +6,7 @@ import com.devops.kanban.entity.PromptTemplate;
 import com.devops.kanban.entity.Task;
 import com.devops.kanban.repository.PromptTemplateRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j4.SlfArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -35,14 +35,14 @@ public class PromptTemplateService {
     private static final Map<String, String> DEFAULT_TEMPLATES = new HashMap<>();
 
     static {
-        DEFAULT_TEMPLATES.put("TODO", "Analyze the task, prepare implementation plan, consider dependencies and risks. Identify required resources and stakeholders. Document requirements clearly.");
-        DEFAULT_TEMPLATES.put("DESIGN", "Focus on architecture design and technical selection. Consider extensibility, maintainability, and design patterns. Document the design decisions and API contracts, and data models.");
-        DEFAULT_TEMPLATES.put("DEVELOPMENT", "Implement the code following coding standards and best practices. Handle errors gracefully, add appropriate logging, and write clean and maintainable code with proper comments and variable names.");
-        DEFAULT_TEMPLATES.put("TESTING", "Write comprehensive test cases covering positive, negative, and edge cases. Ensure good test coverage, validate all inputs and outputs. Use appropriate testing frameworks and mock external dependencies.");
-        DEFAULT_TEMPLATES.put("RELEASE", "Prepare release notes, update deployment configurations, verify environment variables. Create rollback procedures, document the deployment steps clearly. Ensure backward compatibility.");
-        DEFAULT_TEMPLATES.put("DONE", "Review all changes, update documentation if clean up temporary files, close connections, release resources. Create summary report with lessons learned and recommendations.");
-        DEFAULT_TEMPLATES.put("BLOCKED", "Analyze the blocker, identify root cause, propose solutions. Document the issue and any workarounds if available.");
-        DEFAULT_TEMPLATES.put("CANCELLED", "Review any partial work, document the reason for cancellation. Archive or work if it might be reused later.");
+        DEFAULT_TEMPLATES.put("TODO", "分析任务需求，准备实现方案，考虑依赖关系和潜在风险。识别所需资源和相关人员，清晰记录需求文档。");
+        DEFAULT_TEMPLATES.put("DESIGN", "聚焦架构设计和技术选型，考虑可扩展性、可维护性和设计模式。记录设计决策、API契约和数据模型。");
+        DEFAULT_TEMPLATES.put("DEVELOPMENT", "遵循编码规范和最佳实践实现代码。优雅处理错误，添加适当的日志，编写清晰可维护的代码，使用规范的注释和变量命名。");
+        DEFAULT_TEMPLATES.put("TESTING", "编写全面的测试用例，覆盖正向、负向和边界情况。确保良好的测试覆盖率，验证所有输入输出。使用适当的测试框架，模拟外部依赖。");
+        DEFAULT_TEMPLATES.put("RELEASE", "准备发布说明，更新部署配置，验证环境变量。制定回滚方案，清晰记录部署步骤。确保向后兼容性。");
+        DEFAULT_TEMPLATES.put("DONE", "审查所有变更，更新文档，清理临时文件，关闭连接，释放资源。创建总结报告，记录经验教训和改进建议。");
+        DEFAULT_TEMPLATES.put("BLOCKED", "分析阻塞原因，识别根本问题，提出解决方案。记录问题和可用的临时解决方案。");
+        DEFAULT_TEMPLATES.put("CANCELLED", "审查部分完成的工作，记录取消原因。归档可能被复用的代码。");
     }
 
     /**
@@ -50,22 +50,35 @@ public class PromptTemplateService {
      * Called on application startup.
      */
     public void initializeDefaultTemplates() {
-        List<PromptTemplate> existingTemplates = promptTemplateRepository.findAll();
-
         for (Task.TaskStatus phase : Task.TaskStatus.values()) {
             String phaseName = phase.name();
-            if (!promptTemplateRepository.existsByPhase(phaseName)) {
+            String defaultInstruction = DEFAULT_TEMPLATES.getOrDefault(phaseName, "完成此任务。");
+
+            Optional<PromptTemplate> existing = promptTemplateRepository.findByPhase(phaseName);
+            if (existing.isEmpty()) {
+                // 不存在则创建新模板
                 PromptTemplate template = new PromptTemplate();
                 template.setPhase(phaseName);
-                template.setInstruction(DEFAULT_TEMPLATES.getOrDefault(phaseName, "Complete this task."));
+                template.setInstruction(defaultInstruction);
                 template.setDefault(true);
                 template.setCreatedAt(LocalDateTime.now());
                 template.setUpdatedAt(LocalDateTime.now());
                 promptTemplateRepository.save(template);
                 log.info("Created default prompt template for phase: {}", phaseName);
+            } else {
+                // 已存在：如果是默认模板，则更新内容；如果是用户自定义模板，则跳过
+                PromptTemplate template = existing.get();
+                if (template.isDefault()) {
+                    template.setInstruction(defaultInstruction);
+                    template.setUpdatedAt(LocalDateTime.now());
+                    promptTemplateRepository.save(template);
+                    log.info("Updated default prompt template for phase: {}", phaseName);
+                } else {
+                    log.info("Skipped custom prompt template for phase: {}", phaseName);
+                }
             }
         }
-        log.info("Initialized {} prompt templates", existingTemplates.size());
+        log.info("Prompt templates initialization completed");
     }
 
     /**
@@ -138,7 +151,7 @@ public class PromptTemplateService {
                 .orElseThrow(() -> new IllegalArgumentException("PromptTemplate not found with id: " + id));
 
         String phase = template.getPhase();
-        String defaultInstruction = DEFAULT_TEMPLATES.getOrDefault(phase, "Complete this task.");
+        String defaultInstruction = DEFAULT_TEMPLATES.getOrDefault(phase, "完成此任务。");
 
         template.setInstruction(defaultInstruction);
         template.setDefault(true);

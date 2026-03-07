@@ -5,6 +5,7 @@ import com.devops.kanban.dto.PromptTemplateDTO;
 import com.devops.kanban.service.PromptTemplateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,5 +52,12 @@ public class PromptTemplateController {
             log.warn("Failed to reset template", e.getMessage());
             return ResponseEntity.ok(ApiResponse.error(e.getMessage()));
         }
+    }
+
+    @PostMapping("/initialize")
+    public ResponseEntity<ApiResponse<List<PromptTemplateDTO>>> initializeDefaults() {
+        promptTemplateService.initializeDefaultTemplates();
+        List<PromptTemplateDTO> templates = promptTemplateService.findAll();
+        return ResponseEntity.ok(ApiResponse.success("Default templates initialized", templates));
     }
 }
