@@ -16,7 +16,6 @@ import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -126,8 +125,8 @@ public class PhaseTransitionService {
             return Optional.empty();
         }
 
-        // Check if auto transition is enabled for this task (default to true if not specified)
-        boolean autoEnabled = task.getAutoTransitionEnabled() == null || task.getAutoTransitionEnabled();
+        // Check if auto transition is enabled for this task (default to false if not specified)
+        boolean autoEnabled = task.getAutoTransitionEnabled() != null && task.getAutoTransitionEnabled();
         if (!autoEnabled) {
             log.info("[PhaseTransition] Auto transition disabled for task {}", taskId);
             return Optional.empty();
@@ -241,9 +240,8 @@ public class PhaseTransitionService {
     }
 
     /**
-     * Execute the phase transition with transaction and optimistic locking.
+     * Execute the phase transition with optimistic locking.
      */
-    @Transactional
     protected void executeTransition(Task task, TransitionResult result, Session session) {
         try {
             // Re-fetch task to get latest version for optimistic locking
@@ -376,21 +374,21 @@ public class PhaseTransitionService {
                         .fromPhase("TODO").toPhase("DESIGN")
                         .completionKeywords("[\"design complete\", \"ready for design\", \"moving to design\"]")
                         .failureKeywords("[]")
-                        .autoTransition(true).autoRollback(false)
+                        .autoTransition(false).autoRollback(false)
                         .enabled(true).priority(10)
                         .build(),
                 PhaseTransitionRule.builder()
                         .fromPhase("DESIGN").toPhase("DEVELOPMENT")
                         .completionKeywords("[\"design approved\", \"ready for development\", \"implementation complete\", \"design done\"]")
                         .failureKeywords("[]")
-                        .autoTransition(true).autoRollback(false)
+                        .autoTransition(false).autoRollback(false)
                         .enabled(true).priority(10)
                         .build(),
                 PhaseTransitionRule.builder()
                         .fromPhase("DEVELOPMENT").toPhase("TESTING")
                         .completionKeywords("[\"implementation complete\", \"code written\", \"ready for testing\", \"ready for qa\", \"tests written\", \"development done\"]")
                         .failureKeywords("[]")
-                        .autoTransition(true).autoRollback(false)
+                        .autoTransition(false).autoRollback(false)
                         .enabled(true).priority(10)
                         .build(),
                 PhaseTransitionRule.builder()
@@ -398,7 +396,7 @@ public class PhaseTransitionService {
                         .completionKeywords("[\"tests passed\", \"qa approved\", \"all tests passing\", \"testing complete\", \"verified\"]")
                         .failureKeywords("[\"test failed\", \"tests failed\", \"test failure\", \"tests failure\", \"failing tests\", \"qa rejected\"]")
                         .rollbackPhase("DEVELOPMENT")
-                        .autoTransition(true).autoRollback(true)
+                        .autoTransition(false).autoRollback(true)
                         .enabled(true).priority(10)
                         .build(),
                 PhaseTransitionRule.builder()
@@ -406,7 +404,7 @@ public class PhaseTransitionService {
                         .completionKeywords("[\"deployed\", \"released\", \"deployment complete\", \"release complete\", \"in production\"]")
                         .failureKeywords("[\"deployment failed\", \"release failed\", \"rollback\"]")
                         .rollbackPhase("TESTING")
-                        .autoTransition(true).autoRollback(true)
+                        .autoTransition(false).autoRollback(true)
                         .enabled(true).priority(10)
                         .build()
         );

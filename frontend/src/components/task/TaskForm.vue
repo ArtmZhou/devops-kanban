@@ -92,7 +92,7 @@ const formData = reactive({
   status: TASK_STATUS.TODO,
   priority: TASK_PRIORITY.MEDIUM,
   assignee: '',
-  autoTransitionEnabled: true
+  autoTransitionEnabled: false
 })
 
 const rules = {
@@ -125,7 +125,7 @@ watch(() => props.task, (newTask) => {
     formData.status = newTask.status || TASK_STATUS.TODO
     formData.priority = newTask.priority || TASK_PRIORITY.MEDIUM
     formData.assignee = newTask.assignee || ''
-    formData.autoTransitionEnabled = newTask.autoTransitionEnabled !== false
+    formData.autoTransitionEnabled = newTask.autoTransitionEnabled === true
   }
 }, { immediate: true })
 
