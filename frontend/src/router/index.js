@@ -20,6 +20,11 @@ const routes = [
     path: '/agents/:projectId?',
     name: 'AgentConfig',
     component: () => import('../views/AgentConfig.vue')
+  },
+  {
+    path: '/prompt-templates',
+    name: 'PromptTemplateConfig',
+    component: () => import('../views/PromptTemplateConfig.vue')
   }
 ]
 

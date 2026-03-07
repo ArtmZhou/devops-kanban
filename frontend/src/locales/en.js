@@ -27,6 +27,7 @@ export default {
     kanban: 'Kanban',
     taskSources: 'Task Sources',
     agents: 'Agents',
+    promptTemplates: 'Prompt Templates',
     settings: 'Settings'
   },
   project: {
@@ -247,5 +248,26 @@ export default {
     pushHint: 'Required to create MR',
     commitAndCreateMR: 'Commit & Create MR',
     openMR: 'Open MR'
+  },
+  promptTemplate: {
+    title: 'Prompt Templates',
+    initializeDefaults: 'Initialize Defaults',
+    selectProjectPrompt: 'Please select a project to manage prompt templates',
+    template: 'Template',
+    phase: 'Phase',
+    instruction: 'Instruction',
+    isDefault: 'Is Default',
+    default: 'Default',
+    editTemplate: 'Edit Template',
+    reset: 'Reset',
+    resetConfirm: 'Confirm Reset',
+    resetConfirmMessage: 'Are you sure you want to reset this template to default values?',
+    resetSuccess: 'Template reset to default successfully',
+    resetFailed: 'Failed to reset template',
+    initializeSuccess: 'Default templates initialized',
+    initializeFailed: 'Failed to initialize defaults',
+    loadFailed: 'Failed to load prompt templates',
+    updateSuccess: 'Template updated successfully',
+    updateFailed: 'Failed to update template'
   }
 }

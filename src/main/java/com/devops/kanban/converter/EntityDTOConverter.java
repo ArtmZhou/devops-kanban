@@ -235,4 +235,32 @@ public class EntityDTOConverter {
                 .completedAt(dto.getCompletedAt())
                 .build();
     }
+
+    // ==================== PromptTemplate ====================
+
+    public PromptTemplateDTO toDTO(PromptTemplate template) {
+        if (template == null) {
+            return null;
+        }
+        return PromptTemplateDTO.builder()
+                .id(template.getId())
+                .phase(template.getPhase())
+                .instruction(template.getInstruction())
+                .isDefault(template.isDefault())
+                .createdAt(template.getCreatedAt())
+                .updatedAt(template.getUpdatedAt())
+                .build();
+    }
+
+    public PromptTemplate toEntity(PromptTemplateDTO dto) {
+        if (dto == null) {
+            return null;
+        }
+        return PromptTemplate.builder()
+                .id(dto.getId())
+                .phase(dto.getPhase())
+                .instruction(dto.getInstruction())
+                .isDefault(dto.getIsDefault() != null ? dto.getIsDefault() : false)
+                .build();
+    }
 }

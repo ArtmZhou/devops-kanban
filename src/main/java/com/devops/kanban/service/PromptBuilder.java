@@ -2,15 +2,18 @@ package com.devops.kanban.service;
 
 import com.devops.kanban.dto.TaskDTO;
 import org.springframework.stereotype.Service;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Builds prompts for AI agent execution.
  * Extracted from SessionService to improve separation of concerns.
  */
 @Service
+@RequiredArgsConstructor
 public class PromptBuilder {
 
     private static final String DEFAULT_INSTRUCTION = "Please complete this task. Make the necessary changes and ensure the code works correctly.";
+    private final PromptTemplateService promptTemplateService;
 
     /**
      * Build an initial prompt from a task.
@@ -30,7 +33,9 @@ public class PromptBuilder {
             prompt.append("**Description:** ").append(task.getDescription()).append("\n");
         }
 
-        prompt.append("\n").append(DEFAULT_INSTRUCTION);
+        // Get phase-specific instruction
+        String instruction = getInstructionForPhase(task.getStatus());
+        prompt.append("\n").append(instruction);
 
         return prompt.toString();
     }
@@ -63,5 +68,18 @@ public class PromptBuilder {
         }
 
         return prompt.toString();
+    }
+
+    /**
+     * Get the instruction for a task phase.
+     *
+     * @param status the task status/phase
+     * @return the instruction for that phase
+     */
+    public String getInstructionForPhase(String status) {
+        if (status == null) {
+            status = "TODO";
+        }
+        return promptTemplateService.getInstructionForPhase(status);
     }
 }

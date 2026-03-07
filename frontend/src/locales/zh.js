@@ -27,6 +27,7 @@ export default {
     kanban: '看板',
     taskSources: '任务源',
     agents: '智能代理',
+    promptTemplates: '提示词模板',
     settings: '设置'
   },
   project: {
@@ -247,5 +248,26 @@ export default {
     pushHint: '创建 MR 需要先推送',
     commitAndCreateMR: '提交并创建MR',
     openMR: '打开MR'
+  },
+  promptTemplate: {
+    title: '提示词模板',
+    initializeDefaults: '初始化默认值',
+    selectProjectPrompt: '请选择项目以管理提示词模板',
+    template: '模板',
+    phase: '阶段',
+    instruction: '指令',
+    isDefault: '是否默认',
+    default: '默认',
+    editTemplate: '编辑模板',
+    reset: '重置',
+    resetConfirm: '确认重置',
+    resetConfirmMessage: '确定要将此模板重置为默认值吗？',
+    resetSuccess: '模板已重置为默认值',
+    resetFailed: '重置模板失败',
+    initializeSuccess: '默认模板已初始化',
+    initializeFailed: '初始化默认值失败',
+    loadFailed: '加载提示词模板失败',
+    updateSuccess: '模板更新成功',
+    updateFailed: '更新模板失败'
   }
 }
