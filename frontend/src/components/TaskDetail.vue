@@ -15,6 +15,82 @@
       @cancel="$emit('close')"
     />
 
+    <!-- Git Changes Section -->
+    <template v-if="!isNew && hasWorktree">
+      <el-divider>
+        <el-icon><Document /></el-icon>
+        {{ $t('git.changes', 'Git Changes') }}
+      </el-divider>
+
+      <div class="git-section">
+        <div v-if="gitLoading" class="git-loading">
+          <el-icon class="is-loading"><Loading /></el-icon>
+          {{ $t('common.loading') }}
+        </div>
+
+        <div v-else-if="gitStatus" class="git-status">
+          <div class="status-header">
+            <el-tag type="info" size="small">
+              <el-icon><Branch /></el-icon>
+              {{ gitStatus.branch }}
+            </el-tag>
+            <div class="change-counts">
+              <el-tag v-if="gitStatus.added?.length" type="success" size="small">
+                +{{ gitStatus.added.length }}
+              </el-tag>
+              <el-tag v-if="gitStatus.modified?.length" type="warning" size="small">
+                ~{{ gitStatus.modified.length }}
+              </el-tag>
+              <el-tag v-if="gitStatus.deleted?.length" type="danger" size="small">
+                -{{ gitStatus.deleted.length }}
+              </el-tag>
+              <el-tag v-if="gitStatus.untracked?.length" type="info" size="small">
+                ?{{ gitStatus.untracked.length }}
+              </el-tag>
+            </div>
+          </div>
+
+          <div v-if="gitStatus.hasUncommittedChanges" class="changes-preview">
+            <el-scrollbar max-height="120px">
+              <div class="file-list">
+                <div v-for="file in gitStatus.added" :key="'add-'+file.path" class="file-item added">
+                  <el-icon><Plus /></el-icon>
+                  {{ file.path }}
+                </div>
+                <div v-for="file in gitStatus.modified" :key="'mod-'+file.path" class="file-item modified">
+                  <el-icon><Edit /></el-icon>
+                  {{ file.path }}
+                </div>
+                <div v-for="file in gitStatus.deleted" :key="'del-'+file.path" class="file-item deleted">
+                  <el-icon><Minus /></el-icon>
+                  {{ file.path }}
+                </div>
+                <div v-for="file in gitStatus.untracked" :key="'untr-'+file.path" class="file-item untracked">
+                  <el-icon><QuestionFilled /></el-icon>
+                  {{ file.path }}
+                </div>
+              </div>
+            </el-scrollbar>
+          </div>
+
+          <el-empty v-else :description="$t('git.noChanges')" :image-size="60" />
+
+          <div class="git-actions">
+            <el-button size="small" @click="showDiffDialog">
+              <el-icon><View /></el-icon>
+              {{ $t('git.viewDiff', 'View Diff') }}
+            </el-button>
+            <el-button size="small" type="primary" @click="openCommitDialog" :disabled="!gitStatus.hasUncommittedChanges">
+              <el-icon><Check /></el-icon>
+              {{ $t('git.commit') }}
+            </el-button>
+          </div>
+        </div>
+
+        <el-empty v-else :description="$t('git.noWorktree', 'No worktree for this task')" :image-size="60" />
+      </div>
+    </template>
+
     <!-- AI Session Section -->
     <template v-if="!isNew && agents.length > 0">
       <el-divider>
@@ -92,19 +168,56 @@
       </div>
     </template>
   </el-dialog>
+
+  <!-- Diff Dialog -->
+  <el-dialog
+    v-model="diffDialogVisible"
+    :title="$t('git.diff', 'Code Changes')"
+    width="80%"
+    top="5vh"
+  >
+    <div class="diff-stats" v-if="diffContent">
+      <el-tag type="success">
+        <el-icon><Plus /></el-icon>
+        {{ (diffContent.match(/^\+/gm) || []).length }} additions
+      </el-tag>
+      <el-tag type="danger">
+        <el-icon><Minus /></el-icon>
+        {{ (diffContent.match(/^-/gm) || []).length }} deletions
+      </el-tag>
+    </div>
+    <el-scrollbar height="60vh">
+      <pre class="diff-content">{{ diffContent }}</pre>
+    </el-scrollbar>
+    <template #footer>
+      <el-button @click="diffDialogVisible = false">{{ $t('common.close') }}</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- Commit Dialog -->
+  <CommitDialog
+    v-if="commitDialogVisible"
+    :project-id="projectId"
+    :task-id="task.id"
+    :current-branch="gitStatus?.branch || ''"
+    @close="commitDialogVisible = false"
+    @committed="handleCommitted"
+  />
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Cpu } from '@element-plus/icons-vue'
+import { Cpu, Document, Loading, Branch, Plus, Minus, Edit, QuestionFilled, View, Check } from '@element-plus/icons-vue'
 import { createTask, updateTask, deleteTask } from '../api/task'
 import { getAgents } from '../api/agent'
 import { getActiveSessionByTask, getSessionHistory, createSession, deleteSession } from '../api/session'
+import { getStatus, getDiff } from '../api/git'
 import ChatBox from './ChatBox.vue'
 import TaskForm from './task/TaskForm.vue'
 import TaskHistory from './task/TaskHistory.vue'
+import CommitDialog from './CommitDialog.vue'
 import { useToast } from '../composables/ui/useToast'
 
 const { t } = useI18n()
@@ -133,6 +246,14 @@ const selectedAgentId = ref(null)
 const localSession = ref(null)
 const sessionHistory = ref([])
 const historyLoading = ref(false)
+
+// Git status
+const gitLoading = ref(false)
+const gitStatus = ref(null)
+const hasWorktree = ref(false)
+const diffDialogVisible = ref(false)
+const diffContent = ref('')
+const commitDialogVisible = ref(false)
 
 const hasActiveSession = computed(() => {
   if (localSession.value) {
@@ -168,9 +289,53 @@ const loadSessionForTask = async (task) => {
     }
 
     loadSessionHistory()
+    loadGitStatus()
   } catch (e) {
     console.error('Failed to load agents:', e)
   }
+}
+
+const loadGitStatus = async () => {
+  if (!props.task?.id) return
+  gitLoading.value = true
+  try {
+    const response = await getStatus(props.projectId, props.task.id)
+    if (response.success && response.data) {
+      gitStatus.value = response.data
+      hasWorktree.value = true
+    } else {
+      hasWorktree.value = false
+    }
+  } catch (e) {
+    console.log('No worktree for this task:', e)
+    hasWorktree.value = false
+  } finally {
+    gitLoading.value = false
+  }
+}
+
+const showDiffDialog = async () => {
+  if (!props.task?.id) return
+  try {
+    const response = await getDiff(props.projectId, props.task.id)
+    if (response.success && response.data) {
+      diffContent.value = response.data.content || ''
+      diffDialogVisible.value = true
+    } else {
+      toast.error(response.message || t('git.diffFailed'))
+    }
+  } catch (e) {
+    toast.apiError(e, t('git.diffFailed'))
+  }
+}
+
+const openCommitDialog = () => {
+  commitDialogVisible.value = true
+}
+
+const handleCommitted = () => {
+  loadGitStatus()
+  toast.success(t('git.commitSuccess'))
 }
 
 onMounted(async () => {
@@ -347,5 +512,106 @@ const onSelectHistory = (session) => {
 
 .spacer {
   flex: 1;
+}
+
+/* Git Section Styles */
+.git-section {
+  margin-top: 8px;
+}
+
+.git-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--el-text-color-secondary);
+  padding: 16px;
+  justify-content: center;
+}
+
+.git-status {
+  background: var(--el-bg-color-page);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.status-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.change-counts {
+  display: flex;
+  gap: 4px;
+}
+
+.changes-preview {
+  margin: 8px 0;
+  border: 1px solid var(--el-border-color-light);
+  border-radius: 4px;
+  background: var(--el-bg-color);
+}
+
+.file-list {
+  padding: 8px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: monospace;
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+
+.file-item.added {
+  background: rgba(103, 194, 58, 0.1);
+  color: #67c23a;
+}
+
+.file-item.modified {
+  background: rgba(230, 162, 60, 0.1);
+  color: #e6a23c;
+}
+
+.file-item.deleted {
+  background: rgba(245, 108, 108, 0.1);
+  color: #f56c6c;
+}
+
+.file-item.untracked {
+  background: rgba(144, 147, 153, 0.1);
+  color: #909399;
+}
+
+.git-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}
+
+/* Diff Styles */
+.diff-stats {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.diff-content {
+  margin: 0;
+  padding: 16px;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 8px;
 }
 </style>
