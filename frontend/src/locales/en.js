@@ -87,6 +87,17 @@ export default {
       GITHUB: 'GitHub Issues',
       JIRA: 'Jira',
       CUSTOM: 'Custom'
+    },
+    github: {
+      repo: 'Repository',
+      token: 'Access Token',
+      state: 'Issue State',
+      repoHint: 'e.g., facebook/react',
+      tokenPlaceholder: 'ghp_xxx...',
+      tokenHint: 'Optional, increases API rate limits',
+      stateOpen: 'Open Only',
+      stateClosed: 'Closed Only',
+      stateAll: 'All'
     }
   },
   agent: {

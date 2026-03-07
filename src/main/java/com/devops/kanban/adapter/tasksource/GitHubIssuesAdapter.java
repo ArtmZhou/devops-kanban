@@ -34,7 +34,15 @@ public class GitHubIssuesAdapter implements TaskSourceAdapter {
     public boolean validateConfig(String configJson) {
         try {
             JsonNode config = mapper.readTree(configJson);
-            return config.has("repo") && config.get("repo").asText().contains("/");
+            if (!config.has("repo") || !config.get("repo").asText().contains("/")) {
+                return false;
+            }
+            // Validate state parameter if present
+            if (config.has("state")) {
+                String state = config.get("state").asText();
+                return "open".equals(state) || "closed".equals(state) || "all".equals(state);
+            }
+            return true;
         } catch (Exception e) {
             return false;
         }
@@ -47,8 +55,9 @@ public class GitHubIssuesAdapter implements TaskSourceAdapter {
             JsonNode config = mapper.readTree(source.getConfig());
             String repo = config.get("repo").asText();
             String token = config.has("token") ? config.get("token").asText() : null;
+            String state = config.has("state") ? config.get("state").asText() : "open";
 
-            String url = "https://api.github.com/repos/" + repo + "/issues?state=open";
+            String url = "https://api.github.com/repos/" + repo + "/issues?state=" + state;
             HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .header("Accept", "application/vnd.github.v3+json");
@@ -71,15 +80,21 @@ public class GitHubIssuesAdapter implements TaskSourceAdapter {
                             .sourceId(source.getId())
                             .externalId(String.valueOf(issue.get("number").asInt()))
                             .title(issue.get("title").asText())
-                            .description(issue.get("body") != null ? issue.get("body").asText() : "")
+                            .description(issue.get("body") != null && !issue.get("body").isNull() ? issue.get("body").asText() : "")
                             .status(mapStatus(issue.get("state").asText()))
                             .syncedAt(LocalDateTime.now())
                             .build();
                     tasks.add(task);
                 }
+            } else if (response.statusCode() == 404) {
+                throw new RuntimeException("Repository not found: " + repo + ". Please check the repository name (owner/repo format).");
+            } else if (response.statusCode() == 401 || response.statusCode() == 403) {
+                throw new RuntimeException("Access denied. Please check your access token or rate limit.");
             }
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch GitHub issues", e);
+            throw new RuntimeException("Failed to fetch GitHub issues from repository: " + e.getMessage(), e);
         }
         return tasks;
     }
@@ -110,14 +125,20 @@ public class GitHubIssuesAdapter implements TaskSourceAdapter {
                         .sourceId(source.getId())
                         .externalId(String.valueOf(issue.get("number").asInt()))
                         .title(issue.get("title").asText())
-                        .description(issue.get("body") != null ? issue.get("body").asText() : "")
+                        .description(issue.get("body") != null && !issue.get("body").isNull() ? issue.get("body").asText() : "")
                         .status(mapStatus(issue.get("state").asText()))
                         .syncedAt(LocalDateTime.now())
                         .build();
                 return Optional.of(task);
+            } else if (response.statusCode() == 404) {
+                return Optional.empty(); // Issue not found
+            } else if (response.statusCode() == 401 || response.statusCode() == 403) {
+                throw new RuntimeException("Access denied. Please check your access token or rate limit.");
             }
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch GitHub issue", e);
+            throw new RuntimeException("Failed to fetch GitHub issue #" + externalId + ": " + e.getMessage(), e);
         }
         return Optional.empty();
     }

@@ -87,6 +87,17 @@ export default {
       GITHUB: 'GitHub Issues',
       JIRA: 'Jira',
       CUSTOM: '自定义'
+    },
+    github: {
+      repo: '仓库',
+      token: '访问令牌',
+      state: 'Issue 状态',
+      repoHint: '例如: facebook/react',
+      tokenPlaceholder: 'ghp_xxx...',
+      tokenHint: '可选，提高 API 访问速率限制',
+      stateOpen: '仅开放',
+      stateClosed: '仅关闭',
+      stateAll: '全部'
     }
   },
   agent: {

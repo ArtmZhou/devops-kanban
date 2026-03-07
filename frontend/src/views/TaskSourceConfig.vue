@@ -47,6 +47,12 @@
           <div class="source-actions">
             <button
               class="btn btn-secondary"
+              @click="editSource(source)"
+            >
+              {{ $t('common.edit') }}
+            </button>
+            <button
+              class="btn btn-secondary"
               @click="testConnection(source)"
               :disabled="testingConnection === source.id"
             >
@@ -102,8 +108,21 @@
             </div>
 
             <div class="form-group">
-              <label>{{ $t('taskSource.config') }} (JSON)</label>
-              <textarea v-model="form.config" rows="4" placeholder='{"repo": "owner/repo", "token": "xxx"}'></textarea>
+              <label>{{ $t('taskSource.config') }}</label>
+
+              <!-- GitHub type shows form -->
+              <GitHubSourceConfig
+                v-if="form.type === 'GITHUB'"
+                v-model="form.config"
+              />
+
+              <!-- Other types show JSON editor -->
+              <textarea
+                v-else
+                v-model="form.config"
+                rows="4"
+                placeholder='{"key": "value"}'
+              ></textarea>
             </div>
 
             <div class="form-actions">
@@ -127,10 +146,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getProjects } from '../api/project'
 import { getTaskSources, createTaskSource, updateTaskSource, syncTaskSource, testTaskSourceConnection, deleteTaskSource } from '../api/taskSource'
+import GitHubSourceConfig from '../components/GitHubSourceConfig.vue'
 
 const { t } = useI18n()
 
@@ -249,11 +269,32 @@ const confirmDelete = async (source) => {
   }
 }
 
+const editSource = (source) => {
+  editingSource.value = source
+  form.value = {
+    name: source.name,
+    type: source.type,
+    config: source.config || '{}',
+    syncInterval: source.syncInterval || 60
+  }
+  showAddForm.value = true
+}
+
 const closeForm = () => {
   showAddForm.value = false
   editingSource.value = null
   form.value = { name: '', type: 'LOCAL', config: '{}', syncInterval: 60 }
 }
+
+// Reset config when type changes (only for new sources)
+watch(() => form.value.type, (newType) => {
+  if (editingSource.value) return // Don't reset when editing
+  if (newType === 'GITHUB') {
+    form.value.config = JSON.stringify({ repo: '', token: '', state: 'open' })
+  } else {
+    form.value.config = '{}'
+  }
+})
 
 onMounted(loadProjects)
 </script>
