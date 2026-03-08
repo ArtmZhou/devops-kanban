@@ -48,6 +48,7 @@ public class TaskService {
             task.setPriority(Task.TaskPriority.valueOf(dto.getPriority()));
         }
         task.setAssignee(dto.getAssignee());
+        task.setAutoTransitionEnabled(dto.getAutoTransitionEnabled());
 
         task = taskRepository.save(task);
         return converter.toDTO(task);
