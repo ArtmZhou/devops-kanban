@@ -20,7 +20,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': '/src'
+      '@': '/src',
+      'vuedraggable': 'vuedraggable/dist/vuedraggable.common.js'
     }
   },
   define: {
