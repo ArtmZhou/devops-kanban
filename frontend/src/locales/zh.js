@@ -100,7 +100,9 @@ export default {
     taskNotFound: '找不到任务',
     newTaskButton: '新建任务',
     autoTransitionLabel: '自动流转',
-    autoTransitionHint: '启用后，AI Agent 完成工作时将自动流转到下一阶段'
+    autoTransitionHint: '启用后，AI Agent 完成工作时将自动流转到下一阶段',
+    autoTransitionEnabled: '自动流转已启用',
+    autoTransitionDisabled: '自动流转已禁用'
   },
   status: {
     TODO: '待处理',

@@ -100,7 +100,9 @@ export default {
     taskNotFound: 'Task not found',
     newTaskButton: 'New Task',
     autoTransitionLabel: 'Auto Transition',
-    autoTransitionHint: 'When enabled, the task will automatically transition to the next phase when AI agent completes work'
+    autoTransitionHint: 'When enabled, the task will automatically transition to the next phase when AI agent completes work',
+    autoTransitionEnabled: 'Auto transition enabled',
+    autoTransitionDisabled: 'Auto transition disabled'
   },
   status: {
     TODO: 'Pending',

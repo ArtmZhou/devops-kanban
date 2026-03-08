@@ -71,6 +71,18 @@
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
                       </span>
+                      <span
+                        class="auto-transition-icon"
+                        :class="{ 'disabled': element.autoTransitionEnabled === false }"
+                        @click.stop="toggleAutoTransition(element)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M23 4v6h-6"></path>
+                          <path d="M1 20v-6h6"></path>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                      </span>
                       <span v-if="isTaskRunning(element.id)" class="task-running-time">
                         {{ formatTaskElapsedTime(element.id) }}
                       </span>
@@ -141,6 +153,18 @@
                       <span class="task-card-title">{{ element.title }}</span>
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
+                      </span>
+                      <span
+                        class="auto-transition-icon"
+                        :class="{ 'disabled': element.autoTransitionEnabled === false }"
+                        @click.stop="toggleAutoTransition(element)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M23 4v6h-6"></path>
+                          <path d="M1 20v-6h6"></path>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
                       </span>
                       <span v-if="isTaskRunning(element.id)" class="task-running-time">
                         {{ formatTaskElapsedTime(element.id) }}
@@ -213,6 +237,18 @@
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
                       </span>
+                      <span
+                        class="auto-transition-icon"
+                        :class="{ 'disabled': element.autoTransitionEnabled === false }"
+                        @click.stop="toggleAutoTransition(element)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M23 4v6h-6"></path>
+                          <path d="M1 20v-6h6"></path>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                      </span>
                       <span v-if="isTaskRunning(element.id)" class="task-running-time">
                         {{ formatTaskElapsedTime(element.id) }}
                       </span>
@@ -283,6 +319,18 @@
                       <span class="task-card-title">{{ element.title }}</span>
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
+                      </span>
+                      <span
+                        class="auto-transition-icon"
+                        :class="{ 'disabled': element.autoTransitionEnabled === false }"
+                        @click.stop="toggleAutoTransition(element)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M23 4v6h-6"></path>
+                          <path d="M1 20v-6h6"></path>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
                       </span>
                       <span v-if="isTaskRunning(element.id)" class="task-running-time">
                         {{ formatTaskElapsedTime(element.id) }}
@@ -355,6 +403,18 @@
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
                       </span>
+                      <span
+                        class="auto-transition-icon"
+                        :class="{ 'disabled': element.autoTransitionEnabled === false }"
+                        @click.stop="toggleAutoTransition(element)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M23 4v6h-6"></path>
+                          <path d="M1 20v-6h6"></path>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                      </span>
                       <span v-if="isTaskRunning(element.id)" class="task-running-time">
                         {{ formatTaskElapsedTime(element.id) }}
                       </span>
@@ -425,6 +485,18 @@
                       <span class="task-card-title">{{ element.title }}</span>
                       <span class="task-card-priority" :class="getPriorityClass(element.priority)">
                         {{ getPriorityLabel(element.priority) }}
+                      </span>
+                      <span
+                        class="auto-transition-icon"
+                        :class="{ 'disabled': element.autoTransitionEnabled === false }"
+                        @click.stop="toggleAutoTransition(element)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M23 4v6h-6"></path>
+                          <path d="M1 20v-6h6"></path>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
                       </span>
                       <span v-if="isTaskRunning(element.id)" class="task-running-time">
                         {{ formatTaskElapsedTime(element.id) }}
@@ -807,6 +879,17 @@ const saveTask = async () => {
     ElMessage.error(t('task.saveFailed'))
   } finally {
     loading.saving = false
+  }
+}
+
+const toggleAutoTransition = async (task) => {
+  const newValue = task.autoTransitionEnabled === false ? true : false
+  try {
+    await taskStore.updateTask(task.id, { autoTransitionEnabled: newValue })
+    ElMessage.success(newValue ? t('task.autoTransitionEnabled') : t('task.autoTransitionDisabled'))
+  } catch (e) {
+    console.error('Failed to toggle auto transition:', e)
+    ElMessage.error(t('messages.updateFailed', { name: t('task.title') }))
   }
 }
 
@@ -1287,6 +1370,28 @@ onUnmounted(() => {
 .priority-medium { background: rgba(245, 158, 11, 0.12); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
 .priority-high { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
 .priority-critical { background: rgba(239, 68, 68, 0.2); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3); }
+
+.auto-transition-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--el-color-primary);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.auto-transition-icon:hover {
+  background: rgba(64, 158, 255, 0.1);
+}
+
+.auto-transition-icon.disabled {
+  color: var(--el-text-color-placeholder);
+  opacity: 0.5;
+}
 
 .task-running-time {
   font-size: 11px;
