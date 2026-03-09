@@ -31,6 +31,14 @@
       </button>
     </header>
 
+    <!-- Workflow Timeline -->
+    <WorkflowTimeline
+      v-if="selectedProjectId && currentWorkflow"
+      :workflow="currentWorkflow"
+      :selected-node-id="selectedNodeId"
+      @select-node="onNodeSelect"
+    />
+
     <!-- Main Content: Kanban Board + Chat -->
     <div class="kanban-layout">
       <!-- Kanban Board -->
@@ -119,21 +127,21 @@
           </div>
         </div>
 
-        <!-- DESIGN Column -->
-        <div class="kanban-column" data-status="DESIGN">
+        <!-- IN_PROGRESS Column -->
+        <div class="kanban-column" data-status="IN_PROGRESS">
           <div class="column-header">
-            <span class="column-status status-design"></span>
-            <span class="column-title">{{ $t('status.DESIGN') }}</span>
-            <span class="column-count">{{ localDesignTasks.length }}</span>
+            <span class="column-status status-in-progress"></span>
+            <span class="column-title">{{ $t('status.IN_PROGRESS') }}</span>
+            <span class="column-count">{{ localInProgressTasks.length }}</span>
           </div>
           <div class="column-content">
             <draggable
-              :list="localDesignTasks"
+              :list="localInProgressTasks"
               group="tasks"
               :animation="200"
               ghost-class="ghost-card"
               drag-class="drag-card"
-              :data-status="'DESIGN'"
+              :data-status="'IN_PROGRESS'"
               @end="onDragEnd"
               item-key="id"
             >
@@ -196,257 +204,8 @@
                 </div>
               </template>
             </draggable>
-            <div v-if="localDesignTasks.length === 0" class="empty-column">
-              <p>{{ $t('task.noDesignTasks') }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- DEVELOPMENT Column -->
-        <div class="kanban-column" data-status="DEVELOPMENT">
-          <div class="column-header">
-            <span class="column-status status-development"></span>
-            <span class="column-title">{{ $t('status.DEVELOPMENT') }}</span>
-            <span class="column-count">{{ localDevelopmentTasks.length }}</span>
-          </div>
-          <div class="column-content">
-            <draggable
-              :list="localDevelopmentTasks"
-              group="tasks"
-              :animation="200"
-              ghost-class="ghost-card"
-              drag-class="drag-card"
-              :data-status="'DEVELOPMENT'"
-              @end="onDragEnd"
-              item-key="id"
-            >
-              <template #item="{ element }">
-                <div
-                  class="task-card"
-                  :data-id="element.id"
-                  :class="{
-                    'task-selected': selectedTask?.id === element.id,
-                    'task-running': isTaskRunning(element.id)
-                  }"
-                  @click="selectTask(element)"
-                  @dblclick="openTaskModal(element)"
-                >
-                  <div class="task-card-content">
-                    <div class="task-card-main">
-                      <span class="task-card-title">{{ element.title }}</span>
-                      <span class="task-card-priority" :class="getPriorityClass(element.priority)">
-                        {{ getPriorityLabel(element.priority) }}
-                      </span>
-                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
-                        {{ formatTaskElapsedTime(element.id) }}
-                      </span>
-                    </div>
-                    <div class="task-card-actions">
-                      <button
-                        class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M23 4v6h-6"></path>
-                          <path d="M1 20v-6h6"></path>
-                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                      </button>
-                      <button
-                        class="edit-btn"
-                        @click.stop="openTaskModal(element)"
-                        :title="$t('common.edit')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                      </button>
-                      <button
-                        class="delete-btn"
-                        @click.stop="deleteTask(element.id)"
-                        :title="$t('common.delete')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-            <div v-if="localDevelopmentTasks.length === 0" class="empty-column">
-              <p>{{ $t('task.noDevelopmentTasks') }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- TESTING Column -->
-        <div class="kanban-column" data-status="TESTING">
-          <div class="column-header">
-            <span class="column-status status-testing"></span>
-            <span class="column-title">{{ $t('status.TESTING') }}</span>
-            <span class="column-count">{{ localTestingTasks.length }}</span>
-          </div>
-          <div class="column-content">
-            <draggable
-              :list="localTestingTasks"
-              group="tasks"
-              :animation="200"
-              ghost-class="ghost-card"
-              drag-class="drag-card"
-              :data-status="'TESTING'"
-              @end="onDragEnd"
-              item-key="id"
-            >
-              <template #item="{ element }">
-                <div
-                  class="task-card"
-                  :data-id="element.id"
-                  :class="{
-                    'task-selected': selectedTask?.id === element.id,
-                    'task-running': isTaskRunning(element.id)
-                  }"
-                  @click="selectTask(element)"
-                  @dblclick="openTaskModal(element)"
-                >
-                  <div class="task-card-content">
-                    <div class="task-card-main">
-                      <span class="task-card-title">{{ element.title }}</span>
-                      <span class="task-card-priority" :class="getPriorityClass(element.priority)">
-                        {{ getPriorityLabel(element.priority) }}
-                      </span>
-                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
-                        {{ formatTaskElapsedTime(element.id) }}
-                      </span>
-                    </div>
-                    <div class="task-card-actions">
-                      <button
-                        class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M23 4v6h-6"></path>
-                          <path d="M1 20v-6h6"></path>
-                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                      </button>
-                      <button
-                        class="edit-btn"
-                        @click.stop="openTaskModal(element)"
-                        :title="$t('common.edit')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                      </button>
-                      <button
-                        class="delete-btn"
-                        @click.stop="deleteTask(element.id)"
-                        :title="$t('common.delete')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-            <div v-if="localTestingTasks.length === 0" class="empty-column">
-              <p>{{ $t('task.noTestingTasks') }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- RELEASE Column -->
-        <div class="kanban-column" data-status="RELEASE">
-          <div class="column-header">
-            <span class="column-status status-release"></span>
-            <span class="column-title">{{ $t('status.RELEASE') }}</span>
-            <span class="column-count">{{ localReleaseTasks.length }}</span>
-          </div>
-          <div class="column-content">
-            <draggable
-              :list="localReleaseTasks"
-              group="tasks"
-              :animation="200"
-              ghost-class="ghost-card"
-              drag-class="drag-card"
-              :data-status="'RELEASE'"
-              @end="onDragEnd"
-              item-key="id"
-            >
-              <template #item="{ element }">
-                <div
-                  class="task-card"
-                  :data-id="element.id"
-                  :class="{
-                    'task-selected': selectedTask?.id === element.id,
-                    'task-running': isTaskRunning(element.id)
-                  }"
-                  @click="selectTask(element)"
-                  @dblclick="openTaskModal(element)"
-                >
-                  <div class="task-card-content">
-                    <div class="task-card-main">
-                      <span class="task-card-title">{{ element.title }}</span>
-                      <span class="task-card-priority" :class="getPriorityClass(element.priority)">
-                        {{ getPriorityLabel(element.priority) }}
-                      </span>
-                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
-                        {{ formatTaskElapsedTime(element.id) }}
-                      </span>
-                    </div>
-                    <div class="task-card-actions">
-                      <button
-                        class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M23 4v6h-6"></path>
-                          <path d="M1 20v-6h6"></path>
-                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                      </button>
-                      <button
-                        class="edit-btn"
-                        @click.stop="openTaskModal(element)"
-                        :title="$t('common.edit')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                      </button>
-                      <button
-                        class="delete-btn"
-                        @click.stop="deleteTask(element.id)"
-                        :title="$t('common.delete')"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </template>
-            </draggable>
-            <div v-if="localReleaseTasks.length === 0" class="empty-column">
-              <p>{{ $t('task.noReleaseTasks') }}</p>
+            <div v-if="localInProgressTasks.length === 0" class="empty-column">
+              <p>{{ $t('task.noTasks') }}</p>
             </div>
           </div>
         </div>
@@ -604,10 +363,7 @@
               <label>{{ $t('task.status') }}</label>
               <select v-model="taskForm.status">
                 <option value="TODO">{{ $t('status.TODO') }}</option>
-                <option value="DESIGN">{{ $t('status.DESIGN') }}</option>
-                <option value="DEVELOPMENT">{{ $t('status.DEVELOPMENT') }}</option>
-                <option value="TESTING">{{ $t('status.TESTING') }}</option>
-                <option value="RELEASE">{{ $t('status.RELEASE') }}</option>
+                <option value="IN_PROGRESS">{{ $t('status.IN_PROGRESS') }}</option>
                 <option value="DONE">{{ $t('status.DONE') }}</option>
               </select>
             </div>
@@ -653,6 +409,8 @@ import { useTaskStore } from '../stores/taskStore'
 import { createSession, startSession, stopSession, getActiveSessionByTask, getSessionsByTask } from '../api/session.js'
 import AgentSelector from '../components/AgentSelector.vue'
 import ChatBox from '../components/ChatBox.vue'
+import WorkflowTimeline from '../components/workflow/WorkflowTimeline.vue'
+import { mockWorkflows, getWorkflowByProject } from '../mock/workflowData'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -677,6 +435,32 @@ const taskElapsedSeconds = ref({}) // Reactive object for elapsed seconds displa
 let runningTimer = null
 const isChatCollapsed = ref(false)
 const kanbanBoardRef = ref(null)
+
+// Workflow state
+const selectedNodeId = ref(null)
+const currentWorkflow = computed(() => {
+  if (!selectedProjectId.value) return null
+  return getWorkflowByProject(selectedProjectId.value)
+})
+
+// Node selection handler
+const onNodeSelect = (node) => {
+  selectedNodeId.value = node.id
+  // Update chat messages to show selected node's conversation
+  if (node.messages && node.messages.length > 0) {
+    // Convert node messages to chat format
+    const chatMessages = node.messages.map(msg => ({
+      id: msg.id,
+      role: msg.from === 'user' ? 'user' : 'assistant',
+      content: msg.content,
+      timestamp: new Date().toISOString()
+    }))
+    // Update chatBox if available
+    if (chatBoxRef.value && chatBoxRef.value.setMessages) {
+      chatBoxRef.value.setMessages(chatMessages, node)
+    }
+  }
+}
 
 // Auto scroll when chat expands
 watch(isChatCollapsed, (collapsed, oldCollapsed) => {
@@ -718,45 +502,30 @@ const projects = computed(() => projectStore.projects)
 
 // Computed for each column - directly from store
 const todoTasks = computed(() => taskStore.tasksByStatus.TODO || [])
-const designTasks = computed(() => taskStore.tasksByStatus.DESIGN || [])
-const developmentTasks = computed(() => taskStore.tasksByStatus.DEVELOPMENT || [])
-const testingTasks = computed(() => taskStore.tasksByStatus.TESTING || [])
-const releaseTasks = computed(() => taskStore.tasksByStatus.RELEASE || [])
+const inProgressTasks = computed(() => taskStore.tasksByStatus.IN_PROGRESS || [])
 const doneTasks = computed(() => taskStore.tasksByStatus.DONE || [])
 
 // Local reactive arrays for draggable (synced from computed)
 const localTodoTasks = ref([])
-const localDesignTasks = ref([])
-const localDevelopmentTasks = ref([])
-const localTestingTasks = ref([])
-const localReleaseTasks = ref([])
+const localInProgressTasks = ref([])
 const localDoneTasks = ref([])
 
 // Watch store changes and sync to local arrays
 watch(todoTasks, (newVal) => { localTodoTasks.value = [...newVal] }, { immediate: true })
-watch(designTasks, (newVal) => { localDesignTasks.value = [...newVal] }, { immediate: true })
-watch(developmentTasks, (newVal) => { localDevelopmentTasks.value = [...newVal] }, { immediate: true })
-watch(testingTasks, (newVal) => { localTestingTasks.value = [...newVal] }, { immediate: true })
-watch(releaseTasks, (newVal) => { localReleaseTasks.value = [...newVal] }, { immediate: true })
+watch(inProgressTasks, (newVal) => { localInProgressTasks.value = [...newVal] }, { immediate: true })
 watch(doneTasks, (newVal) => { localDoneTasks.value = [...newVal] }, { immediate: true })
 
 // Helper to update all column refs from store (kept for other uses)
 const updateColumnRefs = () => {
   localTodoTasks.value = [...(taskStore.tasksByStatus.TODO || [])]
-  localDesignTasks.value = [...(taskStore.tasksByStatus.DESIGN || [])]
-  localDevelopmentTasks.value = [...(taskStore.tasksByStatus.DEVELOPMENT || [])]
-  localTestingTasks.value = [...(taskStore.tasksByStatus.TESTING || [])]
-  localReleaseTasks.value = [...(taskStore.tasksByStatus.RELEASE || [])]
+  localInProgressTasks.value = [...(taskStore.tasksByStatus.IN_PROGRESS || [])]
   localDoneTasks.value = [...(taskStore.tasksByStatus.DONE || [])]
 }
 
 const getStatusClass = (status) => {
   const classes = {
     TODO: 'status-todo',
-    DESIGN: 'status-design',
-    DEVELOPMENT: 'status-development',
-    TESTING: 'status-testing',
-    RELEASE: 'status-release',
+    IN_PROGRESS: 'status-in-progress',
     DONE: 'status-done'
   }
   return classes[status] || 'status-todo'
@@ -1265,10 +1034,7 @@ onUnmounted(() => {
 }
 
 .status-todo { background: #6b7280; color: #6b7280; }
-.status-design { background: #8b5cf6; color: #8b5cf6; }
-.status-development { background: #3b82f6; color: #3b82f6; }
-.status-testing { background: #f59e0b; color: #f59e0b; }
-.status-release { background: #f97316; color: #f97316; }
+.status-in-progress { background: #3b82f6; color: #3b82f6; }
 .status-done { background: #22c55e; color: #22c55e; }
 
 .column-title {

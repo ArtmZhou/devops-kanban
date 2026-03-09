@@ -129,6 +129,17 @@ const inputText = ref('')
 const messageListRef = ref(null)
 const isCollapsed = ref(false)
 
+// External method to set messages (for workflow demo)
+const setMessages = (newMessages, node = null) => {
+  messages.value = newMessages
+  // Update task info if node provided
+  if (node) {
+    // Store node info for display
+    currentWorkflowNode.value = node
+  }
+}
+const currentWorkflowNode = ref(null)
+
 // Waiting state and timer
 const isWaitingForResponse = ref(false)
 const elapsedSeconds = ref(0)
@@ -707,7 +718,8 @@ defineExpose({
   startSession,
   stopSession,
   confirmDeleteSession,
-  session
+  session,
+  setMessages
 })
 </script>
 
