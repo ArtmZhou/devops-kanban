@@ -42,10 +42,12 @@
       </div>
     </div>
 
-    <!-- 底部信息行：状态和耗时 -->
+    <!-- 底部信息行：只展示耗时 -->
     <div class="node-footer">
-      <span class="node-status-label" :style="{ color: statusColor }">{{ nodeStatusLabel }}</span>
-      <span v-if="node.status === 'DONE' && node.duration" class="node-duration">{{ node.duration }}min</span>
+      <span v-if="node.duration" class="node-duration">
+        <el-icon><Timer /></el-icon>
+        {{ node.duration }} min
+      </span>
     </div>
 
     <!-- 当前进行中标记 -->
@@ -92,7 +94,7 @@
 import { computed } from 'vue'
 import { agentConfig, nodeStatusConfig } from '@/mock/workflowData'
 import {
-  Back, Warning, Document, VideoPause,
+  Back, Warning, Document, VideoPause, Timer,
   Monitor, VideoPlay, Edit, Cpu
 } from '@element-plus/icons-vue'
 
@@ -157,18 +159,6 @@ const agentIcon = computed(() => {
   const iconName = agentConfig[props.node.agentType]?.icon || 'Monitor'
   return agentIconMap[iconName] || Monitor
 })
-
-// Status label text
-const nodeStatusLabel = computed(() => {
-  const statusMap = {
-    'DONE': '已完成',
-    'IN_PROGRESS': '进行中',
-    'PENDING': '待处理',
-    'FAILED': '失败',
-    'REJECTED': '已打回'
-  }
-  return statusMap[props.node.status] || props.node.status
-})
 </script>
 
 <style scoped>
@@ -176,9 +166,9 @@ const nodeStatusLabel = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 10px 14px;
-  width: 160px;
-  height: 130px;
+  padding: 12px 16px;
+  width: 200px;
+  height: 160px;
   background: #fff;
   border-radius: 8px;
   border: 2px solid #e5e7eb;
@@ -219,9 +209,9 @@ const nodeStatusLabel = computed(() => {
 
 /* Parent node styles */
 .workflow-node.is-parent {
-  width: 180px;
-  height: 130px;
-  padding: 10px 14px;
+  width: 220px;
+  height: 160px;
+  padding: 12px 16px;
   border-width: 2px;
   background: #fffbeb;
   border-color: #f59e0b;
@@ -275,14 +265,14 @@ const nodeStatusLabel = computed(() => {
 
 /* 状态图标 */
 .node-status-icon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: bold;
   flex-shrink: 0;
 }
@@ -306,13 +296,13 @@ const nodeStatusLabel = computed(() => {
   align-items: center;
   overflow: hidden;
   min-height: 0;
+  gap: 4px;
 }
 
 .node-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #1f2937;
-  margin-bottom: 4px;
   line-height: 1.3;
   overflow: visible;
   white-space: normal;
@@ -325,9 +315,8 @@ const nodeStatusLabel = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  margin-bottom: 2px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 12px;
   flex-wrap: wrap;
 }
 
@@ -337,7 +326,7 @@ const nodeStatusLabel = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 80px;
+  max-width: 100px;
 }
 
 .node-separator {
@@ -355,15 +344,14 @@ const nodeStatusLabel = computed(() => {
 }
 
 .agent-icon {
-  font-size: 12px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
 .node-progress {
-  font-size: 10px;
+  font-size: 11px;
   color: #6b7280;
-  margin-top: 2px;
-  padding: 2px 6px;
+  padding: 3px 8px;
   background: #f3f4f6;
   border-radius: 4px;
   flex-shrink: 0;
@@ -373,11 +361,10 @@ const nodeStatusLabel = computed(() => {
 .node-rejected-reason {
   display: flex;
   align-items: center;
-  gap: 3px;
-  font-size: 9px;
+  gap: 4px;
+  font-size: 11px;
   color: #dc2626;
-  margin-top: 2px;
-  padding: 2px 6px;
+  padding: 3px 8px;
   background: #fef2f2;
   border-radius: 4px;
   border: 1px solid #fecaca;
@@ -400,25 +387,22 @@ const nodeStatusLabel = computed(() => {
   white-space: nowrap;
 }
 
-/* 底部信息行：状态和耗时 */
+/* 底部信息行：只展示耗时 */
 .node-footer {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
   width: 100%;
-  padding-top: 6px;
+  padding-top: 8px;
   margin-top: auto;
   border-top: 1px solid #f3f4f6;
 }
 
-.node-status-label {
-  font-size: 10px;
-  font-weight: 500;
-}
-
 .node-duration {
-  font-size: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
   color: #10b981;
   font-weight: 500;
 }
@@ -491,14 +475,14 @@ const nodeStatusLabel = computed(() => {
 .action-buttons {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  padding-top: 6px;
+  gap: 8px;
+  padding-top: 8px;
   width: 100%;
 }
 
 .action-btn {
-  padding: 3px 8px;
-  font-size: 12px;
+  padding: 4px 10px;
+  font-size: 13px;
   font-weight: 500;
   border: none;
   border-radius: 4px;
