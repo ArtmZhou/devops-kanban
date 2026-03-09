@@ -267,12 +267,10 @@ const statusColor = computed(() => {
 .node-content {
   text-align: center;
   width: 100%;
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow: hidden;
-  min-height: 0;
   gap: 4px;
 }
 
