@@ -140,26 +140,65 @@ const handleDelete = () => {
 
 <style scoped>
 .requirement-card {
-  background: white;
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border-left: 3px solid #f59e0b;
-  transition: all 0.2s ease;
+  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-left: 4px solid #f59e0b;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle pattern overlay */
+.requirement-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.03) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .requirement-card:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.3);
+  transform: translateY(-2px);
 }
 
 .requirement-card.is-converted {
   border-left-color: #10b981;
-  opacity: 0.8;
+  opacity: 0.85;
+  background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.requirement-card.is-converted::before {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.04) 0%, transparent 70%);
 }
 
 .requirement-card.is-analyzing {
   border-left-color: #3b82f6;
+  background: linear-gradient(135deg, #ffffff 0%, #dbeafe 100%);
+  border-color: rgba(59, 130, 246, 0.2);
+  animation: analyzing-pulse 2s ease-in-out infinite;
+}
+
+.requirement-card.is-analyzing::before {
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+}
+
+@keyframes analyzing-pulse {
+  0%, 100% {
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  }
 }
 
 .requirement-header {
@@ -272,28 +311,32 @@ const handleDelete = () => {
 
 .status-badge {
   font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .status-badge.status-new {
-  background-color: #fef3c7;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   color: #92400e;
 }
 
 .status-badge.status-analyzing {
-  background-color: #dbeafe;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
   color: #1e40af;
 }
 
 .status-badge.status-converted {
-  background-color: #d1fae5;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
   color: #065f46;
 }
 
 .status-badge.status-archived {
-  background-color: #f3f4f6;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
   color: #4b5563;
 }
 
@@ -312,18 +355,20 @@ const handleDelete = () => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 6px 10px;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 .btn-sm {
@@ -337,24 +382,30 @@ const handleDelete = () => {
 
 .btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background-color: #f3f4f6;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
   color: #374151;
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background-color: #e5e7eb;
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
 }
 
 .btn-danger {
-  background-color: #fef2f2;
-  color: #ef4444;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #991b1b;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: #fee2e2;
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+  transform: translateY(-1px);
 }
 
 .icon-spin {

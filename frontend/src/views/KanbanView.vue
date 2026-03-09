@@ -1855,6 +1855,42 @@ onUnmounted(() => {
   flex-direction: column;
   border: 1px solid var(--border-color);
   flex-shrink: 0;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Subtle top accent for regular task columns */
+.kanban-column:not(.requirement-column)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+/* Column-specific accent colors */
+.kanban-column[data-status="TODO"]::before {
+  background: linear-gradient(90deg, transparent, #6b7280, transparent);
+}
+.kanban-column[data-status="IN_PROGRESS"]::before {
+  background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+}
+.kanban-column[data-status="DONE"]::before {
+  background: linear-gradient(90deg, transparent, #22c55e, transparent);
+}
+.kanban-column[data-status="BLOCKED"]::before {
+  background: linear-gradient(90deg, transparent, #ef4444, transparent);
+}
+
+/* Hover effect for regular columns */
+.kanban-column:not(.requirement-column):hover {
+  border-color: var(--border-color-hover);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
 }
 
 .column-header {
@@ -1865,6 +1901,25 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-tertiary);
   border-radius: 12px 12px 0 0;
+  transition: all 0.3s ease;
+}
+
+/* Enhanced header backgrounds for each status */
+.kanban-column[data-status="TODO"] .column-header {
+  background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(107, 114, 128, 0.05) 100%);
+  border-bottom-color: rgba(107, 114, 128, 0.2);
+}
+.kanban-column[data-status="IN_PROGRESS"] .column-header {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border-bottom-color: rgba(59, 130, 246, 0.2);
+}
+.kanban-column[data-status="DONE"] .column-header {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
+  border-bottom-color: rgba(34, 197, 94, 0.2);
+}
+.kanban-column[data-status="BLOCKED"] .column-header {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+  border-bottom-color: rgba(239, 68, 68, 0.2);
 }
 
 .column-status {
@@ -1873,6 +1928,33 @@ onUnmounted(() => {
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 0 8px currentColor;
+  position: relative;
+}
+
+/* Pulsing animation for status indicators */
+.column-status::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.3;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
 }
 
 .status-todo { background: #6b7280; color: #6b7280; }
@@ -1881,15 +1963,60 @@ onUnmounted(() => {
 .status-blocked { background: #ef4444; color: #ef4444; }
 .status-requirement { background: #f59e0b; color: #f59e0b; }
 
-/* Requirements Column */
+/* Requirements Column - Enhanced with layers and visual hierarchy */
 .requirement-column {
-  background: #fffbeb;
-  border-left: 3px solid #f59e0b;
+  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
+  border-radius: 16px;
+  border: 2px solid #fcd34d;
+  box-shadow:
+    0 4px 6px -1px rgba(245, 158, 11, 0.15),
+    0 2px 4px -1px rgba(245, 158, 11, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  position: relative;
+  overflow: visible;
+}
+
+/* Top decorative bar for requirement column */
+.requirement-column::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 16px;
+  right: 16px;
+  height: 4px;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b);
+  border-radius: 4px 4px 0 0;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+/* Subtle pattern overlay */
+.requirement-column::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(245, 158, 11, 0.04) 0%, transparent 50%);
+  border-radius: 16px;
+  pointer-events: none;
+}
+
+.requirement-column .column-content {
+  position: relative;
+  z-index: 1;
 }
 
 .requirement-column .column-header {
   flex-wrap: wrap;
   gap: 8px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(251, 191, 36, 0.1) 100%);
+  border-bottom: 2px solid rgba(245, 158, 11, 0.2);
+  border-radius: 14px 14px 0 0;
+  padding: 16px;
+  backdrop-filter: blur(4px);
 }
 
 .toggle-converted-btn {
@@ -2021,6 +2148,30 @@ onUnmounted(() => {
   background: var(--bg-primary);
   padding: 4px 10px;
   border-radius: 12px;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 -1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Status-specific count badge colors */
+.kanban-column[data-status="TODO"] .column-count {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+  color: white;
+}
+.kanban-column[data-status="IN_PROGRESS"] .column-count {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  color: white;
+}
+.kanban-column[data-status="DONE"] .column-count {
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+  color: white;
+}
+.kanban-column[data-status="BLOCKED"] .column-count {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+  color: white;
+}
+.requirement-column .column-count {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
 }
 
 .column-content {
@@ -2046,6 +2197,33 @@ onUnmounted(() => {
   border: 1px solid transparent;
   background: var(--bg-primary);
   position: relative;
+}
+
+/* Enhanced task cards in requirement column */
+.requirement-column .task-card {
+  background: linear-gradient(135deg, #ffffff 0%, #fffbeb 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-left: 3px solid #f59e0b;
+  box-shadow: 0 2px 4px rgba(245, 158, 11, 0.1);
+}
+
+.requirement-column .task-card:hover {
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 4px 8px rgba(245, 158, 11, 0.2);
+}
+
+/* Task card status-specific left border accent */
+.kanban-column[data-status="TODO"] .task-card {
+  border-left: 3px solid #6b7280;
+}
+.kanban-column[data-status="IN_PROGRESS"] .task-card {
+  border-left: 3px solid #3b82f6;
+}
+.kanban-column[data-status="DONE"] .task-card {
+  border-left: 3px solid #22c55e;
+}
+.kanban-column[data-status="BLOCKED"] .task-card {
+  border-left: 3px solid #ef4444;
 }
 
 .task-card:hover {
