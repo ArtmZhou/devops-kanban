@@ -295,6 +295,7 @@ const agentIcon = computed(() => {
   flex-direction: column;
   align-items: center;
   overflow: hidden;
+  min-height: 0; /* 允许 flex 子项缩小 */
 }
 
 .node-name {
