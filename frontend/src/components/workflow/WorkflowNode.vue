@@ -139,7 +139,7 @@ const statusColor = computed(() => {
   align-items: center;
   padding: 12px 16px;
   width: 200px;
-  height: 160px;
+  height: 140px;
   background: #fff;
   border-radius: 8px;
   border: 2px solid #e5e7eb;
@@ -181,7 +181,7 @@ const statusColor = computed(() => {
 /* Parent node styles */
 .workflow-node.is-parent {
   width: 220px;
-  height: 160px;
+  height: 140px;
   padding: 12px 16px;
   border-width: 2px;
   background: #fffbeb;
@@ -313,8 +313,7 @@ const statusColor = computed(() => {
   align-items: center;
   justify-content: center;
   width: 100%;
-  padding-top: 8px;
-  margin-top: auto;
+  padding-top: 6px;
   border-top: 1px solid #f3f4f6;
 }
 
