@@ -481,7 +481,7 @@ const getNodeEndpoint = (id, side = 'output') => {
 }
 
 // Unified center Y-axis for all nodes
-const CENTER_Y = 100 // 统一的中心 Y 轴位置
+const CENTER_Y = 85 // 统一的中心 Y 轴位置，与开始/结束节点的中心对齐
 
 // Setup resize observer for responsive updates
 const setupResizeObserver = () => {
