@@ -14,7 +14,8 @@ export const useTaskStore = defineStore('task', () => {
     const grouped = {
       TODO: [],
       IN_PROGRESS: [],
-      DONE: []
+      DONE: [],
+      BLOCKED: []
     }
     tasks.value.forEach(task => {
       const status = task.status || 'TODO'

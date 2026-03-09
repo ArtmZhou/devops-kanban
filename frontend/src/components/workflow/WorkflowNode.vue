@@ -20,14 +20,9 @@
     <div class="node-content">
       <div class="node-name">{{ node.name }}</div>
 
-      <!-- 角色和 Agent 并排显示 -->
+      <!-- 角色显示 -->
       <div class="node-meta">
         <span class="node-role">{{ node.role }}</span>
-        <span class="node-separator">•</span>
-        <span class="node-agent" :style="{ color: agentColor }">
-          <el-icon class="agent-icon"><component :is="agentIcon" /></el-icon>
-          <span class="agent-name">{{ node.agentName }}</span>
-        </span>
       </div>
 
       <!-- 父节点进度信息 -->
@@ -92,19 +87,10 @@
 
 <script setup>
 import { computed } from 'vue'
-import { agentConfig, nodeStatusConfig } from '@/mock/workflowData'
+import { nodeStatusConfig } from '@/mock/workflowData'
 import {
-  Back, Warning, Document, VideoPause, Timer,
-  Monitor, VideoPlay, Edit, Cpu
+  Back, Warning, Document, VideoPause, Timer
 } from '@element-plus/icons-vue'
-
-// Icon mapping for agent types
-const agentIconMap = {
-  Monitor,
-  VideoPlay,
-  Edit,
-  Cpu
-}
 
 const props = defineProps({
   node: {
@@ -149,15 +135,6 @@ const handleViewDetails = () => {
 
 const statusColor = computed(() => {
   return nodeStatusConfig[props.node.status]?.color || '#6B7280'
-})
-
-const agentColor = computed(() => {
-  return agentConfig[props.node.agentType]?.color || '#6B7280'
-})
-
-const agentIcon = computed(() => {
-  const iconName = agentConfig[props.node.agentType]?.icon || 'Monitor'
-  return agentIconMap[iconName] || Monitor
 })
 </script>
 
@@ -310,7 +287,7 @@ const agentIcon = computed(() => {
   flex-shrink: 0;
 }
 
-/* 角色和 Agent 并排显示 */
+/* 角色显示 */
 .node-meta {
   display: flex;
   align-items: center;
@@ -327,25 +304,6 @@ const agentIcon = computed(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100px;
-}
-
-.node-separator {
-  color: #d1d5db;
-  flex-shrink: 0;
-}
-
-.node-agent {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  font-weight: 500;
-  overflow: visible;
-  white-space: nowrap;
-}
-
-.agent-icon {
-  font-size: 14px;
-  flex-shrink: 0;
 }
 
 .node-progress {

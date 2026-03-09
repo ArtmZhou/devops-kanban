@@ -364,6 +364,91 @@
           </div>
         </div>
 
+        <!-- BLOCKED Column -->
+        <div class="kanban-column" data-status="BLOCKED">
+          <div class="column-header">
+            <span class="column-status status-blocked"></span>
+            <span class="column-title">{{ $t('status.BLOCKED') }}</span>
+            <span class="column-count">{{ localBlockedTasks.length }}</span>
+          </div>
+          <div class="column-content">
+            <draggable
+              :list="localBlockedTasks"
+              group="tasks"
+              :animation="200"
+              ghost-class="ghost-card"
+              drag-class="drag-card"
+              :data-status="'BLOCKED'"
+              @end="onDragEnd"
+              item-key="id"
+            >
+              <template #item="{ element }">
+                <div
+                  class="task-card"
+                  :data-id="element.id"
+                  :class="{
+                    'task-selected': selectedTask?.id === element.id,
+                    'task-running': isTaskRunning(element.id)
+                  }"
+                  @click="selectTask(element)"
+                >
+                  <div class="task-card-content">
+                    <div class="task-card-main">
+                      <span class="task-card-title">{{ element.title }}</span>
+                      <span class="task-card-priority" :class="getPriorityClass(element.priority)">
+                        {{ getPriorityLabel(element.priority) }}
+                      </span>
+                      <span v-if="isTaskRunning(element.id)" class="task-running-time">
+                        {{ formatTaskElapsedTime(element.id) }}
+                      </span>
+                    </div>
+                    <div v-if="element.description" class="task-card-description">
+                      {{ element.description }}
+                    </div>
+                    <div class="task-card-actions">
+                      <button
+                        class="auto-transition-btn"
+                        :class="{ 'active': element.autoTransitionEnabled === true }"
+                        @click.stop="toggleAutoTransition(element)"
+                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M23 4v6h-6"></path>
+                          <path d="M1 20v-6h6"></path>
+                          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                      </button>
+                      <button
+                        class="edit-btn"
+                        @click.stop="openTaskModal(element)"
+                        :title="$t('common.edit')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                      </button>
+                      <button
+                        class="delete-btn"
+                        @click.stop="deleteTask(element.id)"
+                        :title="$t('common.delete')"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </draggable>
+            <div v-if="localBlockedTasks.length === 0" class="empty-column">
+              <p>{{ $t('task.noTasks') }}</p>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div><!-- End of .kanban-area -->
 
@@ -1179,22 +1264,26 @@ const projects = computed(() => projectStore.projects)
 const todoTasks = computed(() => taskStore.tasksByStatus.TODO || [])
 const inProgressTasks = computed(() => taskStore.tasksByStatus.IN_PROGRESS || [])
 const doneTasks = computed(() => taskStore.tasksByStatus.DONE || [])
+const blockedTasks = computed(() => taskStore.tasksByStatus.BLOCKED || [])
 
 // Local reactive arrays for draggable (synced from computed)
 const localTodoTasks = ref([])
 const localInProgressTasks = ref([])
 const localDoneTasks = ref([])
+const localBlockedTasks = ref([])
 
 // Watch store changes and sync to local arrays
 watch(todoTasks, (newVal) => { localTodoTasks.value = [...newVal] }, { immediate: true })
 watch(inProgressTasks, (newVal) => { localInProgressTasks.value = [...newVal] }, { immediate: true })
 watch(doneTasks, (newVal) => { localDoneTasks.value = [...newVal] }, { immediate: true })
+watch(blockedTasks, (newVal) => { localBlockedTasks.value = [...newVal] }, { immediate: true })
 
 // Helper to update all column refs from store (kept for other uses)
 const updateColumnRefs = () => {
   localTodoTasks.value = [...(taskStore.tasksByStatus.TODO || [])]
   localInProgressTasks.value = [...(taskStore.tasksByStatus.IN_PROGRESS || [])]
   localDoneTasks.value = [...(taskStore.tasksByStatus.DONE || [])]
+  localBlockedTasks.value = [...(taskStore.tasksByStatus.BLOCKED || [])]
 }
 
 const getStatusClass = (status) => {
@@ -1747,11 +1836,12 @@ onUnmounted(() => {
 /* Kanban Board */
 .kanban-board {
   display: flex;
-  flex: 1;
   padding: 12px;
   gap: 12px;
   min-height: 200px;
   align-content: stretch;
+  overflow-x: auto; /* 允许横向滚动 */
+  flex-wrap: nowrap; /* 防止换行 */
 }
 
 /* Kanban Column */
@@ -1787,6 +1877,7 @@ onUnmounted(() => {
 .status-todo { background: #6b7280; color: #6b7280; }
 .status-in-progress { background: #3b82f6; color: #3b82f6; }
 .status-done { background: #22c55e; color: #22c55e; }
+.status-blocked { background: #ef4444; color: #ef4444; }
 .status-requirement { background: #f59e0b; color: #f59e0b; }
 
 /* Requirements Column */

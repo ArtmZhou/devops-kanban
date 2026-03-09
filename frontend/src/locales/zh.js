@@ -121,7 +121,8 @@ export default {
   status: {
     TODO: '待处理',
     IN_PROGRESS: '处理中',
-    DONE: '已完成'
+    DONE: '已完成',
+    BLOCKED: '挂起'
   },
   priority: {
     LOW: '低',

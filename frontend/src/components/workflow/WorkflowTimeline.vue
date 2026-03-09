@@ -385,18 +385,15 @@ const measureStagePositions = () => {
   const scrollRect = scrollRef.value.getBoundingClientRect()
   const positions = []
 
-  // Measure start node - get the circle's center position
+  // Measure start node - use container center for alignment
+  // All containers have min-height: 180px and justify-content: center
   if (startNodeRef.value) {
     const rect = startNodeRef.value.getBoundingClientRect()
     const relativeY = rect.top - scrollRect.top
 
-    // Measure the actual circle element
-    const circleEl = startNodeRef.value.querySelector('.origin-circle')
-    if (circleEl) {
-      const circleRect = circleEl.getBoundingClientRect()
-      const circleCenterY = (circleRect.top - scrollRect.top) + circleRect.height / 2
-      CENTER_Y = circleCenterY
-    }
+    // Use container center Y as the unified connection point
+    // This ensures all nodes align to the same horizontal line
+    CENTER_Y = relativeY + rect.height / 2
 
     startNodePos.value = {
       x: rect.left - scrollRect.left,
@@ -408,7 +405,7 @@ const measureStagePositions = () => {
     }
   }
 
-  // Measure end node
+  // Measure end node - use container center for alignment
   if (endNodeRef.value) {
     const rect = endNodeRef.value.getBoundingClientRect()
     endNodePos.value = {
@@ -421,31 +418,25 @@ const measureStagePositions = () => {
     }
   }
 
-  // Measure stages - use the first node card's center for Y alignment
+  // Measure stages - use container center for alignment
   sortedStages.value.forEach((stage, index) => {
     const stageEl = stageRefs.value[index]
     if (stageEl) {
       const rect = stageEl.getBoundingClientRect()
+      const relativeY = rect.top - scrollRect.top
 
-      // Find the first WorkflowNode's vertical center
-      // WorkflowNode has class 'workflow-node' and fixed height of 160px
-      const nodeEl = stageEl.querySelector('.workflow-node')
-      let nodeCenterY = CENTER_Y // default to current CENTER_Y
-
-      if (nodeEl) {
-        const nodeRect = nodeEl.getBoundingClientRect()
-        // Use the node's center Y relative to scroll container
-        nodeCenterY = (nodeRect.top - scrollRect.top) + nodeRect.height / 2
-      }
+      // All stage containers have min-height: 180px and justify-content: center
+      // Use container center Y for consistent horizontal alignment
+      const containerCenterY = relativeY + rect.height / 2
 
       positions.push({
         stageId: stage.id,
         x: rect.left - scrollRect.left,
-        y: rect.top - scrollRect.top,
+        y: relativeY,
         width: rect.width,
         height: rect.height,
         centerX: rect.left - scrollRect.left + rect.width / 2,
-        centerY: nodeCenterY
+        centerY: containerCenterY
       })
     }
   })

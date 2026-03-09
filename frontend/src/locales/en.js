@@ -121,7 +121,8 @@ export default {
   status: {
     TODO: 'Pending',
     IN_PROGRESS: 'In Progress',
-    DONE: 'Done'
+    DONE: 'Done',
+    BLOCKED: 'Blocked'
   },
   priority: {
     LOW: 'Low',
