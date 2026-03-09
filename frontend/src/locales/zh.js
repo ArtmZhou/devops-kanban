@@ -28,7 +28,7 @@ export default {
     projects: '项目列表',
     kanban: '看板',
     taskSources: '任务源',
-    agents: '团队成员',
+    agents: '角色管理',
     promptTemplates: '提示词模板',
     settings: '设置'
   },
@@ -163,9 +163,9 @@ export default {
     }
   },
   agent: {
-    title: '团队成员',
-    createAgent: '创建成员',
-    editAgent: '编辑成员',
+    title: '角色管理',
+    createAgent: '创建角色',
+    editAgent: '编辑角色',
     agentName: '名称',
     agentType: '类型',
     role: '角色',
@@ -173,11 +173,11 @@ export default {
     descriptionPlaceholder: '请输入代理描述（可选）',
     command: '命令模板',
     config: '配置',
-    deleteConfirm: '确定要删除此成员吗？',
-    selectAgent: '选择成员',
+    deleteConfirm: '确定要删除此角色吗？',
+    selectAgent: '选择角色',
     loading: '加载中...',
-    noAgents: '暂无成员',
-    pleaseConfigure: '请先配置成员',
+    noAgents: '暂无角色',
+    pleaseConfigure: '请先配置角色',
     startSession: '开始会话',
     types: {
       CLAUDE: 'Claude Code',
@@ -186,7 +186,8 @@ export default {
       GEMINI: 'Gemini',
       CUSTOM: '自定义'
     },
-    commandHint: '使用 {prompt} 作为任务提示的占位符'
+    commandHint: '使用 {prompt} 作为任务提示的占位符',
+    skills: '技能'
   },
   execution: {
     title: '执行记录',

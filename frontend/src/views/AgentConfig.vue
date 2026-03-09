@@ -34,6 +34,14 @@
               <span class="label">{{ $t('agent.description') }}:</span>
               <span class="value">{{ agent.description || '-' }}</span>
             </div>
+            <div class="skills-section">
+              <div class="skills-label">{{ $t('agent.skills') }}:</div>
+              <div class="skills-container">
+                <span v-for="skill in getRoleConfig(agent.role || 'BACKEND_DEV').skills" :key="skill" class="skill-tag">
+                  {{ skill }}
+                </span>
+              </div>
+            </div>
             <div class="detail-row">
               <span class="label">{{ $t('common.enabled') }}:</span>
               <label class="toggle">
@@ -266,7 +274,7 @@ onMounted(loadAgents)
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
-  min-height: 180px;
+  min-height: 220px;
 }
 
 .agent-header {
@@ -337,6 +345,31 @@ onMounted(loadAgents)
   font-size: 0.75rem;
   font-weight: 500;
   color: white;
+}
+
+.skills-section {
+  margin: 0.75rem 0;
+}
+
+.skills-label {
+  color: #718096;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.skills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.skill-tag {
+  background: #e2e8f0;
+  color: #4a5568;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .toggle {
