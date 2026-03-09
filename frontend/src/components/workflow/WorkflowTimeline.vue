@@ -176,11 +176,22 @@ import { Refresh, Lightning } from '@element-plus/icons-vue'
 import WorkflowNode from './WorkflowNode.vue'
 import { nodeStatusConfig, getWorkflowProgress, getAllNodes } from '@/mock/workflowData'
 
-// Unified center Y axis for all connection points
-// 由于所有容器高度都是 120px，中心 Y 坐标是 60px
-const CENTER_Y = 60
+import { nodeStatusConfig, getWorkflowProgress, getAllNodes } from '@/mock/workflowData'
 
-const props = defineProps({
+// Refs for start and end nodes
+const startNodeRef = ref(null)
+const endNodeRef = ref(null)
+
+// SVG style for proper coordinate system
+const svgStyle = computed(() => {
+  if (!scrollRef.value) return {}
+  const width = scrollRef.value.scrollWidth || '100%'
+  const height = scrollRef.value.scrollHeight || 300
+  return {
+    width: width + 'px',
+    height: height + 'px'
+  }
+})
   workflow: {
     type: Object,
     default: null

@@ -306,6 +306,7 @@ const agentIcon = computed(() => {
   overflow: visible;
   white-space: normal;
   width: 100%;
+  flex-shrink: 0; /* 确保节点名称不被压缩 */
 }
 
 /* 角色和 Agent 并排显示 */
