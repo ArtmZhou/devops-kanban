@@ -287,6 +287,7 @@ const agentIcon = computed(() => {
   text-align: center;
   width: 100%;
   order: 2;
+  flex: 1;
 }
 
 .node-name {
