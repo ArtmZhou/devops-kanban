@@ -615,7 +615,7 @@ onMounted(() => {
   justify-content: center; /* 新增：内容垂直居中 */
   position: relative;
   padding: 0 6px;
-  height: 120px; /* 固定高度，确保所有节点中心在同一水平线 */
+  min-height: 180px; /* 最小高度，确保节点卡片有足够空间 */
 }
 
 /* 原点阶段容器（开始/结束） */
@@ -624,7 +624,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 120px; /* 与阶段容器相同的固定高度 */
+  min-height: 180px; /* 与阶段容器相同的最小高度 */
 }
 
 /* 原点节点（开始/结束） */
