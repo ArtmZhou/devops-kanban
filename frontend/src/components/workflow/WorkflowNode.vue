@@ -474,6 +474,7 @@ const agentIcon = computed(() => {
   gap: 6px;
   padding-top: 8px;
   width: 100%;
+  order: 3;
 }
 
 .action-btn {
