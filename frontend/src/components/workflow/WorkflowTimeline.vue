@@ -1,5 +1,5 @@
 <template>
-  <div class="workflow-timeline">
+  <div class="workflow-timeline" :class="{ 'is-collapsed': isCollapsed }">
     <!-- Workflow 标签 -->
     <span class="workflow-label">WORKFLOW</span>
 
@@ -18,16 +18,29 @@
           ▶ 启动
         </button>
       </div>
-      <div class="workflow-progress">
-        <div class="progress-bar">
-          <div class="progress-fill" :style="{ width: progress.percent + '%' }"></div>
+      <div class="workflow-actions">
+        <div class="workflow-progress" v-show="!isCollapsed">
+          <div class="progress-bar">
+            <div class="progress-fill" :style="{ width: progress.percent + '%' }"></div>
+          </div>
+          <span class="progress-text">{{ progress.completed }}/{{ progress.total }} 完成</span>
         </div>
-        <span class="progress-text">{{ progress.completed }}/{{ progress.total }} 完成</span>
+        <!-- 折叠/展开按钮 -->
+        <button
+          class="collapse-btn"
+          @click="toggleCollapse"
+          :title="isCollapsed ? '展开工作流' : '折叠工作流'"
+        >
+          <el-icon>
+            <ArrowUp v-if="!isCollapsed" />
+            <ArrowDown v-else />
+          </el-icon>
+        </button>
       </div>
     </div>
 
     <!-- 节点时间线 - 按阶段展示 -->
-    <div class="timeline-container" ref="containerRef">
+    <div class="timeline-container" ref="containerRef" v-show="!isCollapsed">
       <div class="timeline-scroll" ref="scrollRef" style="position: relative;">
         <!-- 正向流程连接线层 -->
         <svg class="forward-connectors" v-if="hasForwardConnectors" :style="svgStyle">
@@ -172,7 +185,7 @@
 <script setup>
 import { computed, ref, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import { ElMessageBox } from 'element-plus'
-import { Refresh, Lightning } from '@element-plus/icons-vue'
+import { Refresh, Lightning, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import WorkflowNode from './WorkflowNode.vue'
 import { nodeStatusConfig, getWorkflowProgress, getAllNodes } from '@/mock/workflowData'
 
@@ -188,6 +201,14 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['select-node', 'start-workflow', 'pause-task', 'view-details'])
+
+// Collapse state
+const isCollapsed = ref(false)
+
+// Toggle collapse/expand
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
+}
 
 // Node position cache for rollback arrows
 const nodePositions = ref({})
@@ -578,6 +599,15 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
+/* 折叠状态 */
+.workflow-timeline.is-collapsed {
+  padding-bottom: 12px;
+}
+
+.workflow-timeline.is-collapsed .workflow-header {
+  margin-bottom: 0;
+}
+
 /* Workflow 标签 */
 .workflow-label {
   position: absolute;
@@ -598,6 +628,37 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+}
+
+.workflow-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 折叠/展开按钮 */
+.collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: #f3f4f6;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.collapse-btn:hover {
+  background: #e5e7eb;
+  color: #3b82f6;
+  transform: scale(1.05);
+}
+
+.collapse-btn .el-icon {
+  font-size: 16px;
 }
 
 .workflow-title {
