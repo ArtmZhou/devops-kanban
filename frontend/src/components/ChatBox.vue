@@ -35,7 +35,7 @@
       <div class="node-meta">
         <span class="node-role">{{ currentWorkflowNode.role }}</span>
         <span class="node-agent" :style="{ color: getAgentColor(currentWorkflowNode.agentType) }">
-          {{ getAgentIcon(currentWorkflowNode.agentType) }} {{ currentWorkflowNode.agentName }}
+          <el-icon><component :is="getAgentIcon(currentWorkflowNode.agentType)" /></el-icon> {{ currentWorkflowNode.agentName }}
         </span>
         <span class="node-status" :class="'status-' + currentWorkflowNode.status.toLowerCase()">
           {{ getStatusLabel(currentWorkflowNode.status) }}
@@ -76,6 +76,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Monitor, Computer, Edit, Cpu } from '@element-plus/icons-vue'
 import DevTools from './DevTools.vue'
 import SessionHeader from './session/SessionHeader.vue'
 import SessionControls from './session/SessionControls.vue'
@@ -90,6 +91,14 @@ import { agentConfig } from '@/mock/workflowData'
 // Dev mode flag for template
 const isDev = import.meta.env.DEV
 const { t } = useI18n()
+
+// Icon mapping for agent types
+const agentIconMap = {
+  Monitor,
+  Computer,
+  Edit,
+  Cpu
+}
 
 const props = defineProps({
   task: {
@@ -157,7 +166,10 @@ const currentWorkflowNode = ref(null)
 
 // Helper methods for workflow node display
 const getAgentColor = (agentType) => agentConfig[agentType]?.color || '#6B7280'
-const getAgentIcon = (agentType) => agentConfig[agentType]?.icon || '🤖'
+const getAgentIcon = (agentType) => {
+  const iconName = agentConfig[agentType]?.icon || 'Monitor'
+  return agentIconMap[iconName] || Monitor
+}
 const getStatusLabel = (status) => {
   // Map PENDING to TODO for i18n lookup since workflow uses PENDING
   const statusKey = status === 'PENDING' ? 'TODO' : status
@@ -789,7 +801,7 @@ defineExpose({
 /* Workflow Node Info */
 .workflow-node-info {
   padding: 10px 16px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%);
+  background: rgba(99, 102, 241, 0.05);
   border-bottom: 1px solid var(--border-color);
 }
 

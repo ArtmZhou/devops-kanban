@@ -687,7 +687,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Monitor, Desktop, Edit, Cpu,
+  Monitor, Computer, Edit, Cpu,
   OfficeBuilding, User, Setting, Brush, Search, Coin, Document,
   Aim, CircleCheck, View, Lock, Promotion, Box
 } from '@element-plus/icons-vue'
@@ -722,7 +722,7 @@ import { roleConfig, agentConfig, nodeStatusConfig } from '@/mock/workflowData'
 // Icon mapping for agent types
 const agentIconMap = {
   Monitor,
-  Desktop,
+  Computer,
   Edit,
   Cpu
 }

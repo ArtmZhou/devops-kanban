@@ -278,7 +278,7 @@ const changeLocale = () => {
 }
 
 .nav-item.router-link-active {
-  background: linear-gradient(135deg, #6366f1 0%, #5c5cff 100%);
+  background: #6366f1;
   color: white;
   box-shadow: 0 2px 8px rgba(92, 92, 255, 0.25);
 }
