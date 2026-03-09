@@ -164,14 +164,15 @@ const agentIcon = computed(() => {
   flex-direction: column;
   align-items: center;
   padding: 12px 16px;
-  min-width: 140px;
-  height: 100%;
+  width: 160px;
+  height: 140px;
   background: #fff;
   border-radius: 8px;
   border: 2px solid #e5e7eb;
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
+  box-sizing: border-box;
 }
 
 .workflow-node:hover {
@@ -205,7 +206,8 @@ const agentIcon = computed(() => {
 
 /* Parent node styles */
 .workflow-node.is-parent {
-  min-width: 160px;
+  width: 180px;
+  height: 160px;
   padding: 12px 16px;
   border-width: 2px;
   background: #fffbeb;
@@ -271,6 +273,7 @@ const agentIcon = computed(() => {
   font-weight: bold;
   order: 1;
   margin: 8px 0;
+  flex-shrink: 0;
 }
 
 .node-status-icon .pulse {
@@ -288,6 +291,10 @@ const agentIcon = computed(() => {
   width: 100%;
   order: 2;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
 }
 
 .node-name {
@@ -296,6 +303,10 @@ const agentIcon = computed(() => {
   color: #1f2937;
   margin-bottom: 6px;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
 }
 
 /* 角色和 Agent 并排显示 */
@@ -312,10 +323,15 @@ const agentIcon = computed(() => {
 .node-role {
   color: #6b7280;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 70px;
 }
 
 .node-separator {
   color: #d1d5db;
+  flex-shrink: 0;
 }
 
 .node-agent {
@@ -323,10 +339,15 @@ const agentIcon = computed(() => {
   align-items: center;
   gap: 2px;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 80px;
 }
 
 .agent-icon {
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .node-progress {
@@ -336,6 +357,7 @@ const agentIcon = computed(() => {
   padding: 2px 6px;
   background: #f3f4f6;
   border-radius: 4px;
+  flex-shrink: 0;
 }
 
 /* 打回原因样式 */
@@ -350,14 +372,23 @@ const agentIcon = computed(() => {
   background: #fef2f2;
   border-radius: 4px;
   border: 1px solid #fecaca;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  flex-shrink: 0;
 }
 
 .reason-icon {
   font-size: 12px;
+  flex-shrink: 0;
 }
 
 .reason-text {
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .node-duration {
@@ -368,6 +399,7 @@ const agentIcon = computed(() => {
   background: #d1fae5;
   border-radius: 4px;
   font-weight: 500;
+  flex-shrink: 0;
 }
 
 /* 当前标记 */
