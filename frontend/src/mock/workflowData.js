@@ -1005,7 +1005,7 @@ export const mockWorkflows = [
       },
       {
         id: "task8-stage-5",
-        name: "发布上线",
+        name: "灰度发布",
         order: 5,
         nodes: [
           {
@@ -1017,7 +1017,14 @@ export const mockWorkflows = [
             status: "PENDING",
             task: { id: 8, title: "灰度发布", status: "TODO" },
             messages: []
-          },
+          }
+        ]
+      },
+      {
+        id: "task8-stage-6",
+        name: "监控配置",
+        order: 6,
+        nodes: [
           {
             id: 27,
             name: "监控配置",
