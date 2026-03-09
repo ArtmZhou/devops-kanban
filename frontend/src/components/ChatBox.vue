@@ -167,8 +167,6 @@ const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
 }
 
-defineExpose({ toggleCollapse })
-
 // External method to set messages (for workflow demo)
 const setMessages = (newMessages, node = null) => {
   messages.value = newMessages
@@ -794,7 +792,8 @@ defineExpose({
   stopSession,
   confirmDeleteSession,
   session,
-  setMessages
+  setMessages,
+  toggleCollapse
 })
 </script>
 

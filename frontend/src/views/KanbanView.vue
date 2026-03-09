@@ -501,7 +501,7 @@
           />
         </div>
       </div>
-    </div>
+    </div><!-- End of .main-content-wrapper -->
 
     <!-- Task Modal -->
     <div v-if="showTaskModal" class="modal-overlay" @click.self="closeTaskModal">
@@ -862,7 +862,7 @@ const runningTasks = ref(new Set())
 const taskStartTimes = ref(new Map()) // Store start time for each running task
 const taskElapsedSeconds = ref({}) // Reactive object for elapsed seconds display
 let runningTimer = null
-const isChatCollapsed = ref(false)
+const isChatCollapsed = ref(true)
 const kanbanBoardRef = ref(null)
 
 // Workflow state
@@ -886,10 +886,6 @@ const currentWorkflow = computed(() => {
 const onNodeSelect = (node) => {
   selectedNodeId.value = node.id
   selectedNode.value = node
-  // Expand chat panel if collapsed
-  if (isChatCollapsed.value) {
-    isChatCollapsed.value = false
-  }
 
   // Check if this is a parent node (from parallel stage)
   const isParentNode = node.isParent || String(node.id).startsWith('parent-')
