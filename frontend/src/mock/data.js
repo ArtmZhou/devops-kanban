@@ -168,12 +168,12 @@ export const mockTasks = [
     projectId: 1,
     title: '修复分页组件Bug',
     description: '当数据为空时，分页组件显示异常',
-    status: 'TODO',
+    status: 'IN_PROGRESS',
     priority: 'LOW',
     assignee: '王五',
     labels: ['bug', 'frontend'],
     createdAt: '2024-03-06T09:00:00Z',
-    updatedAt: '2024-03-06T09:00:00Z'
+    updatedAt: '2024-03-09T10:00:00Z'
   },
   {
     id: 5,
