@@ -399,18 +399,20 @@ const getForwardPath = (fromId, toId) => {
 // side: 'input' (left side) or 'output' (right side)
 const getNodeEndpoint = (id, side = 'output') => {
   if (id === 'start') {
-    // Start node: right edge of the start circle (36px diameter, center at y=18)
-    return { x: 36, y: 18 }
+    // Start node: right edge of the start circle (36px diameter)
+    // Y 坐标使用统一的 CENTER_Y 值
+    return { x: 36, y: CENTER_Y }
   }
 
   if (id === 'end') {
     // End node: left edge of the end circle
     // Position after the last stage with gap
+    // Y 坐标使用统一的 CENTER_Y 值
     const lastStagePos = stagePositions.value[stagePositions.value.length - 1]
     if (lastStagePos) {
-      return { x: lastStagePos.x + lastStagePos.width + 40, y: 18 }
+      return { x: lastStagePos.x + lastStagePos.width + 40, y: CENTER_Y }
     }
-    return { x: 500, y: 18 } // Fallback
+    return { x: 500, y: CENTER_Y } // Fallback
   }
 
   // For stage IDs, find the stage position
@@ -418,15 +420,16 @@ const getNodeEndpoint = (id, side = 'output') => {
   if (!stagePos) return { x: 0, y: 0 }
 
   // Return left or right edge based on side parameter
+  // Y 坐标统一使用 CENTER_Y 值
   if (side === 'input') {
     return {
       x: stagePos.x,  // Left edge
-      y: stagePos.centerY  // Center Y
+      y: CENTER_Y
     }
   } else {
     return {
       x: stagePos.x + stagePos.width,  // Right edge
-      y: stagePos.centerY  // Center Y
+      y: CENTER_Y
     }
   }
 }
