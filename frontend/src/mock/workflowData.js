@@ -140,7 +140,7 @@ export const mockWorkflows = [
       },
       {
         id: "task1-stage-4",
-        name: "代码审查",
+        name: "代码 Review",
         order: 4,
         nodes: [
           {
@@ -156,7 +156,14 @@ export const mockWorkflows = [
               { id: 1, from: "user", content: "Review OAuth implementation for security vulnerabilities and code quality." },
               { id: 2, from: "assistant", content: "Code review passed. Verified: 1) PKCE flow for CSRF protection, 2) Secure token storage, 3) Input validation on callbacks. LGTM." }
             ]
-          },
+          }
+        ]
+      },
+      {
+        id: "task1-stage-4b",
+        name: "Committer 审批",
+        order: 5,
+        nodes: [
           {
             id: 32,
             name: "Committer 审批",
@@ -176,7 +183,7 @@ export const mockWorkflows = [
       {
         id: "task1-stage-5",
         name: "功能测试",
-        order: 5,
+        order: 7,
         nodes: [
           {
             id: 5,
@@ -197,7 +204,7 @@ export const mockWorkflows = [
       {
         id: "task1-stage-6",
         name: "发布部署",
-        order: 6,
+        order: 8,
         nodes: [
           {
             id: 6,
