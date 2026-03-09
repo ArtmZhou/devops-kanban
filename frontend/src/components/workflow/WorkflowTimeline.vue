@@ -123,7 +123,7 @@
 
           <template v-for="(stage, stageIndex) in sortedStages" :key="stage.id">
             <!-- 阶段容器 -->
-            <div class="stage-container" :class="{ 'is-parallel': stage.parallel }">
+            <div class="stage-container" :class="{ 'is-parallel': stage.parallel }" :ref="el => setStageRef(el, stageIndex)">
               <!-- 父节点卡片 - 仅并行阶段显示 -->
               <div v-if="stage.parallel && getParentNode(stage)" class="parent-node-wrapper">
                 <WorkflowNode
@@ -431,6 +431,39 @@ const resetNodePositions = () => {
   nodePositions.value = {}
 }
 
+// Set stage ref for DOM measurement
+const setStageRef = (el, index) => {
+  if (el) {
+    stageRefs.value[index] = el
+  }
+}
+
+// Measure stage positions using DOM
+const measureStagePositions = () => {
+  if (!containerRef.value) return
+
+  const containerRect = containerRef.value.getBoundingClientRect()
+  const positions = []
+
+  sortedStages.value.forEach((stage, index) => {
+    const stageEl = stageRefs.value[index]
+    if (stageEl) {
+      const rect = stageEl.getBoundingClientRect()
+      positions.push({
+        stageId: stage.id,
+        x: rect.left - containerRect.left,
+        y: rect.top - containerRect.top,
+        width: rect.width,
+        height: rect.height,
+        centerX: rect.left - containerRect.left + rect.width / 2,
+        centerY: rect.top - containerRect.top + rect.height / 2
+      })
+    }
+  })
+
+  stagePositions.value = positions
+}
+
 // Get forward connector path between two points
 // fromId/toId can be: 'start', 'end', or a stage ID
 const getForwardPath = (fromId, toId) => {
@@ -445,47 +478,53 @@ const getForwardPath = (fromId, toId) => {
 // Returns {x, y} position relative to the timeline container
 const getNodeEndpoint = (id) => {
   if (id === 'start') {
-    // Start node: right edge of the start circle
-    // Start node is at the leftmost position, y centered at 18px (36px circle / 2)
-    return { x: 40, y: 18 } // Right edge of 36px circle + small offset
+    // Start node: right edge of the start circle (36px diameter, center at y=18)
+    return { x: 36, y: 18 }
   }
 
   if (id === 'end') {
     // End node: left edge of the end circle
-    // Calculate position based on number of stages
-    const stageCount = sortedStages.value.length
-    const stageWidth = 170 // Approximate stage width including gap
-    const totalWidth = stageCount * stageWidth + 40
-    return { x: totalWidth, y: 18 } // Left edge of end circle
+    // Position after the last stage with gap
+    const lastStagePos = stagePositions.value[stagePositions.value.length - 1]
+    if (lastStagePos) {
+      return { x: lastStagePos.x + lastStagePos.width + 40, y: 18 }
+    }
+    return { x: 500, y: 18 } // Fallback
   }
 
-  // For stage IDs, find the stage and calculate position
-  const stageIndex = sortedStages.value.findIndex(s => s.id === id)
-  if (stageIndex === -1) return { x: 0, y: 0 }
+  // For stage IDs, find the stage position
+  const stagePos = stagePositions.value.find(p => p.stageId === id)
+  if (!stagePos) return { x: 0, y: 0 }
 
-  const stage = sortedStages.value[stageIndex]
-  const stageWidth = 170 // Approximate stage width including gap
-  const nodeHeight = 85 // Approximate node height
-  const nodeGap = 8
-
-  // Calculate based on number of nodes in the stage
-  const nodeCount = stage.nodes?.length || 1
-
-  // Calculate center Y based on number of nodes
-  const totalHeight = nodeCount * nodeHeight + (nodeCount - 1) * nodeGap
-  const centerY = totalHeight / 2
-
-  // X position: right edge of the stage (stage center + half width)
-  const stageCenterX = stageIndex * stageWidth + 85 + 40 // Offset for start node
-  const stageRightX = stageCenterX + 60
-
-  return { x: stageRightX, y: centerY + 10 } // Right side of current stage
+  // Output point: right edge center of the stage
+  // Input point would be left edge center
+  return {
+    x: stagePos.x + stagePos.width,  // Right edge
+    y: stagePos.centerY  // Center Y
+  }
 }
 
 // Recalculate positions when workflow or stages change
 watch(() => props.workflow, () => {
   resetNodePositions()
+  nextTick(() => {
+    measureStagePositions()
+  })
 }, { deep: true })
+
+// Watch stage refs changes
+watch(() => stageRefs.value.length, () => {
+  nextTick(() => {
+    measureStagePositions()
+  })
+})
+
+// Measure positions on mount
+onMounted(() => {
+  nextTick(() => {
+    measureStagePositions()
+  })
+})
 </script>
 
 <style scoped>
@@ -702,12 +741,14 @@ watch(() => props.workflow, () => {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  align-items: center;
+  align-items: stretch;
+  height: 100%;
 }
 
 .stage-nodes.parallel-nodes {
   flex-direction: row;
   gap: 12px;
+  align-items: center;
 }
 
 /* 滚动条样式 */
