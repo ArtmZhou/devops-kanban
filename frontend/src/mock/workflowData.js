@@ -175,7 +175,7 @@ export const mockWorkflows = [
       },
       {
         id: "task1-stage-5",
-        name: "测试上线",
+        name: "功能测试",
         order: 5,
         nodes: [
           {
@@ -191,7 +191,14 @@ export const mockWorkflows = [
               { id: 1, from: "user", content: "Test OAuth login flow end-to-end, including edge cases." },
               { id: 2, from: "assistant", content: "All tests passed: happy path, expired tokens, revoked access, and concurrent sessions. Ready for production." }
             ]
-          },
+          }
+        ]
+      },
+      {
+        id: "task1-stage-6",
+        name: "发布部署",
+        order: 6,
+        nodes: [
           {
             id: 6,
             name: "发布部署",
@@ -331,7 +338,7 @@ export const mockWorkflows = [
       },
       {
         id: "task2-stage-5",
-        name: "发布上线",
+        name: "灰度发布",
         order: 5,
         nodes: [
           {
@@ -343,7 +350,14 @@ export const mockWorkflows = [
             status: "PENDING",
             task: { id: 2, title: "灰度发布", status: "TODO" },
             messages: []
-          },
+          }
+        ]
+      },
+      {
+        id: "task2-stage-6",
+        name: "监控配置",
+        order: 6,
+        nodes: [
           {
             id: 12,
             name: "监控配置",
@@ -802,7 +816,7 @@ export const mockWorkflows = [
       },
       {
         id: "task7-stage-5",
-        name: "最终验证",
+        name: "安全复审",
         order: 5,
         nodes: [
           {
@@ -814,7 +828,14 @@ export const mockWorkflows = [
             status: "PENDING",
             task: { id: 7, title: "安全复审", status: "TODO" },
             messages: []
-          },
+          }
+        ]
+      },
+      {
+        id: "task7-stage-6",
+        name: "Committer 审批",
+        order: 6,
+        nodes: [
           {
             id: 75,
             name: "Committer 审批",
@@ -828,9 +849,9 @@ export const mockWorkflows = [
         ]
       },
       {
-        id: "task7-stage-6",
+        id: "task7-stage-7",
         name: "紧急发布",
-        order: 6,
+        order: 7,
         nodes: [
           {
             id: 76,
@@ -841,7 +862,14 @@ export const mockWorkflows = [
             status: "PENDING",
             task: { id: 7, title: "热修复部署", status: "TODO" },
             messages: []
-          },
+          }
+        ]
+      },
+      {
+        id: "task7-stage-8",
+        name: "发布验证",
+        order: 8,
+        nodes: [
           {
             id: 77,
             name: "发布验证",

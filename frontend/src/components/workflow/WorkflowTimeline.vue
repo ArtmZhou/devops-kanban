@@ -394,7 +394,7 @@ const measureStagePositions = () => {
       width: rect.width,
       height: rect.height,
       centerX: rect.left - scrollRect.left + rect.width / 2,
-      centerY: rect.top - scrollRect.top + rect.height / 2
+      centerY: CENTER_Y // 使用统一的中心 Y 值
     }
   }
 
@@ -407,7 +407,7 @@ const measureStagePositions = () => {
       width: rect.width,
       height: rect.height,
       centerX: rect.left - scrollRect.left + rect.width / 2,
-      centerY: rect.top - scrollRect.top + rect.height / 2
+      centerY: CENTER_Y // 使用统一的中心 Y 值
     }
   }
 
@@ -423,7 +423,7 @@ const measureStagePositions = () => {
         width: rect.width,
         height: rect.height,
         centerX: rect.left - scrollRect.left + rect.width / 2,
-        centerY: rect.top - scrollRect.top + rect.height / 2
+        centerY: CENTER_Y // 使用统一的中心 Y 值
       })
     }
   })
@@ -447,26 +447,18 @@ const getForwardPath = (fromId, toId) => {
 const getNodeEndpoint = (id, side = 'output') => {
   if (id === 'start') {
     // Start node: right edge of the start circle
-    // 使用测量的实际中心 Y 坐标
-    const x = startNodePos.value.centerX || 36
-    const y = startNodePos.value.centerY || 100
-    return { x: x + 18, y }
+    // 使用统一的 CENTER_Y 值
+    return { x: 36, y: CENTER_Y }
   }
 
   if (id === 'end') {
     // End node: left edge of the end circle
-    // 使用测量的实际中心 Y 坐标
-    if (endNodePos.value.x > 0) {
-      const x = endNodePos.value.centerX || 500
-      const y = endNodePos.value.centerY || 100
-      return { x: x - 18, y }
-    }
-    // Fallback: position after the last stage
+    // 使用统一的 CENTER_Y 值
     const lastStagePos = stagePositions.value[stagePositions.value.length - 1]
     if (lastStagePos) {
-      return { x: lastStagePos.x + lastStagePos.width + 40, y: lastStagePos.centerY || 100 }
+      return { x: lastStagePos.x + lastStagePos.width + 40, y: CENTER_Y }
     }
-    return { x: 500, y: 100 }
+    return { x: 500, y: CENTER_Y }
   }
 
   // For stage IDs, find the stage position
@@ -474,16 +466,16 @@ const getNodeEndpoint = (id, side = 'output') => {
   if (!stagePos) return { x: 0, y: 0 }
 
   // Return left or right edge based on side parameter
-  // 使用测量的实际中心 Y 坐标
+  // 使用统一的 CENTER_Y 值
   if (side === 'input') {
     return {
       x: stagePos.x,  // Left edge
-      y: stagePos.centerY
+      y: CENTER_Y
     }
   } else {
     return {
       x: stagePos.x + stagePos.width,  // Right edge
-      y: stagePos.centerY
+      y: CENTER_Y
     }
   }
 }
@@ -641,7 +633,7 @@ onUnmounted(() => {
   justify-content: center; /* 新增：内容垂直居中 */
   position: relative;
   padding: 0 6px;
-  min-height: 120px; /* 最小高度，确保节点卡片有足够空间 */
+  min-height: 180px; /* 最小高度，确保节点卡片和其他元素有足够空间 */
 }
 
 /* 原点阶段容器（开始/结束） */
@@ -650,7 +642,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 120px; /* 与阶段容器相同的最小高度 */
+  min-height: 180px; /* 与阶段容器相同的最小高度 */
 }
 
 /* 原点节点（开始/结束） */
@@ -759,7 +751,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 6px;
   align-items: stretch;
-  height: 100%;
+  min-height: 140px; /* 确保至少有一个节点的高度 */
 }
 
 .stage-nodes.parallel-nodes {
