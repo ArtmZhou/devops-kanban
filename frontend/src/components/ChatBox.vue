@@ -112,6 +112,10 @@ const props = defineProps({
   initialSession: {
     type: Object,
     default: null
+  },
+  defaultCollapsed: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -152,6 +156,18 @@ const messages = ref([])
 const inputText = ref('')
 const messageListRef = ref(null)
 const isCollapsed = ref(false)
+
+// Watch defaultCollapsed prop to initialize state
+watch(() => props.defaultCollapsed, (val) => {
+  isCollapsed.value = val
+}, { immediate: true })
+
+// Expose toggle method for external control
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
+}
+
+defineExpose({ toggleCollapse })
 
 // External method to set messages (for workflow demo)
 const setMessages = (newMessages, node = null) => {

@@ -197,6 +197,10 @@ const props = defineProps({
   selectedNodeId: {
     type: [Number, String],
     default: null
+  },
+  defaultCollapsed: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -205,10 +209,18 @@ const emit = defineEmits(['select-node', 'start-workflow', 'pause-task', 'view-d
 // Collapse state
 const isCollapsed = ref(false)
 
+// Watch defaultCollapsed prop to initialize state
+watch(() => props.defaultCollapsed, (val) => {
+  isCollapsed.value = val
+}, { immediate: true })
+
 // Toggle collapse/expand
 const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
 }
+
+// Expose toggle method for external control
+defineExpose({ toggleCollapse })
 
 // Node position cache for rollback arrows
 const nodePositions = ref({})
