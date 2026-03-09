@@ -731,6 +731,15 @@ onUnmounted(() => {
   z-index: 10; /* 确保节点组在其他元素之上 */
 }
 
+/* 串行阶段的节点组放在容器中心 */
+.stage-container:not(.is-parallel) .stage-nodes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+}
+
 /* 并行阶段的父节点包装器和标签放在顶部 */
 .stage-container.is-parallel .parent-node-wrapper,
 .stage-container.is-parallel .stage-label,
@@ -798,7 +807,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 6px;
   align-items: stretch;
-  min-height: 160px; /* 确保至少有一个节点卡片的高度 (160px) */
+  min-height: 140px; /* 确保至少有一个节点卡片的高度 (140px) */
 }
 
 .stage-nodes.parallel-nodes {
