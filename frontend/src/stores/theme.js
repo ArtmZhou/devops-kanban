@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 
 export const useThemeStore = defineStore('theme', () => {
   // State
-  const isDark = ref(localStorage.getItem('theme') !== 'light')
+  const isDark = ref(localStorage.getItem('theme') === 'dark')
 
   // Getters
   const themeClass = computed(() => isDark.value ? 'theme-dark' : 'theme-light')
