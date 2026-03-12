@@ -175,6 +175,7 @@ export default {
     config: 'Configuration',
     deleteConfirm: 'Are you sure you want to delete this role?',
     selectAgent: 'Select Role',
+    selectAgentHint: 'Select an agent from the left panel to view details',
     loading: 'Loading...',
     noAgents: 'No roles available',
     pleaseConfigure: 'Please configure a role first',
@@ -190,7 +191,14 @@ export default {
     commandHint: 'Use {prompt} as placeholder for task prompt',
     skills: 'Skills',
     skillPlaceholder: 'Enter skill, press Enter to add',
-    recommendedSkills: 'Recommended skills'
+    recommendedSkills: 'Recommended skills',
+    viewExecutions: 'Executions',
+    executionHistory: 'Execution History',
+    noExecutions: 'No executions yet',
+    taskTitle: 'Task',
+    executionStatus: 'Status',
+    executionStartedAt: 'Started At',
+    executionCompletedAt: 'Completed At'
   },
   execution: {
     title: 'Executions',
@@ -392,6 +400,14 @@ export default {
     expand: 'Expand',
     collapse: 'Collapse',
   },
+  view: {
+    kanban: 'Kanban',
+    list: 'List',
+    switchToKanban: 'Switch to Kanban view',
+    switchToList: 'Switch to List view',
+    filterByStatus: 'Filter by Status',
+    noTasksFound: 'No tasks found'
+  },
   requirement: {
     title: 'Requirements',
     createRequirement: 'New Requirement',
@@ -472,5 +488,25 @@ export default {
     },
     showConverted: 'Show converted requirements',
     hideConverted: 'Hide converted requirements'
+  },
+  butler: {
+    title: 'Task Butler',
+    welcome: 'Hello! I am the task butler, here to help you manage task execution.',
+    selectTask: 'Select Task',
+    selectTaskHint: 'Click a task card to chat with butler',
+    quickActions: 'Quick Actions',
+    startWorkflow: 'Start Workflow',
+    pauseWorkflow: 'Pause',
+    continueWorkflow: 'Continue',
+    viewProgress: 'View Progress',
+    inputPlaceholder: 'Chat with butler...',
+    progressLabel: 'Progress',
+    taskTitle: 'Task',
+    taskStatus: 'Status',
+    currentStage: 'Current Stage',
+    noTaskSelected: 'Please select a task first',
+    workflowStarted: 'Workflow started',
+    workflowPaused: 'Workflow paused',
+    workflowContinued: 'Workflow continued'
   }
 }

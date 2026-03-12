@@ -5,6 +5,7 @@ import {
   mockTasks,
   mockTaskSources,
   mockSessions,
+  mockExecutions,
   generateId
 } from './data.js'
 import { mockWorkflows } from './workflowData.js'
@@ -25,6 +26,7 @@ let agents = [...mockAgents]
 let tasks = [...mockTasks]
 let taskSources = [...mockTaskSources]
 let sessions = [...mockSessions]
+let executions = [...mockExecutions]
 
 // Reset data to initial state
 export const resetMockData = () => {
@@ -33,6 +35,7 @@ export const resetMockData = () => {
   tasks = [...mockTasks]
   taskSources = [...mockTaskSources]
   sessions = [...mockSessions]
+  executions = [...mockExecutions]
 }
 
 // API Handlers
@@ -233,6 +236,55 @@ export const mockHandlers = {
     if (index === -1) return response(null, false, 'Session not found')
     sessions.splice(index, 1)
     return response(null)
+  },
+
+  // Executions
+  'GET /executions': async (params) => {
+    await delay()
+    let result = executions
+    if (params?.taskId) {
+      result = result.filter(e => e.taskId === Number(params.taskId))
+    }
+    if (params?.agentId) {
+      result = result.filter(e => e.agentId === Number(params.agentId))
+    }
+    // Sort by startedAt descending (newest first)
+    result = result.sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
+    return response(result)
+  },
+
+  'GET /executions/:id': async (id) => {
+    await delay()
+    const execution = executions.find(e => e.id === Number(id))
+    return execution ? response(execution) : response(null, false, 'Execution not found')
+  },
+
+  'POST /executions': async (data) => {
+    await delay()
+    const task = tasks.find(t => t.id === data.taskId)
+    const newExecution = {
+      id: generateId.execution(),
+      ...data,
+      status: 'PENDING',
+      worktreePath: null,
+      branch: null,
+      output: null,
+      startedAt: new Date().toISOString(),
+      completedAt: null,
+      taskTitle: task?.title || `Task #${data.taskId}`,
+      taskStatus: task?.status || 'TODO'
+    }
+    executions.push(newExecution)
+    return response(newExecution)
+  },
+
+  'POST /executions/:id/stop': async (id) => {
+    await delay()
+    const index = executions.findIndex(e => e.id === Number(id))
+    if (index === -1) return response(null, false, 'Execution not found')
+    executions[index].status = 'CANCELLED'
+    executions[index].completedAt = new Date().toISOString()
+    return response(executions[index])
   },
 
   // Workflows

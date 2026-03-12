@@ -175,6 +175,7 @@ export default {
     config: '配置',
     deleteConfirm: '确定要删除此角色吗？',
     selectAgent: '选择角色',
+    selectAgentHint: '请从左侧选择一个角色查看详情',
     loading: '加载中...',
     noAgents: '暂无角色',
     pleaseConfigure: '请先配置角色',
@@ -189,7 +190,14 @@ export default {
     commandHint: '使用 {prompt} 作为任务提示的占位符',
     skills: '技能',
     skillPlaceholder: '输入技能，按回车添加',
-    recommendedSkills: '推荐技能'
+    recommendedSkills: '推荐技能',
+    viewExecutions: '执行记录',
+    executionHistory: '执行记录',
+    noExecutions: '暂无执行记录',
+    taskTitle: '任务',
+    executionStatus: '状态',
+    executionStartedAt: '开始时间',
+    executionCompletedAt: '结束时间'
   },
   execution: {
     title: '执行记录',
@@ -389,6 +397,14 @@ export default {
     autoTransitionLabel: '自动流转',
     autoRollbackLabel: '自动回退'
   },
+  view: {
+    kanban: '看板',
+    list: '列表',
+    switchToKanban: '切换到看板视图',
+    switchToList: '切换到列表视图',
+    filterByStatus: '按状态筛选',
+    noTasksFound: '没有找到任务'
+  },
   requirement: {
     title: '原始需求',
     createRequirement: '新增需求',
@@ -468,5 +484,25 @@ export default {
     },
     showConverted: '显示已转换需求',
     hideConverted: '隐藏已转换需求'
+  },
+  butler: {
+    title: '任务管家',
+    welcome: '您好！我是任务管家，负责协助您管理任务的执行。',
+    selectTask: '选择任务',
+    selectTaskHint: '点击任务卡片与管家对话',
+    quickActions: '快捷操作',
+    startWorkflow: '启动工作流',
+    pauseWorkflow: '暂停',
+    continueWorkflow: '继续',
+    viewProgress: '查看进度',
+    inputPlaceholder: '与管家对话...',
+    progressLabel: '进度',
+    taskTitle: '任务',
+    taskStatus: '状态',
+    currentStage: '当前阶段',
+    noTaskSelected: '请先选择一个任务',
+    workflowStarted: '工作流已启动',
+    workflowPaused: '工作流已暂停',
+    workflowContinued: '工作流已继续'
   }
 }

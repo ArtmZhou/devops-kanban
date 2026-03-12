@@ -114,6 +114,13 @@ public class AgentExecutionService {
         return executionRepository.findByTaskId(taskId);
     }
 
+    /**
+     * Get all executions for an agent
+     */
+    public List<Execution> getExecutionsByAgentId(Long agentId) {
+        return executionRepository.findByAgentId(agentId);
+    }
+
     @Async
     protected void executeAsync(Execution execution, Agent agent, TaskDTO task, Path worktree) {
         try {

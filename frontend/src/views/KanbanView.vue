@@ -35,19 +35,61 @@
     <div class="main-content-wrapper">
       <!-- Left: Workflow + Kanban Board -->
       <div class="kanban-area">
+        <!-- View Mode Toolbar - At the very top -->
+        <div class="view-toolbar">
+          <div class="view-toggle">
+            <el-radio-group v-model="viewMode" size="small">
+              <el-radio-button value="list">
+                <span class="view-btn-content">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                  </svg>
+                  {{ $t('view.list') }}
+                </span>
+              </el-radio-button>
+              <el-radio-button value="kanban">
+                <span class="view-btn-content">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                  </svg>
+                  {{ $t('view.kanban') }}
+                </span>
+              </el-radio-button>
+            </el-radio-group>
+          </div>
+
+          <!-- Status Filter for List View -->
+          <div v-if="viewMode === 'list'" class="status-filter">
+            <span class="filter-label">{{ $t('view.filterByStatus') }}:</span>
+            <el-checkbox-group v-model="listStatusFilter" size="small">
+              <el-checkbox-button v-for="status in allStatusOptions" :key="status" :value="status">
+                {{ $t(`status.${status}`) }}
+              </el-checkbox-button>
+            </el-checkbox-group>
+          </div>
+        </div>
+
         <!-- Workflow Timeline - Show when a task with workflow is selected -->
         <WorkflowTimeline
           v-if="currentWorkflow"
           :workflow="currentWorkflow"
           :selected-node-id="selectedNodeId"
-          :default-collapsed="false"
+          :default-collapsed="true"
           @select-node="onNodeSelect"
           @view-details="onNodeViewDetails"
           @start-workflow="onStartWorkflow"
         />
 
         <!-- Kanban Board -->
-        <div class="kanban-board" ref="kanbanBoardRef">
+        <div v-if="viewMode === 'kanban'" class="kanban-board" ref="kanbanBoardRef">
         <!-- Requirements Column -->
         <div class="kanban-column requirement-column" data-status="REQUIREMENTS">
           <div class="column-header">
@@ -451,9 +493,80 @@
         </div>
 
       </div>
+
+      <!-- List View -->
+      <div v-else class="task-list-view" ref="taskListRef">
+        <div class="task-list-container">
+          <div v-if="filteredTasksForList.length === 0" class="empty-list">
+            <p>{{ $t('view.noTasksFound') }}</p>
+          </div>
+          <div
+            v-for="task in filteredTasksForList"
+            :key="task.id"
+            class="task-list-item"
+            :class="{
+              'task-selected': selectedTask?.id === task.id,
+              'task-running': isTaskRunning(task.id)
+            }"
+            @click="selectTask(task)"
+          >
+            <div class="task-list-status">
+              <span class="status-badge" :class="getStatusClass(task.status)">
+                {{ $t(`status.${task.status}`) }}
+              </span>
+            </div>
+            <div class="task-list-priority">
+              <span class="priority-badge" :class="getPriorityClass(task.priority)">
+                {{ getPriorityLabel(task.priority) }}
+              </span>
+            </div>
+            <div class="task-list-content">
+              <div class="task-list-title">{{ task.title }}</div>
+              <div v-if="task.description" class="task-list-description">{{ task.description }}</div>
+            </div>
+            <div v-if="isTaskRunning(task.id)" class="task-list-running">
+              <span class="running-time">{{ formatTaskElapsedTime(task.id) }}</span>
+            </div>
+            <div class="task-list-actions">
+              <button
+                class="auto-transition-btn"
+                :class="{ 'active': task.autoTransitionEnabled === true }"
+                @click.stop="toggleAutoTransition(task)"
+                :title="task.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M23 4v6h-6"></path>
+                  <path d="M1 20v-6h6"></path>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+              </button>
+              <button
+                class="edit-btn"
+                @click.stop="openTaskModal(task)"
+                :title="$t('common.edit')"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button
+                class="delete-btn"
+                @click.stop="deleteTask(task.id)"
+                :title="$t('common.delete')"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div><!-- End of .task-list-view -->
     </div><!-- End of .kanban-area -->
 
-    <!-- Chat Container (separate on the right) -->
+    <!-- Chat Container (separate on the right) - Task Butler -->
       <div class="chat-container" :class="{ collapsed: isChatCollapsed }">
         <!-- Toggle button -->
         <div class="chat-toggle-btn" @click="isChatCollapsed = !isChatCollapsed" :title="isChatCollapsed ? '展开聊天框' : '收起聊天框'">
@@ -465,39 +578,32 @@
           </svg>
         </div>
 
-        <div v-if="!selectedNode" class="chat-welcome">
+        <!-- No task selected -->
+        <div v-if="!selectedTask" class="chat-welcome">
           <div class="welcome-icon">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
           </div>
-          <h2>选择工作流节点</h2>
-          <p>点击工作流节点查看详情和对话</p>
+          <h2>{{ $t('butler.selectTask') }}</h2>
+          <p>{{ $t('butler.selectTaskHint') }}</p>
         </div>
 
+        <!-- Task Butler Chat -->
         <div v-else class="chat-content">
-          <!-- Node Info Header -->
-          <div class="node-info-header">
-            <h3>{{ selectedNode.name }}</h3>
-            <div class="node-meta">
-              <span class="node-role">{{ selectedNode.role }}</span>
-              <span class="node-status" :class="'status-' + selectedNode.status?.toLowerCase()">
-                {{ selectedNode.status }}
-              </span>
+          <!-- Butler Header -->
+          <div class="butler-header">
+            <div class="butler-avatar">🤖</div>
+            <div class="butler-info">
+              <h3>{{ $t('butler.title') }}</h3>
+              <span class="task-name">{{ selectedTask.title }}</span>
             </div>
           </div>
-          <!-- ChatBox Component -->
-          <ChatBox
-            ref="chatBoxRef"
+          <!-- TaskButlerChat Component -->
+          <TaskButlerChat
+            ref="butlerChatRef"
             :task="selectedTask"
-            :agent-id="selectedAgentId"
-            :initial-session="activeSession"
-            :default-collapsed="false"
-            @session-created="onSessionCreated"
-            @session-stopped="onSessionStopped"
-            @session-deleted="onSessionDeleted"
-            @status-change="onStatusChange"
-            @request-agent-select="handleRequestAgentSelect"
+            @control-workflow="handleButlerControl"
           />
         </div>
       </div>
@@ -716,28 +822,24 @@
             <p class="rejected-reason-text">{{ selectedNode.rejectedReason }}</p>
           </div>
 
-          <!-- 对话记录 -->
-          <div v-if="selectedNode.messages && selectedNode.messages.length > 0" class="info-card messages-card">
+          <!-- 对话记录 - 可交互的 ChatBox -->
+          <div class="info-card chat-card">
             <h3 class="info-card-title">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
               </svg>
-              对话记录
+              与 {{ selectedNode.agentName }} 对话
             </h3>
-            <div class="message-list">
-              <div v-for="msg in selectedNode.messages" :key="msg.id" class="message-item" :class="'message-from-' + msg.from">
-                <div class="message-avatar">
-                  <span v-if="msg.from === 'user'">👤</span>
-                  <span v-else>🤖</span>
-                </div>
-                <div class="message-content-wrapper">
-                  <div class="message-header">
-                    <span class="message-sender">{{ msg.from === 'user' ? '用户' : selectedNode.agentName }}</span>
-                    <span class="message-time">{{ new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) }}</span>
-                  </div>
-                  <div class="message-content">{{ msg.content }}</div>
-                </div>
-              </div>
+            <div class="node-chat-container">
+              <ChatBox
+                ref="nodeChatBoxRef"
+                :task="selectedTask"
+                :agent-id="selectedNode.agentId || selectedAgentId"
+                :initial-session="null"
+                :default-collapsed="false"
+                @session-created="onNodeSessionCreated"
+                @request-agent-select="() => {}"
+              />
             </div>
           </div>
 
@@ -793,6 +895,7 @@ import { useTaskStore } from '../stores/taskStore'
 import { createSession, startSession, stopSession, getActiveSessionByTask, getSessionsByTask } from '../api/session.js'
 import AgentSelector from '../components/AgentSelector.vue'
 import ChatBox from '../components/ChatBox.vue'
+import TaskButlerChat from '../components/TaskButlerChat.vue'
 import WorkflowTimeline from '../components/workflow/WorkflowTimeline.vue'
 import RequirementCard from '../components/requirement/RequirementCard.vue'
 import RequirementForm from '../components/requirement/RequirementForm.vue'
@@ -858,12 +961,27 @@ const isEditing = ref(false)
 const editingTaskId = ref(null)
 const activeSession = ref(null)
 const chatBoxRef = ref(null)
+const butlerChatRef = ref(null)
+const nodeChatBoxRef = ref(null)
 const runningTasks = ref(new Set())
 const taskStartTimes = ref(new Map()) // Store start time for each running task
 const taskElapsedSeconds = ref({}) // Reactive object for elapsed seconds display
 let runningTimer = null
 const isChatCollapsed = ref(false)
 const kanbanBoardRef = ref(null)
+
+// View mode state: 'kanban' | 'list'
+const viewMode = ref('list')
+
+// List mode status filter
+const allStatusOptions = ['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED']
+const listStatusFilter = ref(['TODO', 'IN_PROGRESS'])
+
+// Computed property: filtered tasks for list view
+const filteredTasksForList = computed(() => {
+  if (listStatusFilter.value.length === 0) return []
+  return taskStore.tasks.filter(task => listStatusFilter.value.includes(task.status))
+})
 
 // Workflow state
 const selectedNodeId = ref(null)
@@ -945,6 +1063,38 @@ const onNodeViewDetails = (node) => {
   selectedNodeId.value = node.id
   selectedNode.value = node
   showNodeDialog.value = true  // Open node detail dialog
+}
+
+// Handler for butler control commands
+const handleButlerControl = ({ action, taskId }) => {
+  console.log('[KanbanView] Butler control:', action, taskId)
+
+  switch (action) {
+    case 'start':
+      if (currentWorkflow.value) {
+        onStartWorkflow(currentWorkflow.value)
+      }
+      break
+    case 'pause':
+      ElMessage.info(t('butler.workflowPaused'))
+      break
+    case 'continue':
+      ElMessage.info(t('butler.workflowContinued'))
+      break
+    case 'stop':
+      ElMessage.info('工作流已停止')
+      break
+    case 'retry':
+      ElMessage.info('正在重试...')
+      break
+    default:
+      console.log('[KanbanView] Unknown butler action:', action)
+  }
+}
+
+// Handler for node session creation
+const onNodeSessionCreated = (session) => {
+  console.log('[KanbanView] Node session created:', session.id)
 }
 
 // Handler for starting workflow
@@ -1819,8 +1969,10 @@ onUnmounted(() => {
 /* Kanban Area: Workflow + Board */
 .kanban-area {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   overflow-x: auto; /* 允许横向滚动 */
 }
 
@@ -1835,9 +1987,10 @@ onUnmounted(() => {
 /* Kanban Board */
 .kanban-board {
   display: flex;
+  flex: 1;
   padding: 12px;
   gap: 12px;
-  min-height: 200px;
+  min-height: 0;
   align-content: stretch;
   overflow-x: auto; /* 允许横向滚动 */
   flex-wrap: nowrap; /* 防止换行 */
@@ -2505,6 +2658,63 @@ onUnmounted(() => {
   flex: 1;
   overflow: hidden;
   padding-right: 24px;
+}
+
+/* Butler Header */
+.butler-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08));
+  border-bottom: 1px solid var(--border-color);
+}
+
+.butler-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.butler-info {
+  flex: 1;
+}
+
+.butler-info h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.butler-info .task-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Node Chat Card in Dialog */
+.chat-card {
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+
+.node-chat-container {
+  height: 300px;
+  min-height: 200px;
+  max-height: 400px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--bg-primary);
 }
 
 /* Node Info Header */
@@ -3375,6 +3585,220 @@ onUnmounted(() => {
   background: #4f46e5;
   box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
   transform: translateY(-1px);
+}
+
+/* View Mode Toolbar */
+.view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.view-toggle {
+  display: flex;
+  align-items: center;
+}
+
+.view-btn-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* List View */
+.task-list-view {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.task-list-container {
+  flex: 1;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.task-list-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  gap: 16px;
+}
+
+.task-list-item:last-child {
+  border-bottom: none;
+}
+
+.task-list-item:hover {
+  background: var(--hover-bg);
+}
+
+.task-list-item.task-selected {
+  background: rgba(99, 102, 241, 0.08);
+  border-left: 3px solid var(--accent-color);
+  padding-left: 15px;
+}
+
+.task-list-item.task-running {
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.task-list-status {
+  flex-shrink: 0;
+}
+
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.status-todo {
+  background: rgba(107, 114, 128, 0.12);
+  color: #6b7280;
+  border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.status-badge.status-in-progress {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.status-badge.status-done {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.status-badge.status-blocked {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.task-list-priority {
+  flex-shrink: 0;
+}
+
+.priority-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.priority-badge.priority-low {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.priority-badge.priority-medium {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.priority-badge.priority-high {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.priority-badge.priority-critical {
+  background: rgba(239, 68, 68, 0.2);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.task-list-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-list-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-list-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+
+.task-list-running {
+  flex-shrink: 0;
+}
+
+.task-list-running .running-time {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  animation: pulse-green 2s infinite;
+}
+
+.task-list-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.empty-list {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 40px;
 }
 </style>
 

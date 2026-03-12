@@ -2,8 +2,10 @@ package com.devops.kanban.converter;
 
 import com.devops.kanban.dto.*;
 import com.devops.kanban.entity.*;
+import com.devops.kanban.repository.TaskRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import java.util.Collections;
 import java.util.List;
@@ -16,6 +18,12 @@ import java.util.List;
 public class EntityDTOConverter {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final TaskRepository taskRepository;
+
+    @Autowired
+    public EntityDTOConverter(TaskRepository taskRepository) {
+        this.taskRepository = taskRepository;
+    }
 
     // ==================== Task ====================
 
@@ -247,6 +255,9 @@ public class EntityDTOConverter {
         if (execution == null) {
             return null;
         }
+        // Fetch task info for display
+        Task task = taskRepository.findById(execution.getTaskId()).orElse(null);
+
         return ExecutionDTO.builder()
                 .id(execution.getId())
                 .taskId(execution.getTaskId())
@@ -257,6 +268,8 @@ public class EntityDTOConverter {
                 .output(execution.getOutput())
                 .startedAt(execution.getStartedAt())
                 .completedAt(execution.getCompletedAt())
+                .taskTitle(task != null ? task.getTitle() : null)
+                .taskStatus(task != null && task.getStatus() != null ? task.getStatus().name() : null)
                 .build();
     }
 

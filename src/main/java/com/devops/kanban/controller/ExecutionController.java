@@ -45,13 +45,22 @@ public class ExecutionController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ExecutionDTO>>> getExecutions(
-            @RequestParam(required = false) Long taskId) {
-        if (taskId == null) {
-            return ResponseEntity.ok(ApiResponse.error("taskId is required"));
+            @RequestParam(required = false) Long taskId,
+            @RequestParam(required = false) Long agentId) {
+        if (taskId == null && agentId == null) {
+            return ResponseEntity.ok(ApiResponse.error("taskId or agentId is required"));
         }
-        List<ExecutionDTO> executions = executionService.getExecutionsByTaskId(taskId).stream()
-                .map(converter::toDTO)
-                .collect(Collectors.toList());
+
+        List<ExecutionDTO> executions;
+        if (agentId != null) {
+            executions = executionService.getExecutionsByAgentId(agentId).stream()
+                    .map(converter::toDTO)
+                    .collect(Collectors.toList());
+        } else {
+            executions = executionService.getExecutionsByTaskId(taskId).stream()
+                    .map(converter::toDTO)
+                    .collect(Collectors.toList());
+        }
         return ResponseEntity.ok(ApiResponse.success(executions));
     }
 

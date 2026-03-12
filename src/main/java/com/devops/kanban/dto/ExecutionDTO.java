@@ -26,4 +26,8 @@ public class ExecutionDTO {
     private String output;
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
+
+    // Task basic info for display
+    private String taskTitle;
+    private String taskStatus;
 }

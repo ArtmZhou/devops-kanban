@@ -76,4 +76,17 @@ public class FileExecutionRepository extends AbstractFileRepository<Execution, L
                 .collect(Collectors.toList());
         writeAll(remaining);
     }
+
+    /**
+     * Finds all executions for the given agent ID.
+     *
+     * @param agentId the agent ID to search for
+     * @return list of executions belonging to the specified agent
+     */
+    @Override
+    public List<Execution> findByAgentId(Long agentId) {
+        return readAll().stream()
+                .filter(e -> e.getAgentId() != null && e.getAgentId().equals(agentId))
+                .collect(Collectors.toList());
+    }
 }

@@ -269,15 +269,124 @@ export const mockSessions = [
   }
 ]
 
+export const mockExecutions = [
+  {
+    id: 1,
+    taskId: 1,
+    agentId: 3,
+    status: 'SUCCESS',
+    worktreePath: '/tmp/worktrees/task-1-abc123',
+    branch: 'feature/login-oauth',
+    output: 'OAuth2.0登录功能开发完成。\n\n已实现:\n- GitHub OAuth登录\n- Google OAuth登录\n- 用户信息同步\n- Token刷新机制',
+    startedAt: '2024-03-01T09:30:00Z',
+    completedAt: '2024-03-01T11:45:00Z',
+    taskTitle: '实现用户登录功能',
+    taskStatus: 'DONE'
+  },
+  {
+    id: 2,
+    taskId: 2,
+    agentId: 5,
+    status: 'SUCCESS',
+    worktreePath: '/tmp/worktrees/task-2-def456',
+    branch: 'feature/db-optimization',
+    output: '数据库优化完成。\n\n优化内容:\n- 添加了idx_user_email索引\n- 添加了idx_task_status索引\n- 优化了复杂查询SQL\n- 查询性能提升60%',
+    startedAt: '2024-03-03T10:00:00Z',
+    completedAt: '2024-03-03T14:30:00Z',
+    taskTitle: '优化数据库查询性能',
+    taskStatus: 'IN_PROGRESS'
+  },
+  {
+    id: 3,
+    taskId: 4,
+    agentId: 4,
+    status: 'RUNNING',
+    worktreePath: '/tmp/worktrees/task-4-ghi789',
+    branch: 'fix/pagination-bug',
+    output: '正在修复分页组件Bug...\n\n进度:\n- 已定位问题原因\n- 正在编写修复代码...',
+    startedAt: '2024-03-12T08:00:00Z',
+    completedAt: null,
+    taskTitle: '修复分页组件Bug',
+    taskStatus: 'IN_PROGRESS'
+  },
+  {
+    id: 4,
+    taskId: 6,
+    agentId: 3,
+    status: 'FAILED',
+    worktreePath: '/tmp/worktrees/task-6-jkl012',
+    branch: 'feature/rate-limiting',
+    output: '限流功能实现失败：Redis连接超时\n\n错误详情:\n- 连接redis://localhost:6379超时\n- 请检查Redis服务是否正常运行',
+    startedAt: '2024-03-10T14:00:00Z',
+    completedAt: '2024-03-10T14:30:00Z',
+    taskTitle: '实现限流功能',
+    taskStatus: 'IN_PROGRESS'
+  },
+  {
+    id: 5,
+    taskId: 7,
+    agentId: 1,
+    status: 'SUCCESS',
+    worktreePath: '/tmp/worktrees/task-7-mno345',
+    branch: 'docs/api-documentation',
+    output: 'API文档生成完成\n\n已完成:\n- Swagger集成\n- OpenAPI 3.0规范\n- 接口文档在线预览',
+    startedAt: '2024-02-25T09:00:00Z',
+    completedAt: '2024-02-25T12:00:00Z',
+    taskTitle: '添加API文档',
+    taskStatus: 'DONE'
+  },
+  {
+    id: 6,
+    taskId: 8,
+    agentId: 4,
+    status: 'PENDING',
+    worktreePath: null,
+    branch: null,
+    output: null,
+    startedAt: '2024-03-12T09:00:00Z',
+    completedAt: null,
+    taskTitle: '优化页面加载速度',
+    taskStatus: 'IN_PROGRESS'
+  },
+  {
+    id: 7,
+    taskId: 2,
+    agentId: 5,
+    status: 'CANCELLED',
+    worktreePath: '/tmp/worktrees/task-2-pqr678',
+    branch: 'feature/db-indexes',
+    output: '用户取消执行',
+    startedAt: '2024-03-02T15:00:00Z',
+    completedAt: '2024-03-02T15:10:00Z',
+    taskTitle: '优化数据库查询性能',
+    taskStatus: 'IN_PROGRESS'
+  },
+  {
+    id: 8,
+    taskId: 3,
+    agentId: 2,
+    status: 'SUCCESS',
+    worktreePath: '/tmp/worktrees/task-3-stu901',
+    branch: 'feature/task-export',
+    output: '任务导出功能开发完成\n\n支持格式:\n- Excel (.xlsx)\n- PDF\n- CSV',
+    startedAt: '2024-03-05T15:00:00Z',
+    completedAt: '2024-03-05T18:00:00Z',
+    taskTitle: '添加任务导出功能',
+    taskStatus: 'TODO'
+  }
+]
+
 // Helper to generate IDs
 let nextTaskId = 100
 let nextProjectId = 10
 let nextAgentId = 10
 let nextSessionId = 10
+let nextExecutionId = 100
 
 export const generateId = {
   task: () => nextTaskId++,
   project: () => nextProjectId++,
   agent: () => nextAgentId++,
-  session: () => `session-${nextSessionId++}`
+  session: () => `session-${nextSessionId++}`,
+  execution: () => nextExecutionId++
 }
