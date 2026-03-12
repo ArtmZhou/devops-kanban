@@ -74,7 +74,7 @@ export const mockAgents = [
   },
   {
     id: 5,
-    name: '老张',
+    name: '老王',
     type: 'GEMINI',
     role: 'DBA',
     description: '负责数据库设计和优化',
