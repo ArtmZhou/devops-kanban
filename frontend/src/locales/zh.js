@@ -432,9 +432,9 @@ export default {
       OTHER: '其他'
     },
     statuses: {
-      NEW: '新建',
+      NEW: '待处理',
       ANALYZING: '分析中',
-      CONVERTED: '已转换',
+      CONVERTED: '已生成',
       ARCHIVED: '已归档'
     },
     noRequirements: '暂无需求',

@@ -435,9 +435,9 @@ export default {
       OTHER: 'Other'
     },
     statuses: {
-      NEW: 'New',
+      NEW: 'Pending',
       ANALYZING: 'Analyzing',
-      CONVERTED: 'Converted',
+      CONVERTED: 'Generated',
       ARCHIVED: 'Archived'
     },
     noRequirements: 'No requirements',
