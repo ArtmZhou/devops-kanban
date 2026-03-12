@@ -35,7 +35,7 @@ export const mockAgents = [
   },
   {
     id: 2,
-    name: '大伟',
+    name: '老袁',
     type: 'CLAUDE',
     role: 'TECH_LEAD',
     description: '负责技术决策和团队协调',
@@ -48,7 +48,7 @@ export const mockAgents = [
   },
   {
     id: 3,
-    name: '小李',
+    name: '阿哲',
     type: 'CODEX',
     role: 'BACKEND_DEV',
     description: '负责后端服务和API开发',
