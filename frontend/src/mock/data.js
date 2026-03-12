@@ -61,7 +61,7 @@ export const mockAgents = [
   },
   {
     id: 4,
-    name: '阿艺',
+    name: '小慧',
     type: 'CURSOR',
     role: 'FRONTEND_DEV',
     description: '负责用户界面和交互开发',
