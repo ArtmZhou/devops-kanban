@@ -28,7 +28,7 @@ export default {
     projects: 'Projects',
     kanban: 'Kanban',
     taskSources: 'Task Sources',
-    agents: 'Role Management',
+    agents: 'My Team',
     promptTemplates: 'Prompt Templates',
     settings: 'Settings'
   },
@@ -163,22 +163,23 @@ export default {
     }
   },
   agent: {
-    title: 'Role Management',
-    createAgent: 'Create Role',
-    editAgent: 'Edit Role',
+    title: 'My Team',
+    teamList: 'Team List',
+    createAgent: 'Add Member',
+    editAgent: 'Edit Member',
     agentName: 'Name',
     agentType: 'Type',
-    role: 'Role',
+    role: 'Position',
     description: 'Description',
     descriptionPlaceholder: 'Enter agent description (optional)',
     command: 'Command Template',
     config: 'Configuration',
-    deleteConfirm: 'Are you sure you want to delete this role?',
-    selectAgent: 'Select Role',
-    selectAgentHint: 'Select an agent from the left panel to view details',
+    deleteConfirm: 'Are you sure you want to remove this team member?',
+    selectAgent: 'Select Member',
+    selectAgentHint: 'Select a team member from the left panel to view details',
     loading: 'Loading...',
-    noAgents: 'No roles available',
-    pleaseConfigure: 'Please configure a role first',
+    noAgents: 'No team members yet',
+    pleaseConfigure: 'Please add a team member first',
     startSession: 'Start Session',
     skills: 'Skills',
     types: {
@@ -198,7 +199,11 @@ export default {
     taskTitle: 'Task',
     executionStatus: 'Status',
     executionStartedAt: 'Started At',
-    executionCompletedAt: 'Completed At'
+    executionCompletedAt: 'Completed At',
+    status: {
+      idle: 'Idle',
+      working: 'Working'
+    }
   },
   execution: {
     title: 'Executions',

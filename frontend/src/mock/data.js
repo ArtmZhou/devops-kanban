@@ -22,7 +22,7 @@ export const mockProjects = [
 export const mockAgents = [
   {
     id: 1,
-    name: 'Claude Architect',
+    name: '老曹',
     type: 'CLAUDE',
     role: 'ARCHITECT',
     description: '负责系统架构设计和技术选型',
@@ -35,7 +35,7 @@ export const mockAgents = [
   },
   {
     id: 2,
-    name: 'Claude Lead',
+    name: '大伟',
     type: 'CLAUDE',
     role: 'TECH_LEAD',
     description: '负责技术决策和团队协调',
@@ -48,7 +48,7 @@ export const mockAgents = [
   },
   {
     id: 3,
-    name: 'Codex Backend',
+    name: '小李',
     type: 'CODEX',
     role: 'BACKEND_DEV',
     description: '负责后端服务和API开发',
@@ -61,7 +61,7 @@ export const mockAgents = [
   },
   {
     id: 4,
-    name: 'Cursor FE',
+    name: '阿艺',
     type: 'CURSOR',
     role: 'FRONTEND_DEV',
     description: '负责用户界面和交互开发',
@@ -74,7 +74,7 @@ export const mockAgents = [
   },
   {
     id: 5,
-    name: 'Gemini DBA',
+    name: '老张',
     type: 'GEMINI',
     role: 'DBA',
     description: '负责数据库设计和优化',
@@ -87,7 +87,7 @@ export const mockAgents = [
   },
   {
     id: 6,
-    name: 'Claude QA',
+    name: '小娴',
     type: 'CLAUDE',
     role: 'QA_ENGINEER',
     description: '负责质量保证和测试',
@@ -100,7 +100,7 @@ export const mockAgents = [
   },
   {
     id: 7,
-    name: 'Claude PM',
+    name: '阿文',
     type: 'CLAUDE',
     role: 'PRODUCT_MANAGER',
     description: '负责产品规划和需求管理',
@@ -113,7 +113,7 @@ export const mockAgents = [
   },
   {
     id: 8,
-    name: 'Codex DevOps',
+    name: '大德',
     type: 'CODEX',
     role: 'DEVOPS',
     description: '负责部署和运维自动化',

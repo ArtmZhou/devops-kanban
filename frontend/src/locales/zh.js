@@ -28,7 +28,7 @@ export default {
     projects: '项目列表',
     kanban: '看板',
     taskSources: '任务源',
-    agents: '角色管理',
+    agents: '我的团队',
     promptTemplates: '提示词模板',
     settings: '设置'
   },
@@ -163,22 +163,23 @@ export default {
     }
   },
   agent: {
-    title: '角色管理',
-    createAgent: '创建角色',
-    editAgent: '编辑角色',
+    title: '我的团队',
+    teamList: '团队列表',
+    createAgent: '添加成员',
+    editAgent: '编辑成员',
     agentName: '名称',
     agentType: '类型',
-    role: '角色',
+    role: '职位',
     description: '描述',
     descriptionPlaceholder: '请输入代理描述（可选）',
     command: '命令模板',
     config: '配置',
-    deleteConfirm: '确定要删除此角色吗？',
-    selectAgent: '选择角色',
-    selectAgentHint: '请从左侧选择一个角色查看详情',
+    deleteConfirm: '确定要移除此成员吗？',
+    selectAgent: '选择成员',
+    selectAgentHint: '请从左侧选择一个成员查看详情',
     loading: '加载中...',
-    noAgents: '暂无角色',
-    pleaseConfigure: '请先配置角色',
+    noAgents: '暂无成员',
+    pleaseConfigure: '请先添加团队成员',
     startSession: '开始会话',
     types: {
       CLAUDE: 'Claude Code',
@@ -197,7 +198,11 @@ export default {
     taskTitle: '任务',
     executionStatus: '状态',
     executionStartedAt: '开始时间',
-    executionCompletedAt: '结束时间'
+    executionCompletedAt: '结束时间',
+    status: {
+      idle: '空闲',
+      working: '执行中'
+    }
   },
   execution: {
     title: '执行记录',

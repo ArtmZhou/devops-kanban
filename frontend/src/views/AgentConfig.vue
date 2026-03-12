@@ -13,7 +13,7 @@
       <!-- 左侧：角色列表 -->
       <div class="agent-list-panel">
         <div class="panel-header">
-          <h3>{{ locale === 'zh' ? '角色列表' : 'Agent List' }}</h3>
+          <h3>{{ $t('agent.teamList') }}</h3>
           <span class="agent-count">{{ agentStore.agents.length }}</span>
         </div>
         <div class="agent-list" v-if="!agentStore.loading">
@@ -30,9 +30,15 @@
             </div>
             <div class="agent-item-meta">
               <span class="role-tag">{{ locale === 'zh' ? getRoleConfig(agent.role || 'BACKEND_DEV').name : getRoleConfig(agent.role || 'BACKEND_DEV').nameEn }}</span>
-              <span class="enabled-badge" :class="{ 'disabled': !agent.enabled }">
-                {{ agent.enabled ? $t('common.enabled') : $t('common.disabled') }}
-              </span>
+              <div class="status-row">
+                <span class="agent-status-indicator" :class="getAgentStatus(agent.id)">
+                  <span class="status-dot"></span>
+                  <span class="status-text">{{ $t(`agent.status.${getAgentStatus(agent.id)}`) }}</span>
+                </span>
+                <span class="enabled-badge" :class="{ 'disabled': !agent.enabled }">
+                  {{ agent.enabled ? $t('common.enabled') : $t('common.disabled') }}
+                </span>
+              </div>
             </div>
           </div>
           <div v-if="agentStore.agents.length === 0" class="empty-list">
@@ -301,6 +307,9 @@ const loadingExecutions = ref(false)
 const showExecutionDetail = ref(false)
 const selectedExecutionId = ref(null)
 
+// Agent status tracking (for all agents)
+const agentStatuses = ref({})
+
 // Execution statistics
 const executionStats = computed(() => {
   const stats = {
@@ -355,6 +364,8 @@ const showToast = (message, type = 'success') => {
 const loadAgents = async () => {
   try {
     await agentStore.fetchAgents()
+    // Load statuses for all agents
+    await loadAllAgentStatuses()
     // Auto-select first agent if available
     if (agentStore.agents.length > 0 && !selectedAgent.value) {
       selectAgent(agentStore.agents[0])
@@ -362,6 +373,31 @@ const loadAgents = async () => {
   } catch (e) {
     console.error('Failed to load agents:', e)
   }
+}
+
+// Load execution statuses for all agents
+const loadAllAgentStatuses = async () => {
+  const statuses = {}
+  for (const agent of agentStore.agents) {
+    try {
+      const response = await getExecutionsByAgent(agent.id)
+      if (response.success && response.data) {
+        // Check if any execution is RUNNING
+        const hasRunning = response.data.some(e => e.status === 'RUNNING' || e.status === 'PENDING')
+        statuses[agent.id] = hasRunning ? 'working' : 'idle'
+      } else {
+        statuses[agent.id] = 'idle'
+      }
+    } catch (e) {
+      statuses[agent.id] = 'idle'
+    }
+  }
+  agentStatuses.value = statuses
+}
+
+// Get agent status (working or idle)
+const getAgentStatus = (agentId) => {
+  return agentStatuses.value[agentId] || 'idle'
 }
 
 const selectAgent = async (agent) => {
@@ -660,6 +696,59 @@ onMounted(loadAgents)
 .enabled-badge.disabled {
   background: #fed7d7;
   color: #742a2a;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.agent-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+}
+
+.agent-status-indicator.idle {
+  background: #edf2f7;
+  color: #718096;
+}
+
+.agent-status-indicator.working {
+  background: #c6f6d5;
+  color: #22543d;
+}
+
+.agent-status-indicator.idle .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a0aec0;
+}
+
+.agent-status-indicator.working .status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38a169;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.status-text {
+  font-weight: 500;
 }
 
 .empty-list, .loading-state {
