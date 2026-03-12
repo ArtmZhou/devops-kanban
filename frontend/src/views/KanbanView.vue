@@ -496,15 +496,18 @@
 
       <!-- List View -->
       <div v-else class="task-list-view" ref="taskListRef">
-        <!-- Requirements Section in List View -->
-        <div class="list-requirements-section">
-          <div class="list-section-header">
+        <!-- Requirements Section in List View (Collapsible) -->
+        <div class="list-requirements-section" :class="{ collapsed: isListRequirementsCollapsed }">
+          <div class="list-section-header" @click="isListRequirementsCollapsed = !isListRequirementsCollapsed">
             <div class="list-section-title">
+              <svg class="collapse-icon" :class="{ rotated: isListRequirementsCollapsed }" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
               <span class="section-icon">📋</span>
               {{ $t('requirement.title') }}
               <span class="section-count">{{ requirements.length }}</span>
             </div>
-            <div class="list-section-actions">
+            <div class="list-section-actions" @click.stop>
               <button class="add-requirement-btn-list" @click="openRequirementModal">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -542,14 +545,54 @@
               </button>
             </div>
           </div>
-          <div class="list-requirements-content">
-            <RequirementCard
+          <div class="list-requirements-content" v-show="!isListRequirementsCollapsed">
+            <!-- Requirements in List Format -->
+            <div
               v-for="req in requirements"
               :key="req.id"
-              :requirement="req"
-              @sync="syncRequirementToTask"
-              @delete="deleteRequirement"
-            />
+              class="requirement-list-item"
+              :class="{ 'is-converted': req.status === 'CONVERTED' }"
+            >
+              <div class="requirement-list-status">
+                <span class="req-status-badge" :class="getReqStatusClass(req.status)">
+                  {{ getReqStatusLabel(req.status) }}
+                </span>
+              </div>
+              <div class="requirement-list-priority">
+                <span class="priority-badge" :class="getPriorityClass(req.priority)">
+                  {{ getPriorityLabel(req.priority) }}
+                </span>
+              </div>
+              <div class="requirement-list-content">
+                <div class="requirement-list-title">{{ req.title }}</div>
+                <div v-if="req.description" class="requirement-list-desc">{{ req.description }}</div>
+              </div>
+              <div class="requirement-list-actions">
+                <button
+                  v-if="req.status !== 'CONVERTED'"
+                  class="sync-req-btn"
+                  @click="syncRequirementToTask(req)"
+                  :title="$t('requirement.generateTasks')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
+                    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path>
+                    <path d="M16 16h5v5"></path>
+                  </svg>
+                </button>
+                <button
+                  class="delete-req-btn"
+                  @click="deleteRequirement(req.id)"
+                  :title="$t('common.delete')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
             <div v-if="requirements.length === 0" class="empty-requirements-list">
               <p>{{ $t('requirement.noRequirements') }}</p>
             </div>
@@ -1254,6 +1297,7 @@ const taskForm = reactive({
 
 // Requirements state
 const hideConvertedRequirements = ref(false)
+const isListRequirementsCollapsed = ref(true) // Default collapsed
 
 const allRequirements = computed(() => {
   if (!selectedProjectId.value) return []
@@ -1530,6 +1574,21 @@ const getPriorityClass = (priority) => {
 
 const getPriorityLabel = (priority) => {
   return t(`priority.${priority}`)
+}
+
+// Requirement status helpers
+const getReqStatusClass = (status) => {
+  const classes = {
+    NEW: 'req-status-new',
+    ANALYZING: 'req-status-analyzing',
+    CONVERTED: 'req-status-converted',
+    ARCHIVED: 'req-status-archived'
+  }
+  return classes[status] || 'req-status-new'
+}
+
+const getReqStatusLabel = (status) => {
+  return t(`requirement.statuses.${status}`)
 }
 
 const fetchProjects = async () => {
@@ -3879,36 +3938,57 @@ onUnmounted(() => {
   margin-bottom: 12px;
   overflow: hidden;
   flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.list-requirements-section.collapsed .list-section-header {
+  border-bottom: none;
 }
 
 .list-section-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  padding: 12px 18px;
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(251, 191, 36, 0.05) 100%);
   border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+
+.list-section-header:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(251, 191, 36, 0.08) 100%);
 }
 
 .list-section-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
+.collapse-icon {
+  transition: transform 0.3s ease;
+  color: #6b7280;
+}
+
+.collapse-icon.rotated {
+  transform: rotate(-90deg);
+}
+
 .section-icon {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .section-count {
   background: rgba(245, 158, 11, 0.15);
   color: #f59e0b;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 2px 8px;
   border-radius: 12px;
 }
 
@@ -3922,8 +4002,8 @@ onUnmounted(() => {
   background: #f59e0b;
   color: white;
   border: none;
-  font-size: 12px;
-  padding: 6px 12px;
+  font-size: 11px;
+  padding: 5px 10px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -3939,8 +4019,8 @@ onUnmounted(() => {
 .sync-requirements-btn-list {
   background: #3b82f6;
   color: white;
-  font-size: 12px;
-  padding: 6px 12px;
+  font-size: 11px;
+  padding: 5px 10px;
   border-radius: 6px;
   border: none;
   cursor: pointer;
@@ -3964,7 +4044,7 @@ onUnmounted(() => {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 6px 8px;
+  padding: 5px 8px;
   cursor: pointer;
   color: #6b7280;
   transition: all 0.2s ease;
@@ -3988,14 +4068,139 @@ onUnmounted(() => {
 .list-requirements-content {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--border-color);
-  max-height: 300px;
+  max-height: 250px;
   overflow-y: auto;
 }
 
-.list-requirements-content > * {
+/* Requirement List Item */
+.requirement-list-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+  gap: 12px;
   background: var(--bg-primary);
+}
+
+.requirement-list-item:last-child {
+  border-bottom: none;
+}
+
+.requirement-list-item:hover {
+  background: var(--hover-bg);
+}
+
+.requirement-list-item.is-converted {
+  opacity: 0.7;
+  background: rgba(34, 197, 94, 0.03);
+}
+
+.requirement-list-status {
+  flex-shrink: 0;
+}
+
+.req-status-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.req-status-badge.req-status-new {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.req-status-badge.req-status-analyzing {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.req-status-badge.req-status-converted {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.req-status-badge.req-status-archived {
+  background: rgba(107, 114, 128, 0.12);
+  color: #6b7280;
+  border: 1px solid rgba(107, 114, 128, 0.2);
+}
+
+.requirement-list-priority {
+  flex-shrink: 0;
+}
+
+.requirement-list-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.requirement-list-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.requirement-list-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.requirement-list-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sync-req-btn,
+.delete-req-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.sync-req-btn {
+  color: #3b82f6;
+}
+
+.sync-req-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.2);
+  opacity: 1;
+}
+
+.delete-req-btn {
+  color: #ef4444;
+}
+
+.delete-req-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+  opacity: 1;
 }
 
 .empty-requirements-list {
@@ -4003,17 +4208,17 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px;
+  padding: 24px;
   color: var(--text-muted);
   font-size: 13px;
   background: var(--bg-primary);
 }
 
 .empty-requirements-list svg {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   color: #d1d5db;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .list-tasks-section {
