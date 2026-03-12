@@ -718,6 +718,7 @@
               ref="butlerChatRef"
               :task="selectedTask"
               @control-workflow="handleButlerControl"
+              @view-workflow="handleViewWorkflow"
             />
           </div>
         </template>
@@ -830,6 +831,15 @@
       :requirement="generatingRequirement"
       @update:visible="showGenerateDialog = $event"
       @confirm="handleTaskGenerateConfirm"
+    />
+
+    <!-- Workflow Timeline Dialog for TaskButlerChat -->
+    <WorkflowTimelineDialog
+      v-model="showWorkflowDialog"
+      :task-id="selectedTask?.id"
+      @select-node="onNodeSelect"
+      @view-details="onNodeViewDetails"
+      @start-workflow="onStartWorkflow"
     />
 
     <!-- Auto Assign Requirements Dialog -->
@@ -1041,6 +1051,7 @@ import ChatBox from '../components/ChatBox.vue'
 import TaskButlerChat from '../components/TaskButlerChat.vue'
 import GlobalTaskButler from '../components/GlobalTaskButler.vue'
 import WorkflowTimeline from '../components/workflow/WorkflowTimeline.vue'
+import WorkflowTimelineDialog from '../components/WorkflowTimelineDialog.vue'
 import RequirementCard from '../components/requirement/RequirementCard.vue'
 import RequirementForm from '../components/requirement/RequirementForm.vue'
 import TaskGenerateDialog from '../components/requirement/TaskGenerateDialog.vue'
@@ -1101,6 +1112,7 @@ const selectedProjectId = ref('')
 const selectedTask = ref(null)
 const selectedAgentId = ref(null)
 const showTaskModal = ref(false)
+const showWorkflowDialog = ref(false)
 const isEditing = ref(false)
 const editingTaskId = ref(null)
 const activeSession = ref(null)
@@ -1243,6 +1255,13 @@ const handleButlerControl = ({ action, taskId }) => {
       break
     default:
       console.log('[KanbanView] Unknown butler action:', action)
+  }
+}
+
+// Handler for view workflow from TaskButlerChat
+const handleViewWorkflow = () => {
+  if (selectedTask.value) {
+    showWorkflowDialog.value = true
   }
 }
 

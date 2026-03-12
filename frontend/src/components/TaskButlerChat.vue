@@ -5,6 +5,17 @@
       <div class="status-info">
         <span class="status-badge" :class="taskStatusClass">{{ taskStatusText }}</span>
         <span class="progress" v-if="workflowProgress > 0">{{ $t('butler.progressLabel') }}: {{ workflowProgress }}%</span>
+        <button
+          class="workflow-btn"
+          :class="{ disabled: !hasWorkflow }"
+          :disabled="!hasWorkflow"
+          @click="handleViewWorkflow"
+          :title="$t('workflow.viewWorkflow')"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+        </button>
       </div>
       <div class="quick-actions">
         <button
@@ -97,7 +108,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['control-workflow'])
+const emit = defineEmits(['control-workflow', 'view-workflow'])
 
 const { t, locale } = useI18n()
 const messages = ref([])
@@ -114,6 +125,18 @@ const workflow = computed(() => {
 const workflowProgress = computed(() => {
   return getWorkflowProgress(workflow.value)
 })
+
+// Check if current task has a workflow
+const hasWorkflow = computed(() => {
+  return workflow.value !== null
+})
+
+// Handle view workflow button click
+const handleViewWorkflow = () => {
+  if (hasWorkflow.value) {
+    emit('view-workflow')
+  }
+}
 
 // Task status class
 const taskStatusClass = computed(() => {
@@ -325,6 +348,33 @@ defineExpose({
   font-size: 12px;
   color: var(--text-secondary, #64748b);
   font-weight: 500;
+}
+
+.workflow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border-color, #e2e8f0);
+  background: var(--bg-primary, #ffffff);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #6366f1;
+  margin-left: auto;
+}
+
+.workflow-btn:hover:not(.disabled) {
+  background: var(--bg-tertiary, #f1f5f9);
+  border-color: #6366f1;
+}
+
+.workflow-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  color: var(--text-muted, #94a3b8);
 }
 
 .quick-actions {
