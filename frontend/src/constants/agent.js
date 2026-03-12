@@ -48,7 +48,7 @@ export const ROLE_CONFIG = {
   [AGENT_ROLES.FRONTEND_DEV]: {
     name: '前端开发',
     nameEn: 'Frontend Developer',
-    icon: '👓',
+    icon: '👩‍🏫',
     gradient: 'linear-gradient(135deg, #60a5fa, #3b82f6)',
     description: '负责用户界面和交互开发',
     skills: ['Vue.js', 'React', 'TypeScript', 'CSS/SCSS']
