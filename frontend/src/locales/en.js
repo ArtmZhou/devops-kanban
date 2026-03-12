@@ -210,6 +210,15 @@ export default {
     output: 'Output',
     startedAt: 'Started At',
     completedAt: 'Completed At',
+    detail: 'Execution Detail',
+    taskInfo: 'Task Info',
+    executionInfo: 'Execution Info',
+    gitInfo: 'Git Info',
+    duration: 'Duration',
+    branch: 'Branch',
+    worktreePath: 'Worktree Path',
+    noOutput: 'No output available',
+    loadFailed: 'Failed to load execution detail',
     statuses: {
       PENDING: 'Pending',
       RUNNING: 'Running',
@@ -488,6 +497,14 @@ export default {
     },
     showConverted: 'Show converted requirements',
     hideConverted: 'Hide converted requirements'
+  },
+  workflow: {
+    title: 'Workflow',
+    viewWorkflow: 'View Workflow',
+    startWorkflow: 'Start Workflow',
+    noWorkflow: 'No workflow available',
+    progress: 'Progress',
+    stages: 'Stages'
   },
   butler: {
     title: 'Task Butler',

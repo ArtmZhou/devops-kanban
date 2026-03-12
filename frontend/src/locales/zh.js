@@ -209,6 +209,15 @@ export default {
     output: '输出',
     startedAt: '开始时间',
     completedAt: '完成时间',
+    detail: '执行详情',
+    taskInfo: '任务信息',
+    executionInfo: '执行信息',
+    gitInfo: 'Git信息',
+    duration: '耗时',
+    branch: '分支',
+    worktreePath: '工作树路径',
+    noOutput: '暂无输出',
+    loadFailed: '加载执行详情失败',
     statuses: {
       PENDING: '等待中',
       RUNNING: '运行中',
@@ -484,6 +493,14 @@ export default {
     },
     showConverted: '显示已转换需求',
     hideConverted: '隐藏已转换需求'
+  },
+  workflow: {
+    title: '工作流',
+    viewWorkflow: '查看工作流',
+    startWorkflow: '启动工作流',
+    noWorkflow: '暂无工作流',
+    progress: '进度',
+    stages: '阶段'
   },
   butler: {
     title: '任务管家',

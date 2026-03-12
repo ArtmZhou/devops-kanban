@@ -77,6 +77,17 @@
           </div>
         </div>
 
+        <!-- Workflow Timeline - Show when a task with workflow is selected (Kanban View) -->
+        <WorkflowTimeline
+          v-if="currentWorkflow && viewMode === 'kanban'"
+          :workflow="currentWorkflow"
+          :selected-node-id="selectedNodeId"
+          :default-collapsed="true"
+          @select-node="onNodeSelect"
+          @view-details="onNodeViewDetails"
+          @start-workflow="onStartWorkflow"
+        />
+
         <!-- Kanban Board -->
         <div v-if="viewMode === 'kanban'" class="kanban-board" ref="kanbanBoardRef">
         <!-- Requirements Column -->
@@ -481,16 +492,6 @@
           </div>
         </div>
 
-        <!-- Workflow Timeline - Show when a task with workflow is selected (Kanban View) -->
-        <WorkflowTimeline
-          v-if="currentWorkflow && viewMode === 'kanban'"
-          :workflow="currentWorkflow"
-          :selected-node-id="selectedNodeId"
-          :default-collapsed="true"
-          @select-node="onNodeSelect"
-          @view-details="onNodeViewDetails"
-          @start-workflow="onStartWorkflow"
-        />
       </div>
 
       <!-- List View -->
@@ -652,6 +653,17 @@
                   </svg>
                 </button>
                 <button
+                  v-if="task.workflowId"
+                  class="workflow-btn"
+                  @click.stop="showTaskWorkflow(task)"
+                  :title="$t('workflow.viewWorkflow')"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                </button>
+                <button
                   class="edit-btn"
                   @click.stop="openTaskModal(task)"
                   :title="$t('common.edit')"
@@ -675,17 +687,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Workflow Timeline in List View - Show when a task with workflow is selected -->
-        <WorkflowTimeline
-          v-if="currentWorkflow && viewMode === 'list'"
-          :workflow="currentWorkflow"
-          :selected-node-id="selectedNodeId"
-          :default-collapsed="true"
-          @select-node="onNodeSelect"
-          @view-details="onNodeViewDetails"
-          @start-workflow="onStartWorkflow"
-        />
       </div><!-- End of .task-list-view -->
     </div><!-- End of .kanban-area -->
 
@@ -1642,6 +1643,13 @@ const onProjectChange = () => {
 const selectTask = async (task) => {
   // Don't expand chat panel - only select task to show workflow
   selectedTask.value = task
+}
+
+// Show task workflow in a modal dialog (for list view)
+const showTaskWorkflow = (task) => {
+  selectedTask.value = task
+  // Show the workflow timeline in the task detail dialog
+  showNodeDialog.value = true
 }
 
 const openTaskModal = (task = null) => {
@@ -2658,6 +2666,16 @@ onUnmounted(() => {
 .edit-btn:hover {
   background: rgba(92, 92, 255, 0.1);
   border-color: rgba(92, 92, 255, 0.2);
+  opacity: 1;
+}
+
+.workflow-btn {
+  color: #8b5cf6;
+}
+
+.workflow-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.2);
   opacity: 1;
 }
 
