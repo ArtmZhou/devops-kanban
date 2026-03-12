@@ -998,10 +998,12 @@ Say "help" to see available commands, or "today" to view your daily plan.`,
 // 获取全局快捷操作
 export const getGlobalQuickActions = (tasks, locale = 'zh') => {
   const stats = getProjectStats(tasks)
+  const yesterdayCompleted = getYesterdayCompletedTasks(tasks)
 
   if (locale === 'en') {
     return [
       { id: 'today-plan', label: 'Today', icon: 'calendar', action: 'today' },
+      { id: 'yesterday-completed', label: `Yesterday (${yesterdayCompleted.length})`, icon: 'check-circle', action: 'yesterday' },
       { id: 'overview', label: 'Overview', icon: 'chart', action: 'overview' },
       { id: 'list-all', label: 'All Tasks', icon: 'list', action: 'list-all' },
       { id: 'in-progress', label: `In Progress (${stats.IN_PROGRESS})`, icon: 'progress', action: 'list-in-progress' },
@@ -1011,6 +1013,7 @@ export const getGlobalQuickActions = (tasks, locale = 'zh') => {
 
   return [
     { id: 'today-plan', label: '今日计划', icon: 'calendar', action: 'today' },
+    { id: 'yesterday-completed', label: `昨日完成 (${yesterdayCompleted.length})`, icon: 'check-circle', action: 'yesterday' },
     { id: 'overview', label: '概览', icon: 'chart', action: 'overview' },
     { id: 'list-all', label: '全部任务', icon: 'list', action: 'list-all' },
     { id: 'in-progress', label: `进行中 (${stats.IN_PROGRESS})`, icon: 'progress', action: 'list-in-progress' },
