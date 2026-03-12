@@ -179,7 +179,7 @@ export const getButlerWelcomeMessage = (taskTitle, locale = 'zh') => {
     return {
       id: 'welcome',
       role: 'assistant',
-      content: `Hi! I'm **Jie** - ${taskTitle} 🎯
+      content: `Hi! I'm **Jie** - ${taskTitle} 🤖
 
 I'm here to help you execute this task.
 
@@ -195,7 +195,7 @@ You can tell me:
   return {
     id: 'welcome',
     role: 'assistant',
-    content: `嗨！我是**小捷** - ${taskTitle} 🎯
+    content: `嗨！我是**小捷** - ${taskTitle} 🤖
 
 我来帮您执行这个任务。
 
@@ -1001,7 +1001,7 @@ export const getGlobalButlerWelcomeMessage = (tasks, locale = 'zh') => {
     return {
       id: 'welcome-global',
       role: 'assistant',
-      content: `Hi! I'm **Cloud** 🤖
+      content: `Hi! I'm **Cloud** ☁️
 
 I can help you manage all tasks in the project.
 
@@ -1019,7 +1019,7 @@ Say "help" to see available commands, or "today" to view your daily plan.`,
   return {
     id: 'welcome-global',
     role: 'assistant',
-    content: `嗨！我是**小云** 🤖
+    content: `嗨！我是**小云** ☁️
 
 我可以帮您管理项目中的所有任务。
 
@@ -1036,26 +1036,19 @@ Say "help" to see available commands, or "today" to view your daily plan.`,
 
 // 获取全局快捷操作
 export const getGlobalQuickActions = (tasks, locale = 'zh') => {
-  const stats = getProjectStats(tasks)
-  const yesterdayCompleted = getYesterdayCompletedTasks(tasks)
-
   if (locale === 'en') {
     return [
-      { id: 'today-plan', label: 'Today', icon: 'calendar', action: 'today' },
       { id: 'overview', label: 'Overview', icon: 'chart', action: 'overview' },
-      { id: 'in-progress', label: `In Progress (${stats.IN_PROGRESS})`, icon: 'progress', action: 'list-in-progress' },
-      { id: 'todo', label: `Todo (${stats.TODO})`, icon: 'list', action: 'list-todo' },
-      { id: 'batch-start', label: 'Start All', icon: 'play', action: 'batch-start' },
+      { id: 'today-plan', label: 'Today', icon: 'calendar', action: 'today' },
+      { id: 'yesterday', label: 'Yesterday', icon: 'list', action: 'yesterday-completed' },
       { id: 'help', label: 'Help', icon: 'help', action: 'help' }
     ]
   }
 
   return [
-    { id: 'today-plan', label: '今日计划', icon: 'calendar', action: 'today' },
     { id: 'overview', label: '概览', icon: 'chart', action: 'overview' },
-    { id: 'in-progress', label: `进行中 (${stats.IN_PROGRESS})`, icon: 'progress', action: 'list-in-progress' },
-    { id: 'todo', label: `待办 (${stats.TODO})`, icon: 'list', action: 'list-todo' },
-    { id: 'batch-start', label: '批量启动', icon: 'play', action: 'batch-start' },
+    { id: 'today-plan', label: '今日计划', icon: 'calendar', action: 'today' },
+    { id: 'yesterday', label: '昨日情况', icon: 'list', action: 'yesterday-completed' },
     { id: 'help', label: '帮助', icon: 'help', action: 'help' }
   ]
 }

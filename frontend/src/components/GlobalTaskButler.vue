@@ -40,6 +40,9 @@
           <circle cx="12" cy="12" r="10"></circle>
           <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
+        <svg v-else-if="action.icon === 'play'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
         <svg v-else-if="action.icon === 'help'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10"></circle>
           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
@@ -51,10 +54,6 @@
           <line x1="8" y1="2" x2="8" y2="6"></line>
           <line x1="3" y1="10" x2="21" y2="10"></line>
         </svg>
-        <svg v-else-if="action.icon === 'check-circle'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
         {{ action.label }}
       </button>
     </div>
@@ -63,7 +62,7 @@
     <div class="butler-messages" ref="messagesRef">
       <div v-for="msg in messages" :key="msg.id" class="message" :class="msg.role">
         <div class="message-avatar">
-          <span v-if="msg.role === 'assistant'">🤖</span>
+          <span v-if="msg.role === 'assistant'">☁️</span>
           <span v-else>👤</span>
         </div>
         <div class="message-content">

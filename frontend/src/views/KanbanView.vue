@@ -700,7 +700,7 @@
           <div v-else class="chat-content">
             <!-- Butler Header with Mode Toggle -->
             <div class="butler-header">
-              <div class="butler-avatar">🎯</div>
+              <div class="butler-avatar">🤖</div>
               <div class="butler-info">
                 <h3>{{ $t('butler.title') }} - {{ selectedTask.title }}</h3>
               </div>
@@ -727,7 +727,7 @@
           <div class="chat-content global-mode">
             <!-- Global Butler Header with Mode Toggle -->
             <div class="butler-header">
-              <div class="butler-avatar">🤖</div>
+              <div class="butler-avatar">☁️</div>
               <div class="butler-info">
                 <h3>{{ $t('globalButler.title') }}</h3>
               </div>
