@@ -102,7 +102,8 @@ export default {
     autoTransitionLabel: 'Auto Transition',
     autoTransitionHint: 'When enabled, the task will automatically transition to the next phase when AI agent completes work',
     autoTransitionEnabled: 'Auto transition enabled',
-    autoTransitionDisabled: 'Auto transition disabled'
+    autoTransitionDisabled: 'Auto transition disabled',
+    updateFailed: 'Failed to update task'
   },
   status: {
     TODO: 'Pending',
@@ -207,12 +208,15 @@ export default {
     title: 'Chat',
     you: 'You',
     assistant: 'Assistant',
+    thinking: 'Thinking',
     inputPlaceholder: 'Type a message... (Enter to send)',
     noSession: 'No active session',
     noSessionHint: 'Select an agent and start a session to begin chatting',
     readyTitle: 'Ready to chat',
     readyHint: 'Click "Start" to begin the conversation',
-    taskSummary: 'Summary'
+    taskSummary: 'Summary',
+    showThinking: 'Show thinking',
+    hideThinking: 'Hide thinking'
   },
   validation: {
     required: 'This field is required',

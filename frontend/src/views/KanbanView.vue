@@ -78,9 +78,9 @@
                     <div class="task-card-actions">
                       <button
                         class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                        :class="{ 'active': element.autoTransitionEnabled !== false }"
+                        @click.stop="toggleAutoTransition(element, $event)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M23 4v6h-6"></path>
@@ -161,9 +161,9 @@
                     <div class="task-card-actions">
                       <button
                         class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                        :class="{ 'active': element.autoTransitionEnabled !== false }"
+                        @click.stop="toggleAutoTransition(element, $event)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M23 4v6h-6"></path>
@@ -244,9 +244,9 @@
                     <div class="task-card-actions">
                       <button
                         class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                        :class="{ 'active': element.autoTransitionEnabled !== false }"
+                        @click.stop="toggleAutoTransition(element, $event)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M23 4v6h-6"></path>
@@ -327,9 +327,9 @@
                     <div class="task-card-actions">
                       <button
                         class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                        :class="{ 'active': element.autoTransitionEnabled !== false }"
+                        @click.stop="toggleAutoTransition(element, $event)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M23 4v6h-6"></path>
@@ -410,9 +410,9 @@
                     <div class="task-card-actions">
                       <button
                         class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                        :class="{ 'active': element.autoTransitionEnabled !== false }"
+                        @click.stop="toggleAutoTransition(element, $event)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M23 4v6h-6"></path>
@@ -493,9 +493,9 @@
                     <div class="task-card-actions">
                       <button
                         class="auto-transition-btn"
-                        :class="{ 'active': element.autoTransitionEnabled === true }"
-                        @click.stop="toggleAutoTransition(element)"
-                        :title="element.autoTransitionEnabled === true ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
+                        :class="{ 'active': element.autoTransitionEnabled !== false }"
+                        @click.stop="toggleAutoTransition(element, $event)"
+                        :title="element.autoTransitionEnabled !== false ? $t('task.autoTransitionEnabled') : $t('task.autoTransitionDisabled')"
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M23 4v6h-6"></path>
@@ -647,7 +647,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import draggable from 'vuedraggable/src/vuedraggable.js'
+import draggable from 'vuedraggable'
 import { useProjectStore } from '../stores/projectStore'
 import { useTaskStore } from '../stores/taskStore'
 import { createSession, startSession, stopSession, getActiveSessionByTask, getSessionsByTask } from '../api/session.js'
@@ -882,20 +882,6 @@ const saveTask = async () => {
   }
 }
 
-const toggleAutoTransition = async (task) => {
-  const newValue = task.autoTransitionEnabled === true ? false : true
-  try {
-    await taskStore.updateTask(task.id, {
-      ...task,
-      autoTransitionEnabled: newValue
-    })
-    ElMessage.success(newValue ? t('task.autoTransitionEnabled') : t('task.autoTransitionDisabled'))
-  } catch (e) {
-    console.error('Failed to toggle auto transition:', e)
-    ElMessage.error(t('messages.updateFailed', { name: t('task.title') }))
-  }
-}
-
 const deleteTask = async (taskId) => {
   try {
     await ElMessageBox.confirm(
@@ -924,6 +910,35 @@ const deleteTask = async (taskId) => {
     ElMessage.error(t('task.deleteFailed'))
   } finally {
     loading.saving = false
+  }
+}
+
+// Toggle auto-transition for a task
+const toggleAutoTransition = async (task, event) => {
+  if (event) {
+    event.stopPropagation()
+  }
+
+  const newValue = task.autoTransitionEnabled === false ? true : false
+  const statusKey = newValue ? 'task.autoTransitionEnabled' : 'task.autoTransitionDisabled'
+
+  try {
+    // 只传递必要的字段
+    const updatedTask = await taskStore.updateTask(task.id, {
+      title: task.title,
+      projectId: task.projectId,
+      autoTransitionEnabled: newValue
+    })
+    if (updatedTask) {
+      // Update selectedTask if it's the same task
+      if (selectedTask.value?.id === task.id) {
+        selectedTask.value = updatedTask
+      }
+      ElMessage.success(t(statusKey))
+    }
+  } catch (error) {
+    console.error('Failed to toggle auto-transition:', error)
+    ElMessage.error(t('task.updateFailed'))
   }
 }
 
@@ -1374,28 +1389,6 @@ onUnmounted(() => {
 .priority-high { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
 .priority-critical { background: rgba(239, 68, 68, 0.2); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3); }
 
-.auto-transition-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  color: var(--el-text-color-placeholder);
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.auto-transition-btn:hover {
-  background: rgba(64, 158, 255, 0.1);
-  color: var(--el-color-primary);
-}
-
-.auto-transition-btn.active {
-  color: var(--el-color-primary);
-}
-
 .task-running-time {
   font-size: 11px;
   font-weight: 500;
@@ -1411,6 +1404,31 @@ onUnmounted(() => {
 @keyframes pulse-green {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
+}
+
+.auto-transition-btn {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #9ca3af;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auto-transition-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.auto-transition-btn.active {
+  color: var(--primary-color, #3b82f6);
+}
+
+.auto-transition-btn.active:hover {
+  background: rgba(59, 130, 246, 0.15);
 }
 
 .task-card-actions {
