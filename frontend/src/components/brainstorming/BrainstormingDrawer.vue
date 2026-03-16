@@ -194,7 +194,7 @@ const playDialogues = async () => {
     // Start typing animation
     await typeMessage(visibleMessages.value.length - 1, dialogues[i].content)
 
-    // Scroll to bottom
+    // 每条消息完成后滚动一次（而不是打字过程中频繁滚动）
     scrollToBottom()
   }
 
@@ -209,11 +209,12 @@ const typeMessage = async (msgIndex, content) => {
   msg.showTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 
   const chars = content.split('')
-  const typingSpeed = 20 // 20ms/字符
+  const batchSize = 2 // 每次更新 2 个字符，减少 DOM 更新频率
+  const typingSpeed = 20 // 20ms/批次
 
-  for (let i = 0; i < chars.length; i++) {
+  for (let i = 0; i < chars.length; i += batchSize) {
     if (!isRunning.value) break
-    msg.typedContent += chars[i]
+    msg.typedContent += chars.slice(i, i + batchSize).join('')
     await new Promise(resolve => setTimeout(resolve, typingSpeed))
   }
 
@@ -233,7 +234,11 @@ const finishBrainstorming = () => {
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      // 使用平滑滚动而不是瞬间跳转，减少视觉跳跃
+      messagesContainer.value.scrollTo({
+        top: messagesContainer.value.scrollHeight,
+        behavior: 'smooth'
+      })
     }
   })
 }
@@ -498,11 +503,13 @@ defineExpose({
   color: var(--el-text-color-regular);
   white-space: pre-wrap;
   word-break: break-word;
+  will-change: contents; /* 优化打字动画性能 */
 }
 
 .cursor {
   animation: blink 2s infinite;
   color: var(--el-color-primary);
+  will-change: opacity; /* 优化光标闪烁性能 */
 }
 
 @keyframes blink {

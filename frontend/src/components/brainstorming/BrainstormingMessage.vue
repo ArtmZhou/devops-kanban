@@ -62,12 +62,12 @@ const startTyping = async () => {
 
   const content = props.message.content
   const chars = content.split('')
+  const batchSize = 2 // 每次更新 2 个字符，减少 DOM 更新频率
 
-  for (let i = 0; i < chars.length; i++) {
-    typedContent.value += chars[i]
-    // Faster typing for already visible messages
-    const speed = props.delay > 0 ? props.typingSpeed : props.typingSpeed / 2
-    await new Promise(resolve => setTimeout(resolve, speed))
+  for (let i = 0; i < chars.length; i += batchSize) {
+    typedContent.value += chars.slice(i, i + batchSize).join('')
+    // 使用更快的速度，因为已经是批量更新
+    await new Promise(resolve => setTimeout(resolve, props.typingSpeed / 2))
   }
 
   isTyping.value = false
@@ -153,11 +153,13 @@ onMounted(() => {
   color: var(--el-text-color-regular);
   white-space: pre-wrap;
   word-break: break-word;
+  will-change: contents; /* 优化打字动画性能 */
 }
 
 .cursor {
   animation: blink 2s infinite;
   color: var(--el-color-primary);
+  will-change: opacity; /* 优化光标闪烁性能 */
 }
 
 @keyframes blink {
