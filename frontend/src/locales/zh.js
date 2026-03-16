@@ -479,6 +479,7 @@ export default {
     collapse: '收起',
     selectAgents: '选择 Agent',
     selectAgentsHint: '请选择执行任务的 AI Agent',
+    recommendedAgentsHint: '已根据头脑风暴结论为您推荐 Agent',
     agentsSelected: '个 Agent 已选择',
     noAgentsAvailable: '暂无可用的 Agent，请先配置',
     selectAtLeastOneAgent: '请至少选择一个 Agent',
@@ -497,7 +498,11 @@ export default {
       tester: '测试员'
     },
     showConverted: '显示已转换需求',
-    hideConverted: '隐藏已转换需求'
+    hideConverted: '隐藏已转换需求',
+    recommendedForYou: '为您推荐',
+    recommended: '推荐',
+    adjustSelection: '调整选择',
+    adjustAgentsHint: '您可以手动调整 Agent 选择'
   },
   workflow: {
     title: '工作流',
@@ -545,5 +550,14 @@ export default {
     yesterdayCompleted: '昨天完成',
     todayTodo: '今日待办',
     dailyOverview: '今日概览'
+  },
+  brainstorming: {
+    title: '头脑风暴',
+    start: '开始讨论',
+    inProgress: '讨论中...',
+    completed: '已完成',
+    participants: '参与者',
+    emptyHint: '点击「开始讨论」按钮，召唤多位角色进行头脑风暴',
+    addedToTask: '结论已添加到任务'
   }
 }

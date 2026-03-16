@@ -9,68 +9,226 @@
       <div class="modal-body">
         <!-- Step indicator -->
         <div class="step-indicator">
-          <div class="step" :class="{ active: step === 1, completed: step > 1 }">
+          <div class="step" :class="{ active: step === 0, completed: step > 0 }">
             <span class="step-number">1</span>
+            <span class="step-label">{{ $t('brainstorming.title') }}</span>
+          </div>
+          <div class="step-line" :class="{ active: step > 0 }"></div>
+          <div class="step" :class="{ active: step === 1, completed: step > 1 }">
+            <span class="step-number">2</span>
             <span class="step-label">{{ $t('requirement.selectAgents') }}</span>
           </div>
           <div class="step-line" :class="{ active: step > 1 }"></div>
           <div class="step" :class="{ active: step === 2 }">
-            <span class="step-number">2</span>
+            <span class="step-number">3</span>
             <span class="step-label">{{ $t('requirement.confirmWorkflow') }}</span>
+          </div>
+        </div>
+
+        <!-- Step 0: Brainstorming -->
+        <div v-if="step === 0" class="step-content brainstorming-step">
+          <div class="brainstorming-header">
+            <div class="header-left">
+              <span class="header-icon">🧠</span>
+              <h4>{{ $t('brainstorming.title') }}</h4>
+              <span v-if="brainstormTopic" class="topic-tag">{{ brainstormTopic }}</span>
+            </div>
+            <el-button
+              type="primary"
+              size="small"
+              :disabled="isBrainstormRunning || isBrainstormCompleted"
+              @click="startBrainstorming"
+            >
+              <el-icon><Lightning /></el-icon>
+              {{ isBrainstormRunning ? $t('brainstorming.inProgress') : isBrainstormCompleted ? $t('brainstorming.completed') : $t('brainstorming.start') }}
+            </el-button>
+          </div>
+
+          <!-- Participants Bar -->
+          <div v-if="isBrainstormRunning || isBrainstormCompleted" class="participants-bar">
+            <span class="participants-label">
+              <el-icon><User /></el-icon>
+              {{ $t('brainstorming.participants') }}:
+            </span>
+            <div class="participants-list">
+              <span
+                v-for="(role, index) in brainstormParticipants"
+                :key="role"
+                class="participant"
+                :class="{
+                  'active': currentBrainstormIndex === index,
+                  'completed': currentBrainstormIndex > index
+                }"
+              >
+                <span class="participant-icon">
+                  {{ roleConfig[role]?.icon || '👤' }}
+                </span>
+                <span class="participant-name">{{ role }}</span>
+                <el-icon v-if="currentBrainstormIndex > index" class="check-icon"><Check /></el-icon>
+              </span>
+            </div>
+          </div>
+
+          <!-- Messages Container -->
+          <div ref="brainstormMessagesRef" class="messages-container">
+            <div v-if="!isBrainstormStarted && !isBrainstormCompleted" class="empty-state">
+              <div class="empty-icon">🎯</div>
+              <p class="empty-hint">{{ $t('brainstorming.emptyHint') }}</p>
+            </div>
+
+            <template v-else>
+              <div
+                v-for="(msg, index) in visibleBrainstormMessages"
+                :key="index"
+                class="brainstorming-message"
+                :class="{ 'visible': msg.visible }"
+              >
+                <div class="message-avatar">
+                  <span class="avatar-icon">{{ msg.icon }}</span>
+                </div>
+                <div class="message-content">
+                  <div class="message-header">
+                    <span class="role-name">{{ msg.role }}</span>
+                    <span class="message-time">{{ msg.showTime }}</span>
+                  </div>
+                  <div class="message-body">
+                    <div v-if="msg.isTyping" class="typewriter-content">
+                      {{ msg.typedContent }}<span class="cursor">|</span>
+                    </div>
+                    <div v-else class="full-content markdown-content" v-html="msg.renderedContent"></div>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Conclusion Card -->
+          <div v-if="isBrainstormCompleted && brainstormConclusion" class="conclusion-card">
+            <div class="conclusion-header">
+              <div class="header-left">
+                <span class="header-icon">📋</span>
+                <h4>综合结论</h4>
+              </div>
+              <el-tag type="success" size="small">
+                <el-icon><Check /></el-icon>
+                讨论完成
+              </el-tag>
+            </div>
+            <div class="conclusion-body">
+              <div class="markdown-content" v-html="renderedBrainstormConclusion"></div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="brainstorming-actions">
+            <el-button @click="skipBrainstorming">
+              跳过
+            </el-button>
+            <el-button type="primary" @click="goToStep1" :disabled="!isBrainstormCompleted">
+              {{ $t('common.next') }}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </el-button>
           </div>
         </div>
 
         <!-- Step 1: Select Agents -->
         <div v-if="step === 1" class="step-content">
           <div class="step-header">
-            <p class="step-hint">{{ $t('requirement.selectAgentsHint') }}</p>
+            <p class="step-hint">
+              {{ isBrainstormSkipped ? $t('requirement.selectAgentsHint') : $t('requirement.recommendedAgentsHint') }}
+            </p>
             <div class="selected-count" v-if="selectedAgentIds.length > 0">
               <span class="count-badge">{{ selectedAgentIds.length }}</span>
               {{ $t('requirement.agentsSelected') }}
             </div>
           </div>
 
-          <div v-if="loadingAgents" class="loading-state">
-            <svg class="icon-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
-              <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
-            </svg>
-            <span>{{ $t('common.loading') }}</span>
-          </div>
-
-          <div v-else-if="agents.length === 0" class="empty-state">
-            <div class="empty-icon">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="11" width="18" height="10" rx="2"></rect>
-                <circle cx="12" cy="5" r="2"></circle>
-                <path d="M12 7v4"></path>
-              </svg>
+          <!-- Recommended Agents (after brainstorming) -->
+          <div v-if="!isBrainstormSkipped && recommendedAgentIds.length > 0" class="recommended-agents-section">
+            <div class="recommendation-banner">
+              <el-icon class="recommend-icon"><Star /></el-icon>
+              <span>{{ $t('requirement.recommendedForYou') }}</span>
+              <el-tooltip :content="$t('requirement.adjustAgentsHint')" placement="top">
+                <el-icon class="help-icon"><QuestionFilled /></el-icon>
+              </el-tooltip>
             </div>
-            <p>{{ $t('requirement.noAgentsAvailable') }}</p>
+            <div class="recommended-agents-grid">
+              <div
+                v-for="agent in agents.filter(a => recommendedAgentIds.includes(a.id))"
+                :key="agent.id"
+                class="agent-card selected"
+              >
+                <div class="agent-checkbox">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <div class="agent-avatar" :style="{ background: getAgentRoleColor(agent) }">
+                  <span class="agent-icon">{{ getAgentIcon(agent) }}</span>
+                </div>
+                <div class="agent-details">
+                  <span class="agent-name">{{ agent.name }}</span>
+                  <span class="agent-type">
+                    <span class="type-dot" :style="{ background: getAgentRoleColor(agent) }"></span>
+                    {{ getAgentRoleName(agent) }}
+                  </span>
+                </div>
+                <el-tag type="success" size="small" class="recommend-tag">{{ $t('requirement.recommended') }}</el-tag>
+              </div>
+            </div>
+            <div class="adjust-agents-hint">
+              <el-button type="primary" link @click="showManualAgentSelection = true">
+                {{ $t('requirement.adjustSelection') }}
+              </el-button>
+            </div>
           </div>
 
-          <div v-else class="agent-grid">
-            <div
-              v-for="agent in agents"
-              :key="agent.id"
-              class="agent-card"
-              :class="{ selected: selectedAgentIds.includes(agent.id) }"
-              @click="toggleAgent(agent.id)"
-            >
-              <div class="agent-checkbox">
-                <svg v-if="selectedAgentIds.includes(agent.id)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                  <polyline points="20 6 9 17 4 12"></polyline>
+          <!-- Manual Agent Selection (skipped brainstorming or user clicked adjust) -->
+          <div v-if="isBrainstormSkipped || showManualAgentSelection" class="manual-agents-section">
+            <div v-if="loadingAgents" class="loading-state">
+              <svg class="icon-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+              </svg>
+              <span>{{ $t('common.loading') }}</span>
+            </div>
+
+            <div v-else-if="agents.length === 0" class="empty-state">
+              <div class="empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="3" y="11" width="18" height="10" rx="2"></rect>
+                  <circle cx="12" cy="5" r="2"></circle>
+                  <path d="M12 7v4"></path>
                 </svg>
               </div>
-              <div class="agent-avatar" :style="{ background: getAgentRoleColor(agent) }">
-                <span class="agent-icon">{{ getAgentIcon(agent) }}</span>
-              </div>
-              <div class="agent-details">
-                <span class="agent-name">{{ agent.name }}</span>
-                <span class="agent-type">
-                  <span class="type-dot" :style="{ background: getAgentRoleColor(agent) }"></span>
-                  {{ getAgentRoleName(agent) }}
-                </span>
+              <p>{{ $t('requirement.noAgentsAvailable') }}</p>
+            </div>
+
+            <div v-else class="agent-grid">
+              <div
+                v-for="agent in agents"
+                :key="agent.id"
+                class="agent-card"
+                :class="{ selected: selectedAgentIds.includes(agent.id) }"
+                @click="toggleAgent(agent.id)"
+              >
+                <div class="agent-checkbox">
+                  <svg v-if="selectedAgentIds.includes(agent.id)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <div class="agent-avatar" :style="{ background: getAgentRoleColor(agent) }">
+                  <span class="agent-icon">{{ getAgentIcon(agent) }}</span>
+                </div>
+                <div class="agent-details">
+                  <span class="agent-name">{{ agent.name }}</span>
+                  <span class="agent-type">
+                    <span class="type-dot" :style="{ background: getAgentRoleColor(agent) }"></span>
+                    {{ getAgentRoleName(agent) }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -123,11 +281,25 @@
 
       <div class="modal-footer">
         <div class="modal-actions">
-          <button v-if="step === 1" class="btn btn-secondary" @click="handleClose">
+          <button v-if="step === 0" class="btn btn-secondary" @click="handleClose">
             {{ $t('common.cancel') }}
           </button>
-          <button v-if="step === 2" class="btn btn-secondary" @click="step = 1">
+          <button v-if="step === 1" class="btn btn-secondary" @click="step = 0">
             {{ $t('common.back') }}
+          </button>
+          <button v-if="step === 2" class="btn btn-secondary" @click="goBackToStep1">
+            {{ $t('common.back') }}
+          </button>
+          <button
+            v-if="step === 0"
+            class="btn btn-primary"
+            :disabled="!isBrainstormCompleted"
+            @click="goToStep1"
+          >
+            {{ $t('common.next') }}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
           </button>
           <button
             v-if="step === 1"
@@ -159,13 +331,19 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Lightning, User, Check, Star, QuestionFilled } from '@element-plus/icons-vue'
 import { getAgents } from '../../api/agent'
 import { getRoleConfig, ROLE_CONFIG } from '../../constants/agent'
 import { analyzeRequirementToTasks } from '../../mock/requirementAnalysis'
 import { TASK_CATEGORY } from '../../constants/task'
+import {
+  getScriptByTaskType,
+  matchTaskType
+} from '../../mock/brainstormingData'
+import { marked } from 'marked'
 
 const props = defineProps({
   visible: {
@@ -182,12 +360,32 @@ const emit = defineEmits(['update:visible', 'confirm'])
 
 const { t } = useI18n()
 
-const step = ref(1)
+const step = ref(0) // Start from step 0 (brainstorming)
 const agents = ref([])
 const selectedAgentIds = ref([])
 const loadingAgents = ref(false)
 const generating = ref(false)
 const generatedWorkflow = ref({ stages: [] })
+
+// Manual agent selection toggle (for "adjust selection" button)
+const showManualAgentSelection = ref(false)
+
+// Brainstorming state
+const isBrainstormStarted = ref(false)
+const isBrainstormRunning = ref(false)
+const isBrainstormCompleted = ref(false)
+const isBrainstormSkipped = ref(false) // Track if user skipped brainstorming
+const currentBrainstormIndex = ref(-1)
+const visibleBrainstormMessages = ref([])
+const brainstormTopic = ref('')
+const brainstormParticipants = ref([])
+const brainstormConclusion = ref('')
+const brainstormMessagesRef = ref(null)
+const currentBrainstormScript = ref(null)
+const recommendedAgentIds = ref([]) // Auto-recommended agents after brainstorming
+
+// Role config for participant display
+const roleConfig = ROLE_CONFIG
 
 const loadAgents = async () => {
   loadingAgents.value = true
@@ -234,9 +432,21 @@ const loadAgents = async () => {
 // Load agents when dialog opens
 watch(() => props.visible, (val) => {
   if (val) {
-    step.value = 1
+    step.value = 0 // Start from brainstorming
     selectedAgentIds.value = []
     generatedWorkflow.value = { stages: [] }
+    showManualAgentSelection.value = false
+    // Reset brainstorming state
+    isBrainstormStarted.value = false
+    isBrainstormRunning.value = false
+    isBrainstormCompleted.value = false
+    isBrainstormSkipped.value = false
+    currentBrainstormIndex.value = -1
+    visibleBrainstormMessages.value = []
+    brainstormTopic.value = ''
+    brainstormParticipants.value = []
+    brainstormConclusion.value = ''
+    recommendedAgentIds.value = []
     loadAgents()
   }
 }, { immediate: true })
@@ -272,6 +482,153 @@ const toggleAgent = (agentId) => {
   } else {
     selectedAgentIds.value.splice(index, 1)
   }
+}
+
+// Brainstorming functions
+const renderedBrainstormConclusion = computed(() => {
+  return marked(brainstormConclusion.value || '')
+})
+
+const startBrainstorming = async () => {
+  if (isBrainstormRunning.value || isBrainstormCompleted.value) return
+
+  isBrainstormStarted.value = true
+  isBrainstormRunning.value = true
+  isBrainstormCompleted.value = false
+  currentBrainstormIndex.value = -1
+  visibleBrainstormMessages.value = []
+  brainstormConclusion.value = ''
+
+  // Get script based on requirement
+  const type = matchTaskType(props.requirement?.title || '', props.requirement?.description || '')
+  currentBrainstormScript.value = getScriptByTaskType(type)
+  brainstormTopic.value = currentBrainstormScript.value.topic
+  brainstormParticipants.value = currentBrainstormScript.value.participants
+
+  await playBrainstormDialogues()
+}
+
+const playBrainstormDialogues = async () => {
+  const dialogues = currentBrainstormScript.value.dialogues
+
+  for (let i = 0; i < dialogues.length; i++) {
+    if (!isBrainstormRunning.value) break
+
+    currentBrainstormIndex.value = i
+
+    const newMessage = {
+      role: dialogues[i].role,
+      icon: dialogues[i].icon,
+      content: dialogues[i].content,
+      typedContent: '',
+      isTyping: true,
+      visible: false,
+      showTime: ''
+    }
+    visibleBrainstormMessages.value.push(newMessage)
+
+    await typeBrainstormMessage(visibleBrainstormMessages.value.length - 1, dialogues[i].content)
+    scrollToBrainstormBottom()
+  }
+
+  finishBrainstorming()
+}
+
+const typeBrainstormMessage = async (msgIndex, content) => {
+  const msg = visibleBrainstormMessages.value[msgIndex]
+  msg.visible = true
+  msg.isTyping = true
+  msg.showTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+
+  const chars = content.split('')
+  const typingSpeed = 20
+
+  for (let i = 0; i < chars.length; i++) {
+    if (!isBrainstormRunning.value) break
+    msg.typedContent += chars[i]
+    await new Promise(resolve => setTimeout(resolve, typingSpeed))
+  }
+
+  msg.isTyping = false
+  msg.renderedContent = marked(content)
+}
+
+const finishBrainstorming = () => {
+  isBrainstormRunning.value = false
+  isBrainstormCompleted.value = true
+  isBrainstormSkipped.value = false
+  currentBrainstormIndex.value = -1
+  brainstormConclusion.value = currentBrainstormScript.value.conclusion
+  // Auto-recommend agents based on task type
+  recommendAgents()
+  scrollToBrainstormBottom()
+}
+
+const scrollToBrainstormBottom = () => {
+  nextTick(() => {
+    if (brainstormMessagesRef.value) {
+      brainstormMessagesRef.value.scrollTop = brainstormMessagesRef.value.scrollHeight
+    }
+  })
+}
+
+const skipBrainstorming = () => {
+  isBrainstormStarted.value = true
+  isBrainstormCompleted.value = true
+  isBrainstormSkipped.value = true
+  recommendedAgentIds.value = []
+  goToStep1()
+}
+
+// Auto-recommend agents based on task type and brainstorming conclusion
+const recommendAgents = () => {
+  const type = matchTaskType(props.requirement?.title || '', props.requirement?.description || '')
+
+  // Define recommended agent roles for each task type
+  const roleRecommendations = {
+    feature: ['ARCHITECT', 'BACK_END_DEVELOPER', 'FRONT_END_DEVELOPER', 'TEST_ENGINEER'],
+    bug: ['BACK_END_DEVELOPER', 'TEST_ENGINEER'],
+    performance: ['ARCHITECT', 'DBA', 'BACK_END_DEVELOPER'],
+    requirement: ['PRODUCT_MANAGER', 'ARCHITECT', 'TECH_LEAD'],
+    default: ['ARCHITECT', 'BACK_END_DEVELOPER', 'FRONT_END_DEVELOPER']
+  }
+
+  const recommendedRoles = roleRecommendations[type] || roleRecommendations.default
+
+  // Find agents matching the recommended roles
+  const recommended = []
+  for (const role of recommendedRoles) {
+    const agent = agents.value.find(a => a.role === role)
+    if (agent && !recommended.includes(agent.id)) {
+      recommended.push(agent.id)
+    }
+  }
+
+  // If not enough agents found, fill with remaining agents
+  if (recommended.length < 2) {
+    for (const agent of agents.value) {
+      if (!recommended.includes(agent.id)) {
+        recommended.push(agent.id)
+        if (recommended.length >= 3) break
+      }
+    }
+  }
+
+  recommendedAgentIds.value = recommended
+  selectedAgentIds.value = [...recommended]
+}
+
+const goToStep1 = () => {
+  // If brainstorming was completed (not skipped), auto-select recommended agents
+  if (isBrainstormCompleted.value && !isBrainstormSkipped.value && recommendedAgentIds.value.length > 0) {
+    selectedAgentIds.value = [...recommendedAgentIds.value]
+  }
+  step.value = 1
+}
+
+const goBackToStep1 = () => {
+  showManualAgentSelection.value = true
+  step.value = 1
 }
 
 const goToStep2 = () => {
@@ -462,6 +819,7 @@ const handleClose = () => {
   padding: 24px;
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .modal-footer {
@@ -518,8 +876,331 @@ const handleClose = () => {
 
 /* Component specific styles */
 .task-generate-modal {
-  width: 600px;
+  width: 800px;
   max-width: 90vw;
+}
+
+/* Brainstorming Step */
+.brainstorming-step {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brainstorming-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border-radius: 8px;
+}
+
+.brainstorming-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brainstorming-header .header-icon {
+  font-size: 20px;
+}
+
+.brainstorming-header h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.topic-tag {
+  font-size: 12px;
+  color: var(--el-color-primary);
+  background: rgba(102, 126, 234, 0.1);
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+/* Participants Bar */
+.participants-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--el-bg-color-page);
+  border-radius: 8px;
+  flex-wrap: wrap;
+}
+
+.participants-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.participants-list {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--el-fill-color);
+  border-radius: 16px;
+  font-size: 12px;
+  color: var(--text-regular);
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.participant.active {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+  animation: pulse 1.5s infinite;
+}
+
+.participant.completed {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+}
+
+.participant-icon {
+  font-size: 14px;
+}
+
+.participant-name {
+  font-weight: 500;
+}
+
+.check-icon {
+  font-size: 14px;
+  color: #059669;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(102, 126, 234, 0); }
+}
+
+/* Messages Container */
+.messages-container {
+  min-height: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--el-bg-color-page);
+  border-radius: 8px;
+}
+
+.messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-container::-webkit-scrollbar-track {
+  background: var(--el-fill-color);
+  border-radius: 3px;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+  background: var(--el-border-color);
+  border-radius: 3px;
+}
+
+.messages-container::-webkit-scrollbar-thumb:hover {
+  background: var(--el-border-color-dark);
+}
+
+/* Brainstorming Message */
+.brainstorming-message {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+  background: var(--el-bg-color);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+
+.brainstorming-message.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.message-avatar {
+  flex-shrink: 0;
+}
+
+.avatar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  font-size: 24px;
+  background: var(--el-bg-color-page);
+  border-radius: 50%;
+  border: 2px solid var(--el-border-color);
+}
+
+.message-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.role-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.message-time {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.message-body {
+  background: var(--el-bg-color-page);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.typewriter-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-regular);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.cursor {
+  animation: blink 0.8s infinite;
+  color: var(--el-color-primary);
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.full-content {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-regular);
+}
+
+.markdown-content :deep(*) {
+  margin: 0;
+}
+
+.markdown-content :deep(p) {
+  margin-bottom: 8px;
+}
+
+.markdown-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.markdown-content :deep(strong) {
+  color: var(--el-color-primary);
+  font-weight: 600;
+}
+
+.markdown-content :deep(ul),
+.markdown-content :deep(ol) {
+  padding-left: 20px;
+  margin: 8px 0;
+}
+
+.markdown-content :deep(li) {
+  margin-bottom: 4px;
+}
+
+.markdown-content :deep(code) {
+  background: var(--el-fill-color-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  color: var(--el-color-primary);
+}
+
+.markdown-content :deep(pre) {
+  background: var(--el-fill-color);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown-content :deep(pre code) {
+  background: transparent;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+/* Conclusion Card */
+.conclusion-card {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 2px solid #86efac;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.conclusion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(134, 239, 172, 0.5);
+}
+
+.conclusion-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conclusion-header h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #166534;
+}
+
+.conclusion-body {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+  padding: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Brainstorming Actions */
+.brainstorming-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
 }
 
 .step-indicator {
@@ -759,6 +1440,58 @@ const handleClose = () => {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* Recommended Agents Section */
+.recommended-agents-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.recommendation-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border-radius: 8px;
+  border: 1px solid #86efac;
+}
+
+.recommend-banner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 11px;
+}
+
+.recommend-icon {
+  color: #16a34a;
+  font-size: 18px;
+}
+
+.help-icon {
+  color: #16a34a;
+  font-size: 16px;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.recommended-agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.adjust-agents-hint {
+  text-align: center;
+  padding: 8px;
+}
+
+.adjust-agents-hint .el-button {
+  font-size: 13px;
 }
 
 /* Workflow Preview */

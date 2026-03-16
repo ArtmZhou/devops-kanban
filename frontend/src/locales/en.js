@@ -483,6 +483,7 @@ export default {
     noPendingRequirements: 'No pending requirements',
     selectAgents: 'Select Agents',
     selectAgentsHint: 'Select AI Agents to execute the tasks',
+    recommendedAgentsHint: 'Agents recommended based on brainstorming conclusion',
     agentsSelected: 'agents selected',
     noAgentsAvailable: 'No agents available, please configure first',
     selectAtLeastOneAgent: 'Please select at least one agent',
@@ -501,7 +502,11 @@ export default {
       tester: 'Tester'
     },
     showConverted: 'Show converted requirements',
-    hideConverted: 'Hide converted requirements'
+    hideConverted: 'Hide converted requirements',
+    recommendedForYou: 'Recommended for you',
+    recommended: 'Recommended',
+    adjustSelection: 'Adjust selection',
+    adjustAgentsHint: 'You can manually adjust agent selection'
   },
   workflow: {
     title: 'Workflow',
@@ -549,5 +554,14 @@ export default {
     yesterdayCompleted: 'Yesterday Completed',
     todayTodo: 'Today Todo',
     dailyOverview: 'Daily Overview'
+  },
+  brainstorming: {
+    title: 'Brainstorming',
+    start: 'Start Discussion',
+    inProgress: 'Discussing...',
+    completed: 'Completed',
+    participants: 'Participants',
+    emptyHint: 'Click the "Start Discussion" button to summon multiple roles for brainstorming',
+    addedToTask: 'Conclusion added to task'
   }
 }
