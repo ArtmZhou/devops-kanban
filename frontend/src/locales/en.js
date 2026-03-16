@@ -562,6 +562,13 @@ export default {
     completed: 'Completed',
     participants: 'Participants',
     emptyHint: 'Click the "Start Discussion" button to summon multiple roles for brainstorming',
-    addedToTask: 'Conclusion added to task'
+    addedToTask: 'Conclusion added to task',
+    skip: 'Skip',
+    feedbackTitle: 'Supplementary Feedback',
+    optional: 'Optional',
+    feedbackPlaceholder: 'Enter your feedback or constraints, e.g., limited budget, tight deadline, high performance requirements...',
+    regenerate: 'Regenerate',
+    regenerateSuccess: 'Conclusion regenerated',
+    regenerateFailed: 'Failed to regenerate'
   }
 }

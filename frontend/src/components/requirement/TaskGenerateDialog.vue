@@ -118,6 +118,45 @@
               <div class="markdown-content" v-html="renderedBrainstormConclusion"></div>
             </div>
           </div>
+
+          <!-- User Feedback Section -->
+          <div v-if="isBrainstormCompleted" class="feedback-section">
+            <div class="feedback-header">
+              <span class="feedback-icon">💬</span>
+              <span class="feedback-title">{{ $t('brainstorming.feedbackTitle', '补充意见') }}</span>
+              <span class="feedback-hint">（{{ $t('brainstorming.optional', '可选') }}）</span>
+            </div>
+            <div class="feedback-examples">
+              <el-tag
+                v-for="(example, index) in feedbackExamples"
+                :key="index"
+                size="small"
+                class="example-tag"
+                @click="selectExample(example.text)"
+              >
+                {{ example.label }}
+              </el-tag>
+            </div>
+            <el-input
+              v-model="userFeedback"
+              type="textarea"
+              :placeholder="$t('brainstorming.feedbackPlaceholder', '请输入您的意见或约束条件，如：预算有限、时间紧急、性能要求高等...')"
+              :rows="3"
+              :disabled="isRegenerating"
+            />
+            <div class="feedback-actions">
+              <el-button
+                type="primary"
+                size="small"
+                :disabled="!userFeedback.trim() || isRegenerating"
+                :loading="isRegenerating"
+                @click="regenerateConclusion"
+              >
+                <el-icon><Refresh /></el-icon>
+                {{ $t('brainstorming.regenerate', '重新生成') }}
+              </el-button>
+            </div>
+          </div>
         </div>
 
         <!-- Step 1: Select Agents -->
@@ -324,7 +363,7 @@
 import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Lightning, User, Check, Star, QuestionFilled } from '@element-plus/icons-vue'
+import { Lightning, User, Check, Star, QuestionFilled, Refresh } from '@element-plus/icons-vue'
 import { getAgents } from '../../api/agent'
 import { getRoleConfig, ROLE_CONFIG } from '../../constants/agent'
 import { analyzeRequirementToTasks } from '../../mock/requirementAnalysis'
@@ -333,6 +372,7 @@ import {
   getScriptByTaskType,
   matchTaskType
 } from '../../mock/brainstormingData'
+import { integrateUserFeedback, demoFeedbackExamples } from '../../mock/brainstormingFeedbackDemo'
 import { marked } from 'marked'
 
 const props = defineProps({
@@ -373,6 +413,11 @@ const brainstormConclusion = ref('')
 const brainstormMessagesRef = ref(null)
 const currentBrainstormScript = ref(null)
 const recommendedAgentIds = ref([]) // Auto-recommended agents after brainstorming
+
+// User feedback state
+const userFeedback = ref('')
+const isRegenerating = ref(false)
+const feedbackExamples = demoFeedbackExamples
 
 // Role config for participant display
 const roleConfig = ROLE_CONFIG
@@ -437,6 +482,9 @@ watch(() => props.visible, (val) => {
     brainstormParticipants.value = []
     brainstormConclusion.value = ''
     recommendedAgentIds.value = []
+    // Reset user feedback state
+    userFeedback.value = ''
+    isRegenerating.value = false
     loadAgents()
   }
 }, { immediate: true })
@@ -568,6 +616,43 @@ const skipBrainstorming = () => {
   isBrainstormSkipped.value = true
   recommendedAgentIds.value = []
   goToStep1()
+}
+
+// Regenerate conclusion with user feedback
+const selectExample = (text) => {
+  if (userFeedback.value) {
+    userFeedback.value += '\n' + text
+  } else {
+    userFeedback.value = text
+  }
+}
+
+const regenerateConclusion = async () => {
+  if (!userFeedback.value.trim()) return
+
+  isRegenerating.value = true
+
+  try {
+    const originalConclusion = currentBrainstormScript.value.conclusion
+    const newConclusion = integrateUserFeedback(userFeedback.value, originalConclusion)
+
+    // Update conclusion
+    brainstormConclusion.value = newConclusion
+
+    // Clear feedback input
+    userFeedback.value = ''
+
+    ElMessage.success(t('brainstorming.regenerateSuccess', '结论已重新生成'))
+
+    // Scroll to bottom to show updated conclusion
+    await nextTick()
+    scrollToBrainstormBottom()
+  } catch (error) {
+    console.error('Failed to regenerate conclusion:', error)
+    ElMessage.error(t('brainstorming.regenerateFailed', '重新生成失败'))
+  } finally {
+    isRegenerating.value = false
+  }
 }
 
 // Auto-recommend agents based on task type and brainstorming conclusion
@@ -1274,6 +1359,61 @@ const handleClose = () => {
   background: var(--el-fill-color-light);
   padding: 6px 10px;
   border-radius: 0 4px 4px 0;
+}
+
+/* Feedback Section */
+.feedback-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
+}
+
+.feedback-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.feedback-icon {
+  font-size: 18px;
+}
+
+.feedback-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.feedback-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.feedback-examples {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.example-tag {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.example-tag:hover {
+  background: var(--el-color-primary);
+  color: white;
+  border-color: var(--el-color-primary);
+}
+
+.feedback-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 /* Brainstorming Actions - Removed, using modal-footer instead */
