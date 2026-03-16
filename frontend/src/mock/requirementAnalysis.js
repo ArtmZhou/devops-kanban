@@ -88,6 +88,7 @@ function detectCategory(text) {
 
 /**
  * Analyze requirement and generate a SINGLE task
+ * Use requirement title as the task title
  * @param {Object} requirement - The requirement to analyze
  * @returns {Object} Analysis result with task templates
  */
@@ -103,112 +104,33 @@ export function analyzeRequirementToTasks(requirement) {
     }
   }
 
-  // Generate a SINGLE task based on the primary detected feature
-  // Use if-else chain to ensure only one task is created
-  if (detectedFeatures.includes('authentication')) {
-    tasks.push({
-      title: '实现用户登录功能',
-      description: '实现基础的用户名密码登录，支持记住我功能',
-      category: TASK_CATEGORY.FEATURE,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['auth', 'login'],
-      requirementId: requirement.id
-    })
-  } else if (detectedFeatures.includes('ui')) {
-    tasks.push({
-      title: '开发用户界面',
-      description: '根据需求设计和开发用户界面，确保响应式和良好的用户体验',
-      category: TASK_CATEGORY.DESIGN,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['ui', 'frontend'],
-      requirementId: requirement.id
-    })
-  } else if (detectedFeatures.includes('api')) {
-    tasks.push({
-      title: '设计和实现 API 接口',
-      description: '设计 RESTful API 接口，实现后端业务逻辑',
-      category: TASK_CATEGORY.FEATURE,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['api', 'backend'],
-      requirementId: requirement.id
-    })
-  } else if (detectedFeatures.includes('database')) {
-    tasks.push({
-      title: '数据库设计与实现',
-      description: '设计数据模型，创建数据库表结构，实现数据访问层',
-      category: TASK_CATEGORY.FEATURE,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['database', 'backend'],
-      requirementId: requirement.id
-    })
-  } else if (detectedFeatures.includes('notification')) {
-    tasks.push({
-      title: '实现消息通知功能',
-      description: '实现站内消息通知功能，支持邮件和推送通知',
-      category: TASK_CATEGORY.FEATURE,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['notification', 'integration'],
-      requirementId: requirement.id
-    })
-  } else if (detectedFeatures.includes('report')) {
-    tasks.push({
-      title: '开发数据报表模块',
-      description: '实现数据统计和报表生成功能',
-      category: TASK_CATEGORY.FEATURE,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['report', 'analytics'],
-      requirementId: requirement.id
-    })
-  } else if (detectedFeatures.includes('export')) {
-    tasks.push({
-      title: '实现数据导出功能',
-      description: '支持导出数据为 Excel、PDF 等格式',
-      category: TASK_CATEGORY.FEATURE,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['export'],
-      requirementId: requirement.id
-    })
-  } else if (detectedFeatures.includes('security')) {
-    tasks.push({
-      title: '实现安全机制',
-      description: '实现数据加密、权限控制等安全相关功能',
-      category: TASK_CATEGORY.FEATURE,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['security'],
-      requirementId: requirement.id
-    })
-  } else if (detectedFeatures.includes('integration')) {
-    tasks.push({
-      title: '系统集成与对接',
-      description: '与第三方系统进行集成，实现数据同步和功能对接',
-      category: TASK_CATEGORY.FEATURE,
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: ['integration'],
-      requirementId: requirement.id
-    })
+  // Always use requirement title and description as the task
+  // Just determine the category based on detected features
+  let category = detectCategory(text)
+
+  // Map detected features to categories
+  if (detectedFeatures.includes('ui')) {
+    category = TASK_CATEGORY.DESIGN
+  } else if (detectedFeatures.includes('authentication') ||
+             detectedFeatures.includes('api') ||
+             detectedFeatures.includes('database') ||
+             detectedFeatures.includes('notification') ||
+             detectedFeatures.includes('report') ||
+             detectedFeatures.includes('export') ||
+             detectedFeatures.includes('security') ||
+             detectedFeatures.includes('integration')) {
+    category = TASK_CATEGORY.FEATURE
   }
 
-  // If no specific tasks were generated, create a default task with the requirement title
-  if (tasks.length === 0) {
-    tasks.push({
-      title: requirement.title,
-      description: requirement.description,
-      category: detectCategory(text),
-      status: 'TODO',
-      priority: mapToTaskPriority(requirement.priority),
-      labels: [],
-      requirementId: requirement.id
-    })
-  }
+  tasks.push({
+    title: requirement.title,
+    description: requirement.description,
+    category: category,
+    status: 'TODO',
+    priority: mapToTaskPriority(requirement.priority),
+    labels: detectedFeatures.length > 0 ? detectedFeatures : [],
+    requirementId: requirement.id
+  })
 
   return {
     tasks,
