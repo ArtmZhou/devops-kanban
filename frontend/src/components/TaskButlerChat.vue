@@ -49,6 +49,12 @@
             <path d="M10 22h4"></path>
             <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"></path>
           </svg>
+          <svg v-else-if="action.icon === 'brain'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a5 5 0 0 0-5 5v2a5 5 0 0 0 10 0V7a5 5 0 0 0-5-5z"></path>
+            <path d="M12 22c-4 0-7-3-7-7V9c0-1 1-2 2-2h10c1 0 2 1 2 2v6c0 4-3 7-7 7z"></path>
+            <path d="M8 11h8"></path>
+            <path d="M8 15h8"></path>
+          </svg>
           {{ action.label }}
         </button>
       </div>
@@ -86,6 +92,15 @@
         </svg>
       </button>
     </div>
+
+    <!-- Brainstorming Drawer -->
+    <BrainstormingDrawer
+      v-if="task"
+      ref="brainstormingDrawerRef"
+      :task="task"
+      :visible="isBrainstormingOpen"
+      @close="closeBrainstorming"
+    />
   </div>
 </template>
 
@@ -100,6 +115,7 @@ import {
   getResponseForAction
 } from '../mock/butlerData'
 import { getWorkflowByTask } from '../mock/workflowData'
+import BrainstormingDrawer from './brainstorming/BrainstormingDrawer.vue'
 
 const props = defineProps({
   task: {
@@ -114,6 +130,10 @@ const { t, locale } = useI18n()
 const messages = ref([])
 const inputText = ref('')
 const messagesRef = ref(null)
+const brainstormingDrawerRef = ref(null)
+
+// Brainstorming state
+const isBrainstormingOpen = ref(false)
 
 // Get workflow for current task
 const workflow = computed(() => {
@@ -184,10 +204,19 @@ const scrollToBottom = () => {
 const sendMessage = () => {
   if (!inputText.value.trim() || !props.task) return
 
+  const input = inputText.value.trim()
+
+  // Check if input is about brainstorming
+  if (input.toLowerCase().includes('头脑风暴') || input.toLowerCase().includes('brainstorm') || input.includes('讨论')) {
+    openBrainstorming()
+    inputText.value = ''
+    return
+  }
+
   const userMessage = {
     id: `user-${Date.now()}`,
     role: 'user',
-    content: inputText.value.trim(),
+    content: input,
     timestamp: new Date().toISOString()
   }
 
@@ -223,6 +252,12 @@ const sendMessage = () => {
 const handleQuickAction = (action) => {
   if (action.disabled || !props.task) return
 
+  // Handle brainstorm action separately
+  if (action.action === 'brainstorm') {
+    openBrainstorming()
+    return
+  }
+
   // Add user action message
   const userMessage = {
     id: `user-${Date.now()}`,
@@ -255,6 +290,22 @@ const handleQuickAction = (action) => {
       })
     }
   }, 300)
+}
+
+// Open brainstorming drawer
+const openBrainstorming = () => {
+  isBrainstormingOpen.value = true
+  // Auto-start after a short delay
+  setTimeout(() => {
+    if (brainstormingDrawerRef.value) {
+      brainstormingDrawerRef.value.startBrainstorming()
+    }
+  }, 500)
+}
+
+// Close brainstorming drawer
+const closeBrainstorming = () => {
+  isBrainstormingOpen.value = false
 }
 
 // Watch for task changes
