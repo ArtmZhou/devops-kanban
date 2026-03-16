@@ -48,4 +48,6 @@ data/
 
 ### Logs ###
 *.log
-logs/
+logs/frontend/src/components/brainstorming/FeedbackDemo.vue
+frontend/src/mock/brainstormingFeedbackDemo.js
+backend/
