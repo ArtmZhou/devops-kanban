@@ -77,8 +77,11 @@ export const useTaskStore = defineStore('task', () => {
     error.value = null
     try {
       const response = await taskApi.createTask(taskData)
+      console.log('[taskStore.createTask] response:', response)
+      console.log('[taskStore.createTask] response.data:', response.data)
       if (response.success) {
         tasks.value.push(response.data)
+        console.log('[taskStore.createTask] tasks.value after push:', tasks.value)
         return response.data
       }
     } catch (e) {

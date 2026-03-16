@@ -1633,7 +1633,13 @@ const getPriorityClass = (priority) => {
 }
 
 const getPriorityLabel = (priority) => {
-  return t(`priority.${priority}`)
+  const labels = {
+    LOW: t('priority.LOW'),
+    MEDIUM: t('priority.MEDIUM'),
+    HIGH: t('priority.HIGH'),
+    CRITICAL: t('priority.CRITICAL')
+  }
+  return labels[priority] || 'Medium'
 }
 
 // Requirement status helpers
