@@ -84,13 +84,17 @@
       </div>
 
       <!-- Conclusion Card -->
-      <div v-if="isCompleted && currentConclusion" class="conclusion-card">
+      <div v-if="isCompleted && currentConclusion" class="conclusion-card" :class="{ 'generating': isGeneratingConclusion }">
         <div class="conclusion-header">
           <div class="header-left">
             <span class="header-icon">📋</span>
             <h4 class="header-title">综合结论</h4>
+            <span v-if="isGeneratingConclusion" class="generating-tag">
+              <el-icon class="rotating"><Refresh /></el-icon>
+              正在生成结论...
+            </span>
           </div>
-          <el-tag type="success" size="small">
+          <el-tag v-if="!isGeneratingConclusion" type="success" size="small">
             <el-icon><Check /></el-icon>
             讨论完成
           </el-tag>
@@ -182,16 +186,13 @@ const messagesContainer = ref(null)
 // User feedback state
 const userFeedback = ref('')
 const isRegenerating = ref(false)
+const isGeneratingConclusion = ref(false)
 const feedbackExamples = ref(demoFeedbackExamples)
 
 // Get task type for script selection
 const taskType = computed(() => {
   if (!props.task) return 'default'
   return matchTaskType(props.task.title || '', props.task.description || '')
-})
-
-const renderedConclusion = computed(() => {
-  return marked(currentConclusion.value || '')
 })
 
 // Initialize and start brainstorming
@@ -292,16 +293,17 @@ const regenerateConclusion = async () => {
   if (!userFeedback.value.trim()) return
 
   isRegenerating.value = true
+  isGeneratingConclusion.value = true // 开始生成
 
   try {
     const originalConclusion = currentScript.value.conclusion
     const newConclusion = integrateUserFeedback(userFeedback.value, originalConclusion)
 
-    // Update conclusion
-    currentConclusion.value = newConclusion
-
     // Clear feedback input
     userFeedback.value = ''
+
+    // Animate the new conclusion with typewriter effect
+    await typeConclusion(newConclusion)
 
     // Scroll to bottom to show updated conclusion
     await nextTick()
@@ -310,8 +312,34 @@ const regenerateConclusion = async () => {
     console.error('Failed to regenerate conclusion:', error)
   } finally {
     isRegenerating.value = false
+    isGeneratingConclusion.value = false // 生成结束
   }
 }
+
+// Type out the conclusion with animation
+const typeConclusion = async (content) => {
+  // Clear current conclusion
+  currentConclusion.value = ''
+
+  const chars = content.split('')
+  const batchSize = 3 // 每次更新 3 个字符
+  const typingSpeed = 10 // 10ms/批次
+
+  for (let i = 0; i < chars.length; i += batchSize) {
+    if (!isCompleted.value) break
+    currentConclusion.value += chars.slice(i, i + batchSize).join('')
+    await new Promise(resolve => setTimeout(resolve, typingSpeed))
+  }
+}
+
+// Render conclusion with typing cursor
+const renderedConclusion = computed(() => {
+  if (isGeneratingConclusion.value && currentConclusion.value) {
+    // Show cursor during generation
+    return marked(currentConclusion.value) + '<span class="conclusion-cursor">|</span>'
+  }
+  return marked(currentConclusion.value || '')
+})
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -701,6 +729,23 @@ defineExpose({
   margin-top: auto;
   max-height: 40%;
   overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.conclusion-card.generating {
+  border-color: #a78bfa;
+  animation: fade-in 0.5s ease;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .conclusion-header {
@@ -712,10 +757,39 @@ defineExpose({
   border-bottom: 1px solid #86efac;
 }
 
+.conclusion-card.generating .conclusion-header {
+  border-bottom-color: #a78bfa;
+}
+
 .conclusion-header .header-left {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.generating-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.rotating {
+  animation: rotate 1.5s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .conclusion-header .header-title {
@@ -861,6 +935,19 @@ defineExpose({
   font-weight: 600;
   color: #166534;
   margin: 8px 0;
+}
+
+.conclusion-card.generating .conclusion-body .markdown-content :deep(h3),
+.conclusion-card.generating .conclusion-body .markdown-content :deep(h4) {
+  color: #5b21b6;
+}
+
+/* Conclusion typing cursor */
+.conclusion-cursor {
+  animation: blink 1s infinite;
+  color: #7c3aed;
+  font-weight: bold;
+  margin-left: 2px;
 }
 
 /* Scrollbar styling */
