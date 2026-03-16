@@ -344,11 +344,8 @@ const renderedConclusion = computed(() => {
 const scrollToBottom = () => {
   nextTick(() => {
     if (messagesContainer.value) {
-      // 使用平滑滚动，增加过渡动画的舒适感
-      messagesContainer.value.scrollTo({
-        top: messagesContainer.value.scrollHeight,
-        behavior: 'smooth'
-      })
+      // 直接滚动到底部，无延迟
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
     }
   })
 }
