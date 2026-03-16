@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [vue()],
     server: {
+      host: '0.0.0.0',
       port: 3000,
       // No proxy needed in demo mode (mock data)
       ...(isDemo ? {} : {
