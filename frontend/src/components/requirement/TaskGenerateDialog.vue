@@ -636,13 +636,13 @@ const regenerateConclusion = async () => {
     const originalConclusion = currentBrainstormScript.value.conclusion
     const newConclusion = integrateUserFeedback(userFeedback.value, originalConclusion)
 
-    // Update conclusion
-    brainstormConclusion.value = newConclusion
-
     // Clear feedback input
     userFeedback.value = ''
 
     ElMessage.success(t('brainstorming.regenerateSuccess', '结论已重新生成'))
+
+    // Animate the new conclusion with typewriter effect
+    await typeBrainstormConclusion(newConclusion)
 
     // Scroll to bottom to show updated conclusion
     await nextTick()
@@ -652,6 +652,22 @@ const regenerateConclusion = async () => {
     ElMessage.error(t('brainstorming.regenerateFailed', '重新生成失败'))
   } finally {
     isRegenerating.value = false
+  }
+}
+
+// Type out the conclusion with animation
+const typeBrainstormConclusion = async (content) => {
+  // Clear current conclusion
+  brainstormConclusion.value = ''
+
+  const chars = content.split('')
+  const batchSize = 3 // 每次更新 3 个字符
+  const typingSpeed = 10 // 10ms/批次
+
+  for (let i = 0; i < chars.length; i += batchSize) {
+    if (!isBrainstormCompleted.value) break
+    brainstormConclusion.value += chars.slice(i, i + batchSize).join('')
+    await new Promise(resolve => setTimeout(resolve, typingSpeed))
   }
 }
 

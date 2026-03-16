@@ -93,6 +93,7 @@ function detectCategory(text) {
  * @returns {Object} Analysis result with task templates
  */
 export function analyzeRequirementToTasks(requirement) {
+  console.log('[analyzeRequirementToTasks] input requirement:', requirement)
   const tasks = []
   const text = `${requirement.title} ${requirement.description}`.toLowerCase()
   const detectedFeatures = []
@@ -122,15 +123,20 @@ export function analyzeRequirementToTasks(requirement) {
     category = TASK_CATEGORY.FEATURE
   }
 
-  tasks.push({
+  const priority = mapToTaskPriority(requirement.priority)
+  console.log('[analyzeRequirementToTasks] input priority:', requirement.priority, '-> mapped to:', priority)
+
+  const task = {
     title: requirement.title,
     description: requirement.description,
     category: category,
     status: 'TODO',
-    priority: mapToTaskPriority(requirement.priority),
+    priority: priority,
     labels: detectedFeatures.length > 0 ? detectedFeatures : [],
     requirementId: requirement.id
-  })
+  }
+  console.log('[analyzeRequirementToTasks] generated task:', task)
+  tasks.push(task)
 
   return {
     tasks,
