@@ -1,7 +1,6 @@
 import { WorkflowRunRepository } from '../../repositories/workflowRunRepository.js';
 import { TaskRepository } from '../../repositories/taskRepository.js';
 import { AgentRepository } from '../../repositories/agentRepository.js';
-import { SkillRepository } from '../../repositories/skillRepository.js';
 import { SessionRepository } from '../../repositories/sessionRepository.js';
 import { SessionSegmentRepository } from '../../repositories/sessionSegmentRepository.js';
 import { SessionEventRepository } from '../../repositories/sessionEventRepository.js';
@@ -17,7 +16,6 @@ class WorkflowLifecycle {
   workflowRunRepo: WorkflowRunRepository;
   taskRepo: TaskRepository;
   agentRepo: AgentRepository;
-  skillRepo: SkillRepository;
   sessionRepo: SessionRepository;
   sessionSegmentRepo: SessionSegmentRepository;
   sessionEventRepo: SessionEventRepository;
@@ -28,7 +26,6 @@ class WorkflowLifecycle {
     workflowRunRepo,
     taskRepo,
     agentRepo,
-    skillRepo,
     sessionRepo,
     sessionSegmentRepo,
     sessionEventRepo,
@@ -37,7 +34,6 @@ class WorkflowLifecycle {
     workflowRunRepo?: WorkflowRunRepository;
     taskRepo?: TaskRepository;
     agentRepo?: AgentRepository;
-    skillRepo?: SkillRepository;
     sessionRepo?: SessionRepository;
     sessionSegmentRepo?: SessionSegmentRepository;
     sessionEventRepo?: SessionEventRepository;
@@ -46,7 +42,6 @@ class WorkflowLifecycle {
     this.workflowRunRepo = workflowRunRepo || new WorkflowRunRepository();
     this.taskRepo = taskRepo || new TaskRepository();
     this.agentRepo = agentRepo || new AgentRepository();
-    this.skillRepo = skillRepo || new SkillRepository();
     this.sessionRepo = sessionRepo || new SessionRepository();
     this.sessionSegmentRepo = sessionSegmentRepo || new SessionSegmentRepository();
     this.sessionEventRepo = sessionEventRepo || new SessionEventRepository();
@@ -199,7 +194,7 @@ class WorkflowLifecycle {
       }
 
       await prepareExecutionSkills({
-        executorType: executorType as 'CLAUDE_CODE',
+        executorType,
         skillNames,
         executionPath,
       });

@@ -1,6 +1,7 @@
 import { AgentRepository } from '../../repositories/agentRepository.js';
 import { SkillRepository } from '../../repositories/skillRepository.js';
 import type { WorkflowInstanceEntity } from '../../types/entities.js';
+import type { ExecutorType } from '../../types/executors.js';
 
 const agentRepo = new AgentRepository();
 const skillRepo = new SkillRepository();
@@ -30,10 +31,10 @@ async function resolveWorkflowSkills(workflow: WorkflowInstanceEntity): Promise<
   return [...allSkillIds].map(id => skillMap.get(id) || String(id));
 }
 
-async function resolveAgentSkills(agentId: number): Promise<{ skillNames: string[]; executorType: string }> {
+async function resolveAgentSkills(agentId: number): Promise<{ skillNames: string[]; executorType: ExecutorType }> {
   const agent = await agentRepo.findById(agentId);
   if (!agent || !Array.isArray(agent.skills) || agent.skills.length === 0) {
-    return { skillNames: [], executorType: agent?.executorType || 'CLAUDE_CODE' };
+    return { skillNames: [], executorType: (agent?.executorType || 'CLAUDE_CODE') as ExecutorType };
   }
 
   const allSkills = await skillRepo.findAll();
@@ -49,7 +50,7 @@ async function resolveAgentSkills(agentId: number): Promise<{ skillNames: string
       return true;
     });
 
-  return { skillNames, executorType: agent.executorType || 'CLAUDE_CODE' };
+  return { skillNames, executorType: (agent.executorType || 'CLAUDE_CODE') as ExecutorType };
 }
 
 export { resolveWorkflowSkills, resolveAgentSkills };
