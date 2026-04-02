@@ -1,31 +1,28 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 import { getDbClient } from './client.js';
+import { migrateSchema } from './migrate.js';
 
 /**
  * Initialize all database tables.
- * Creates tables if they don't exist by reading schema.sql.
+ * Creates tables if they don't exist by reading schema.sql,
+ * then auto-migrates any schema drift (new columns, new indexes).
+ * Throws on destructive drift (removed columns, type changes).
  */
 export async function initDatabase(): Promise<void> {
   const client = getDbClient();
   await client.execute('PRAGMA busy_timeout = 5000');
 
-  // Read schema.sql file
+  // 1. Create missing tables/indexes
   const schemaPath = join(import.meta.dirname, 'schema.sql');
   const schemaSql = await readFile(schemaPath, 'utf-8');
-
-  // Execute all DDL statements
   await client.executeMultiple(schemaSql);
 
-  const workflowTemplateColumns = await client.execute('PRAGMA table_info(workflow_templates)');
-  const hasOrderColumn = workflowTemplateColumns.rows.some((row) => row.name === 'order');
-  if (!hasOrderColumn) {
-    await client.execute('ALTER TABLE workflow_templates ADD COLUMN "order" INTEGER');
-  }
-
-  const iterationColumns = await client.execute('PRAGMA table_info(iterations)');
-  const hasDescriptionColumn = iterationColumns.rows.some((row) => row.name === 'description');
-  if (!hasDescriptionColumn) {
-    await client.execute('ALTER TABLE iterations ADD COLUMN description TEXT');
+  // 2. Auto-migrate: new columns, new indexes, detect destructive changes
+  const report = await migrateSchema(client, schemaSql);
+  if (report.errors.length > 0) {
+    throw new Error(
+      `[DB Migration] Destructive schema drift detected. Run 'npm run db:reset'.\n${report.errors.join('\n')}`,
+    );
   }
 }
