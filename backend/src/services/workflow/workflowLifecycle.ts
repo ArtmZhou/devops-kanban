@@ -518,6 +518,11 @@ class WorkflowLifecycle {
     const run = await this.workflowRunRepo.findById(runId);
     if (!run) return;
 
+    // Cleanup last step's skills
+    if (run.worktree_path) {
+      await this._cleanupPreviousStepSkills(run.worktree_path, runId);
+    }
+
     await this.workflowRunRepo.update(runId, {
       status: 'COMPLETED',
       context: result ?? {},
@@ -532,6 +537,11 @@ class WorkflowLifecycle {
   async onWorkflowError(runId: number, errorMessage: string) {
     const run = await this.workflowRunRepo.findById(runId);
     if (!run) return;
+
+    // Cleanup last step's skills
+    if (run.worktree_path) {
+      await this._cleanupPreviousStepSkills(run.worktree_path, runId);
+    }
 
     await this.workflowRunRepo.update(runId, {
       status: 'FAILED',
