@@ -1,6 +1,7 @@
 import * as test from 'node:test';
 import * as assert from 'node:assert/strict';
-import { parseSchemaSql } from '../src/db/migrate.js';
+import { parseSchemaSql, diffSchemas } from '../src/db/migrate.js';
+import type { ColumnDef, IndexDef } from '../src/db/migrate.js';
 
 test.test('parseSchemaSql extracts table columns', () => {
   const sql = `
@@ -79,4 +80,109 @@ CREATE TABLE IF NOT EXISTS foo (
   const cols = result.tables.get('foo')!;
   assert.equal(cols.length, 1);
   assert.equal(cols[0].name, 'name');
+});
+
+test.test('diffSchemas detects missing columns', () => {
+  const expected: Map<string, ColumnDef[]> = new Map([
+    ['projects', [
+      { name: 'name', type: 'TEXT', notNull: true, defaultValue: undefined },
+      { name: 'new_col', type: 'TEXT', notNull: false, defaultValue: "'hello'" },
+    ]],
+  ]);
+  const actual: Map<string, string[]> = new Map([
+    ['projects', ['name']],
+  ]);
+  const existingIndexes: string[] = [];
+  const expectedIndexes: IndexDef[] = [];
+
+  const report = diffSchemas(expected, actual, expectedIndexes, existingIndexes);
+  assert.equal(report.changes.length, 1);
+  assert.ok(report.changes[0].includes('ALTER TABLE projects ADD COLUMN new_col'));
+  assert.equal(report.errors.length, 0);
+});
+
+test.test('diffSchemas detects missing indexes', () => {
+  const expected: Map<string, ColumnDef[]> = new Map([
+    ['tasks', [{ name: 'id', type: 'INTEGER', notNull: true, defaultValue: undefined }]],
+  ]);
+  const actual: Map<string, string[]> = new Map([
+    ['tasks', ['id']],
+  ]);
+  const expectedIndexes: IndexDef[] = [
+    { name: 'idx_tasks_status', table: 'tasks', columns: ['status'], unique: false, sql: 'CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);' },
+  ];
+  const existingIndexes: string[] = [];
+
+  const report = diffSchemas(expected, actual, expectedIndexes, existingIndexes);
+  assert.equal(report.changes.length, 1);
+  assert.ok(report.changes[0].includes('idx_tasks_status'));
+});
+
+test.test('diffSchemas detects destructive column removal', () => {
+  const expected: Map<string, ColumnDef[]> = new Map([
+    ['projects', [
+      { name: 'name', type: 'TEXT', notNull: true, defaultValue: undefined },
+    ]],
+  ]);
+  const actual: Map<string, string[]> = new Map([
+    ['projects', ['name', 'old_col']],
+  ]);
+  const existingIndexes: string[] = [];
+  const expectedIndexes: IndexDef[] = [];
+
+  const report = diffSchemas(expected, actual, expectedIndexes, existingIndexes);
+  assert.equal(report.errors.length, 1);
+  assert.ok(report.errors[0].includes('old_col'));
+});
+
+test.test('diffSchemas skips NOT NULL column without DEFAULT', () => {
+  const expected: Map<string, ColumnDef[]> = new Map([
+    ['projects', [
+      { name: 'name', type: 'TEXT', notNull: true, defaultValue: undefined },
+    ]],
+  ]);
+  const actual: Map<string, string[]> = new Map([
+    ['projects', []],
+  ]);
+  const existingIndexes: string[] = [];
+  const expectedIndexes: IndexDef[] = [];
+
+  const report = diffSchemas(expected, actual, expectedIndexes, existingIndexes);
+  assert.equal(report.changes.length, 0);
+  assert.equal(report.warnings.length, 1);
+  assert.ok(report.warnings[0].includes('name'));
+});
+
+test.test('diffSchemas auto-fills safe default for TEXT without DEFAULT', () => {
+  const expected: Map<string, ColumnDef[]> = new Map([
+    ['projects', [
+      { name: 'desc', type: 'TEXT', notNull: false, defaultValue: undefined },
+    ]],
+  ]);
+  const actual: Map<string, string[]> = new Map([
+    ['projects', []],
+  ]);
+  const existingIndexes: string[] = [];
+  const expectedIndexes: IndexDef[] = [];
+
+  const report = diffSchemas(expected, actual, expectedIndexes, existingIndexes);
+  assert.equal(report.changes.length, 1);
+  assert.ok(report.changes[0].includes("DEFAULT ''"));
+});
+
+test.test('diffSchemas auto-fills safe default for INTEGER without DEFAULT', () => {
+  const expected: Map<string, ColumnDef[]> = new Map([
+    ['projects', [
+      { name: 'count', type: 'INTEGER', notNull: false, defaultValue: undefined },
+    ]],
+  ]);
+  const actual: Map<string, string[]> = new Map([
+    ['projects', []],
+  ]);
+  const existingIndexes: string[] = [];
+  const expectedIndexes: IndexDef[] = [];
+
+  const report = diffSchemas(expected, actual, expectedIndexes, existingIndexes);
+  assert.equal(report.changes.length, 1);
+  assert.ok(report.changes[0].includes('DEFAULT 0'));
 });

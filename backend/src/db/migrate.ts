@@ -111,3 +111,82 @@ function parseColumnLine(line: string): ColumnDef | null {
 
   return { name, type, notNull, defaultValue };
 }
+
+// --- Diff Engine ---
+
+function safeDefaultValue(col: ColumnDef): string | null {
+  if (col.defaultValue !== undefined) {
+    return `DEFAULT ${col.defaultValue}`;
+  }
+  if (col.notNull) {
+    return null; // Cannot safely add NOT NULL column without DEFAULT
+  }
+  if (col.type === 'TEXT') {
+    return "DEFAULT ''";
+  }
+  if (col.type === 'INTEGER') {
+    return 'DEFAULT 0';
+  }
+  return "DEFAULT ''";
+}
+
+export function diffSchemas(
+  expectedTables: Map<string, ColumnDef[]>,
+  actualTables: Map<string, string[]>,
+  expectedIndexes: IndexDef[],
+  existingIndexNames: string[],
+): MigrationReport {
+  const changes: string[] = [];
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  for (const [table, expectedCols] of expectedTables) {
+    const actualColNames = actualTables.get(table);
+
+    // Table doesn't exist yet — CREATE TABLE IF NOT EXISTS handles this
+    if (!actualColNames) {
+      continue;
+    }
+
+    // Detect missing columns
+    const actualSet = new Set(actualColNames);
+    for (const col of expectedCols) {
+      if (!actualSet.has(col.name)) {
+        const defaultExpr = safeDefaultValue(col);
+        if (defaultExpr === null) {
+          warnings.push(
+            `Column '${table}.${col.name}' defined as NOT NULL without DEFAULT, skipped`,
+          );
+          continue;
+        }
+        const notNullSql = col.notNull ? ' NOT NULL' : '';
+        changes.push(
+          `ALTER TABLE ${table} ADD COLUMN ${col.name} ${col.type}${notNullSql} ${defaultExpr}`,
+        );
+      }
+    }
+
+    // Detect extra columns in DB (destructive)
+    const expectedSet = new Set(expectedCols.map(c => c.name));
+    for (const colName of actualColNames) {
+      if (!expectedSet.has(colName)) {
+        errors.push(
+          `Column '${table}.${colName}' exists in DB but not in schema.sql`,
+        );
+      }
+    }
+  }
+
+  // Detect missing indexes
+  const existingSet = new Set(existingIndexNames);
+  for (const idx of expectedIndexes) {
+    if (!existingSet.has(idx.name)) {
+      const unique = idx.unique ? 'UNIQUE ' : '';
+      changes.push(
+        `CREATE ${unique}INDEX IF NOT EXISTS ${idx.name} ON ${idx.table}(${idx.columns.join(', ')})`,
+      );
+    }
+  }
+
+  return { changes, warnings, errors, applied: [] };
+}
