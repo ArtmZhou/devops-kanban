@@ -1,17 +1,23 @@
 import { WorkflowRunRepository } from '../../repositories/workflowRunRepository.js';
 import { TaskRepository } from '../../repositories/taskRepository.js';
 import { AgentRepository } from '../../repositories/agentRepository.js';
+import { SkillRepository } from '../../repositories/skillRepository.js';
 import { SessionRepository } from '../../repositories/sessionRepository.js';
 import { SessionSegmentRepository } from '../../repositories/sessionSegmentRepository.js';
 import { SessionEventRepository } from '../../repositories/sessionEventRepository.js';
 import { WorkflowInstanceRepository } from '../../repositories/workflowInstanceRepository.js';
 import type { SessionEntity, SessionSegmentEntity, WorkflowRunEntity } from '../../types/entities.ts';
 import { isSupportedExecutorType, type WorkflowTaskRecord } from '../../types/workflow.js';
+import { resolveAgentSkills } from './workflowSkillSync.js';
+import { prepareExecutionSkills } from './executorSkillPreparation.js';
+import { cleanupSkillsByManifest, writeSkillManifest } from '../../utils/skillSync.js';
+import { resolve } from 'node:path';
 
 class WorkflowLifecycle {
   workflowRunRepo: WorkflowRunRepository;
   taskRepo: TaskRepository;
   agentRepo: AgentRepository;
+  skillRepo: SkillRepository;
   sessionRepo: SessionRepository;
   sessionSegmentRepo: SessionSegmentRepository;
   sessionEventRepo: SessionEventRepository;
@@ -22,6 +28,7 @@ class WorkflowLifecycle {
     workflowRunRepo,
     taskRepo,
     agentRepo,
+    skillRepo,
     sessionRepo,
     sessionSegmentRepo,
     sessionEventRepo,
@@ -30,6 +37,7 @@ class WorkflowLifecycle {
     workflowRunRepo?: WorkflowRunRepository;
     taskRepo?: TaskRepository;
     agentRepo?: AgentRepository;
+    skillRepo?: SkillRepository;
     sessionRepo?: SessionRepository;
     sessionSegmentRepo?: SessionSegmentRepository;
     sessionEventRepo?: SessionEventRepository;
@@ -38,6 +46,7 @@ class WorkflowLifecycle {
     this.workflowRunRepo = workflowRunRepo || new WorkflowRunRepository();
     this.taskRepo = taskRepo || new TaskRepository();
     this.agentRepo = agentRepo || new AgentRepository();
+    this.skillRepo = skillRepo || new SkillRepository();
     this.sessionRepo = sessionRepo || new SessionRepository();
     this.sessionSegmentRepo = sessionSegmentRepo || new SessionSegmentRepository();
     this.sessionEventRepo = sessionEventRepo || new SessionEventRepository();
@@ -168,6 +177,47 @@ class WorkflowLifecycle {
     return run.status === 'CANCELLED' || step.status === 'CANCELLED';
   }
 
+  private async _cleanupPreviousStepSkills(executionPath: string, runId: number): Promise<void> {
+    try {
+      const skillsDir = resolve(executionPath, '.claude', 'skills');
+      await cleanupSkillsByManifest(skillsDir, runId);
+    } catch (err) {
+      console.warn(`[WorkflowLifecycle] Failed to cleanup previous step skills: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private async _prepareCurrentStepSkills(runId: number, stepId: string, executionPath: string): Promise<void> {
+    try {
+      const stepBinding = await this._getTemplateStepBinding(runId, stepId);
+      if (typeof stepBinding.agentId !== 'number') {
+        return;
+      }
+
+      const { skillNames, executorType } = await resolveAgentSkills(stepBinding.agentId);
+      if (skillNames.length === 0) {
+        return;
+      }
+
+      await prepareExecutionSkills({
+        executorType: executorType as 'CLAUDE_CODE',
+        skillNames,
+        executionPath,
+      });
+
+      const skillsDir = resolve(executionPath, '.claude', 'skills');
+      await writeSkillManifest(skillsDir, {
+        runId,
+        stepId,
+        installedSkills: skillNames,
+        updatedAt: new Date().toISOString(),
+      });
+
+      console.log(`[WorkflowLifecycle] Prepared ${skillNames.length} skills for step ${stepId}: ${skillNames.join(', ')}`);
+    } catch (err) {
+      console.warn(`[WorkflowLifecycle] Failed to prepare step skills: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   private async _finalizeCancelledStepStart(
     runId: number,
     stepId: string,
@@ -290,6 +340,10 @@ class WorkflowLifecycle {
     if (await this._isWorkflowStepCancelled(runId, stepId)) {
       return;
     }
+
+    // Step-level skill isolation: cleanup previous step's skills, prepare current step's skills
+    await this._cleanupPreviousStepSkills(task.execution_path, runId);
+    await this._prepareCurrentStepSkills(runId, stepId, task.execution_path);
 
     const startedAt = new Date().toISOString();
     const { step } = await this._getRunStep(runId, stepId);
