@@ -8,8 +8,6 @@ import { WorkflowLifecycle } from './workflowLifecycle.js';
 import { buildWorkflowFromInstance, getWorkflowFromWorkflowId } from './workflows.js';
 import { isSupportedExecutorType, type WorkflowTaskRecord } from '../../types/workflow.js';
 import { WorkflowInstanceEntity } from '../../types/entities.js';
-import { resolveWorkflowSkills } from './workflowSkillSync.js';
-import { prepareExecutionSkills } from './executorSkillPreparation.js';
 
 
 function createValidationError(message: string) {
@@ -207,13 +205,6 @@ class WorkflowService {
 
   private async executeWorkflow(runId: number, task: WorkflowTaskRecord & { execution_path: string }, instance: WorkflowInstanceEntity) {
     try {
-      const skillNames = await resolveWorkflowSkills(instance);
-      await prepareExecutionSkills({
-        executorType: 'CLAUDE_CODE',
-        skillNames,
-        executionPath: task.execution_path,
-      });
-
       const workflow = buildWorkflowFromInstance(instance, {
         runId,
         task: { id: task.id, project_id: task.project_id, execution_path: task.execution_path },
