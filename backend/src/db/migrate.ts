@@ -42,8 +42,8 @@ export function parseSchemaSql(sql: string): ParsedSchema {
   let match: RegExpExecArray | null;
 
   while ((match = tableRegex.exec(sql)) !== null) {
-    const tableName = match[1];
-    const body = match[2];
+    const tableName = match[1]!;
+    const body = match[2]!;
     const columns = parseColumnDefs(body);
     tables.set(tableName, columns);
   }
@@ -53,10 +53,10 @@ export function parseSchemaSql(sql: string): ParsedSchema {
   while ((match = indexRegex.exec(sql)) !== null) {
     indexes.push({
       unique: match[1] !== undefined && match[1] !== null,
-      name: match[2],
-      table: match[3],
-      columns: match[4].split(',').map(c => c.trim()),
-      sql: match[0],
+      name: match[2]!,
+      table: match[3]!,
+      columns: match[4]!.split(',').map(c => c.trim()),
+      sql: match[0]!,
     });
   }
 
@@ -97,9 +97,9 @@ function parseColumnLine(line: string): ColumnDef | null {
     return null;
   }
 
-  const name = colMatch[1].replace(/"/g, '');
-  const type = colMatch[2].toUpperCase();
-  const rest = colMatch[3];
+  const name = colMatch[1]!.replace(/"/g, '');
+  const type = colMatch[2]!.toUpperCase();
+  const rest = colMatch[3] ?? '';
 
   const notNull = /\bNOT\s+NULL\b/i.test(rest);
 
@@ -212,7 +212,7 @@ async function isPrimaryKeyAutoincrement(client: Client, table: string, column: 
   const tableSqlResult = await client.execute(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${table}'`);
   if (!tableSqlResult.rows.length) return false;
 
-  const createSql = tableSqlResult.rows[0].sql as string;
+  const createSql = tableSqlResult.rows[0]!.sql as string;
   const idPattern = new RegExp(`\\b${column}\\s+INTEGER\\s+PRIMARY\\s+KEY\\s+AUTOINCREMENT`, 'i');
   return idPattern.test(createSql);
 }
