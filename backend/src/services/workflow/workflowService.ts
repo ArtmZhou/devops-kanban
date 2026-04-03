@@ -286,7 +286,6 @@ class WorkflowService {
     }
 
     const updatedRun = await this.workflowRunRepo.update(runId, { status: 'CANCELLED' });
-    await this.resetTaskToTodo(run.task_id ?? 0);
     return updatedRun;
   }
 
