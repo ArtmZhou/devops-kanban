@@ -421,11 +421,12 @@ const testConnection = async () => {
       server_type: selectedServer.value.server_type,
       config: selectedServer.value.config,
     })
-    if (res.data?.success && res.data?.data?.valid) {
-      showToast(res.data.data.message || t('mcpServer.connectionOk'), 'success')
+    // axios interceptor unwraps response.data, so res = { success, data: { valid, message } }
+    if (res?.success && res?.data?.valid) {
+      showToast(res.data.message || t('mcpServer.connectionOk'), 'success')
     } else {
-      const msg = res.data?.data?.message || res.data?.message || t('mcpServer.connectionFailed')
-      const details = res.data?.data?.details ? `\n${res.data.data.details}` : ''
+      const msg = res?.data?.message || res?.message || t('mcpServer.connectionFailed')
+      const details = res?.data?.details ? `\n${res.data.details}` : ''
       showToast(msg + details, 'error')
     }
   } catch (e) {
