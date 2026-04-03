@@ -63,7 +63,7 @@ class WorkflowRunRepository extends BaseRepository<WorkflowRunEntity> {
     return result.rows.map(row => this.parseRow(row as Record<string, unknown>));
   }
 
-  override async update(runId: number, entityData: { status?: string; current_step?: string | null; context?: Record<string, unknown> }): Promise<WorkflowRunEntity | null> {
+  override async update(runId: number, entityData: { status?: string; current_step?: string | null; context?: Record<string, unknown>; mastra_run_id?: string }): Promise<WorkflowRunEntity | null> {
     return this.serializeMutation(async () => {
       return super.update(runId, entityData);
     });
