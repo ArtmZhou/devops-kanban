@@ -155,15 +155,12 @@
             <div class="form-group">
               <label>{{ $t('agent.skills') }}</label>
               <div class="skills-editor">
-                <select v-model="selectedSkillToAdd" class="skill-select">
+                <select v-model="selectedSkillToAdd" class="skill-select" @change="addSelectedSkill">
                   <option value="">{{ $t('agent.selectExistingSkill') }}</option>
                   <option v-for="skill in availableSkillOptions" :key="skill" :value="skill">
                     {{ skillStore.skills.find(s => s.id === skill)?.name }}
                   </option>
                 </select>
-                <button type="button" class="btn btn-secondary btn-sm" @click="addSelectedSkill" :disabled="!selectedSkillToAdd">
-                  {{ $t('common.add') }}
-                </button>
                 <div class="skills-input-container">
                   <span v-for="(skillId, index) in form.skills" :key="index" class="skill-tag-input">
                     {{ skillStore.skills.find(s => s.id === skillId)?.name }}
@@ -176,15 +173,12 @@
             <div class="form-group">
               <label>{{ $t('agent.mcpServers') }}</label>
               <div class="skills-editor">
-                <select v-model="selectedMcpServerToAdd" class="skill-select">
+                <select v-model="selectedMcpServerToAdd" class="skill-select" @change="addSelectedMcpServer">
                   <option value="">{{ $t('agent.selectMcpServer') }}</option>
                   <option v-for="server in availableMcpServerOptions" :key="server.id" :value="server.id">
                     {{ server.name }}
                   </option>
                 </select>
-                <button type="button" class="btn btn-secondary btn-sm" @click="addSelectedMcpServer" :disabled="!selectedMcpServerToAdd">
-                  {{ $t('common.add') }}
-                </button>
                 <div class="skills-input-container">
                   <span v-for="(serverId, index) in form.mcpServers" :key="index" class="skill-tag-input mcp-tag-input">
                     {{ mcpServerStore.mcpServers.find(s => s.id === serverId)?.name }}

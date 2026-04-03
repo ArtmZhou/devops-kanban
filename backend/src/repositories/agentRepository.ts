@@ -22,6 +22,7 @@ class AgentRepository extends BaseRepository<AgentEntity> {
     }
     if (entity.mcpServers !== undefined) {
       result.mcp_servers = JSON.stringify(entity.mcpServers);
+      delete result.mcpServers;
     }
     return result;
   }

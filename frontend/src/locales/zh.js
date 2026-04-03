@@ -627,7 +627,14 @@ export default {
     jsonParseError: 'JSON 解析失败',
     jsonMissingName: 'JSON 必须包含 "name" 字段',
     jsonInvalidServerType: 'server_type 必须是 "stdio" 或 "http"',
-    jsonMissingConfig: 'JSON 必须包含 "config" 对象'
+    jsonMissingConfig: 'JSON 必须包含 "config" 对象',
+    autoInstall: '自动安装依赖',
+    autoInstallHint: '工作流执行前，如果检测到命令不存在，自动执行安装命令',
+    installCommand: '安装命令',
+    installCommandPlaceholder: '例如: pip install mcp-server-weather 或 npm install -g @anthropic-ai/mcp-server-weather',
+    testConnection: '测试连接',
+    connectionOk: '连接成功',
+    connectionFailed: '连接失败',
   },
   iteration: {
     title: '迭代',

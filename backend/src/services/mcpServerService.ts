@@ -1,6 +1,7 @@
 import { McpServerRepository } from '../repositories/mcpServerRepository.js';
 import { AgentRepository } from '../repositories/agentRepository.js';
 import type { McpServerEntity } from '../types/entities.js';
+import { execSync } from 'node:child_process';
 
 class McpServerService {
   mcpServerRepo: McpServerRepository;
@@ -24,6 +25,8 @@ class McpServerService {
     description?: string;
     server_type: 'stdio' | 'http';
     config: Record<string, unknown>;
+    auto_install?: number;
+    install_command?: string | undefined;
   }): Promise<McpServerEntity> {
     const existing = await this.listMcpServers();
     if (existing.some(s => s.name === data.name)) {
@@ -37,6 +40,8 @@ class McpServerService {
       description: data.description,
       server_type: data.server_type,
       config: data.config,
+      auto_install: data.auto_install ?? 0,
+      install_command: data.install_command,
     });
   }
 
@@ -45,6 +50,8 @@ class McpServerService {
     description?: string;
     server_type?: 'stdio' | 'http';
     config?: Record<string, unknown>;
+    auto_install?: number;
+    install_command?: string;
   }): Promise<McpServerEntity | null> {
     const existing = await this.mcpServerRepo.findById(id);
     if (!existing) return null;
@@ -63,6 +70,8 @@ class McpServerService {
     if (updates.description !== undefined) updateData.description = updates.description;
     if (updates.server_type !== undefined) updateData.server_type = updates.server_type;
     if (updates.config !== undefined) updateData.config = updates.config;
+    if (updates.auto_install !== undefined) updateData.auto_install = updates.auto_install;
+    if (updates.install_command !== undefined) updateData.install_command = updates.install_command;
 
     if (Object.keys(updateData).length === 0) return existing;
     return await this.mcpServerRepo.update(id, updateData);
@@ -74,6 +83,121 @@ class McpServerService {
       await this.cleanupAgentReferences(id);
     }
     return deleted;
+  }
+
+  /**
+   * Validate an MCP server config by checking if the command/URL is reachable.
+   * For stdio: checks if command exists in PATH, optionally tries to start it.
+   * For http: checks if URL is reachable.
+   */
+  async validateMcpServer(data: {
+    server_type: 'stdio' | 'http';
+    config: Record<string, unknown>;
+  }): Promise<{ valid: boolean; message: string; details?: string }> {
+    if (data.server_type === 'stdio') {
+      return this._validateStdioServer(data.config);
+    }
+    if (data.server_type === 'http') {
+      return this._validateHttpServer(data.config);
+    }
+    return { valid: false, message: `Unknown server_type: ${data.server_type}` };
+  }
+
+  private _validateStdioServer(config: Record<string, unknown>): { valid: boolean; message: string; details?: string } {
+    const command = config.command as string | undefined;
+    if (!command) {
+      return { valid: false, message: 'stdio server missing "command" in config' };
+    }
+
+    // Check if command exists in PATH
+    try {
+      const whichCmd = process.platform === 'win32' ? 'where' : 'which';
+      execSync(`${whichCmd} ${command}`, { stdio: 'pipe', timeout: 5000 });
+    } catch {
+      return {
+        valid: false,
+        message: `Command "${command}" not found in PATH`,
+        details: this._suggestInstallHint(command, config.args as string[] | undefined),
+      };
+    }
+
+    // Try a quick start test — spawn the process and kill after 3s
+    try {
+      const args = Array.isArray(config.args) ? (config.args as string[]).join(' ') : '';
+      const testCmd = args ? `${command} ${args}` : command;
+      execSync(testCmd, {
+        stdio: 'pipe',
+        timeout: 3000,
+        env: { ...process.env, ...(config.env as Record<string, string> || {}) },
+      });
+    } catch (err: any) {
+      const stderr = err.stderr || '';
+      const timedOut = err.killed === true || String(err.message).includes('ETIMEDOUT') || String(err.message).includes('timed out');
+
+      // Timeout is actually a good sign — server started and was waiting for input
+      if (timedOut) {
+        return { valid: true, message: `Command "${command}" exists and starts successfully` };
+      }
+
+      // Non-zero exit might still be a valid MCP server that expects stdin
+      if (stderr.includes('ECONNREFUSED') || stderr.includes('ENOENT')) {
+        return { valid: false, message: `Server "${command}" failed to start`, details: stderr };
+      }
+
+      // Ambiguous — server might work fine with proper MCP protocol handshake
+      return { valid: true, message: `Command "${command}" found (start test inconclusive)`, details: stderr };
+    }
+
+    return { valid: true, message: `Command "${command}" exists and runs` };
+  }
+
+  private _suggestInstallHint(command: string, args?: string[]): string {
+    // Try to extract package name from args (e.g. "mcp-server-weather" or "mcp_server_weather")
+    let packageName: string | null = null;
+    if (args && args.length > 0) {
+      for (const arg of args) {
+        if (arg && !arg.startsWith('-') && (arg.includes('-') || arg.includes('_'))) {
+          packageName = arg;
+          break;
+        }
+      }
+    }
+
+    const hint = (cmd: string, pkg: string | null) => {
+      if (cmd === 'uvx') {
+        return pkg ? `安装 uv 后执行：uv pip install ${pkg}` : '安装 uv：curl -LsSf https://astral.sh/uv/install.sh | sh';
+      }
+      if (cmd === 'npx') {
+        return pkg ? `直接执行：npx -y ${pkg}` : '安装 Node.js：https://nodejs.org';
+      }
+      if (cmd === 'python' || cmd === 'python3') {
+        return pkg ? `pip3 install ${pkg}` : '安装 Python：https://www.python.org';
+      }
+      if (cmd === 'node') {
+        return pkg ? `npm install -g ${pkg}` : '安装 Node.js：https://nodejs.org';
+      }
+      return pkg ? `安装 ${pkg} 后重试` : `请先安装 ${cmd} 后重试`;
+    };
+
+    return hint(command, packageName);
+  }
+
+  private async _validateHttpServer(config: Record<string, unknown>): Promise<{ valid: boolean; message: string; details?: string }> {
+    const url = config.url as string | undefined;
+    if (!url) {
+      return { valid: false, message: 'http server missing "url" in config' };
+    }
+
+    try {
+      const response = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+      return { valid: true, message: `URL "${url}" reachable (status ${response.status})` };
+    } catch (err: any) {
+      return {
+        valid: false,
+        message: `URL "${url}" not reachable`,
+        details: err.message,
+      };
+    }
   }
 
   private async cleanupAgentReferences(mcpServerId: number): Promise<void> {

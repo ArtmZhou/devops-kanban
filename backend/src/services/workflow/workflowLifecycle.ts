@@ -10,7 +10,7 @@ import { type WorkflowTaskRecord } from '../../types/workflow.js';
 import { resolveAgentSkills } from './workflowSkillSync.js';
 import { prepareExecutionSkills } from './executorSkillPreparation.js';
 import { cleanupSkillsByManifest, writeSkillManifest } from '../../utils/skillSync.js';
-import { resolveAgentMcpServers } from './workflowMcpSync.js';
+import { resolveAgentMcpServersWithMeta, preCheckMcpServers } from './workflowMcpSync.js';
 import { prepareExecutionMcp } from './executorMcpPreparation.js';
 import { cleanupMcpJson } from '../../utils/mcpSync.js';
 import { resolve } from 'node:path';
@@ -224,8 +224,18 @@ class WorkflowLifecycle {
       }
 
       const { executorType } = await resolveAgentSkills(stepBinding.agentId);
-      const mcpServerConfigs = await resolveAgentMcpServers(stepBinding.agentId);
+
+      // Resolve with metadata (auto_install, install_command) for pre-check
+      const serversWithMeta = await resolveAgentMcpServersWithMeta(stepBinding.agentId);
+      if (serversWithMeta.length === 0) {
+        await cleanupMcpJson(executionPath);
+        return;
+      }
+
+      // Pre-check: validate commands, auto-install if configured
+      const mcpServerConfigs = await preCheckMcpServers(serversWithMeta);
       if (mcpServerConfigs.length === 0) {
+        console.warn(`[WorkflowLifecycle] All MCP servers failed pre-check for step ${stepId}`);
         await cleanupMcpJson(executionPath);
         return;
       }
@@ -552,10 +562,9 @@ class WorkflowLifecycle {
     const run = await this.workflowRunRepo.findById(runId);
     if (!run) return;
 
-    // Cleanup last step's skills
+    // Cleanup last step's skills (keep MCP config in worktree for subsequent use)
     if (run.worktree_path) {
       await this._cleanupPreviousStepSkills(run.worktree_path, runId);
-      await cleanupMcpJson(run.worktree_path);
     }
 
     await this.workflowRunRepo.update(runId, {
@@ -573,10 +582,9 @@ class WorkflowLifecycle {
     const run = await this.workflowRunRepo.findById(runId);
     if (!run) return;
 
-    // Cleanup last step's skills
+    // Cleanup last step's skills (keep MCP config in worktree for subsequent use)
     if (run.worktree_path) {
       await this._cleanupPreviousStepSkills(run.worktree_path, runId);
-      await cleanupMcpJson(run.worktree_path);
     }
 
     await this.workflowRunRepo.update(runId, {

@@ -205,6 +205,8 @@ export interface McpServerEntity {
   description: string | undefined;
   server_type: 'stdio' | 'http';
   config: Record<string, unknown>;
+  auto_install: number;
+  install_command: string | undefined;
   created_at: string;
   updated_at: string;
 }

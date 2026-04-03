@@ -39,9 +39,9 @@ export const mcpServerRoutes: FastifyPluginAsync<McpServerRouteOptions> = async 
     }
   });
 
-  fastify.post<{ Body: { name?: string; description?: string; server_type?: string; config?: unknown } }>('/', async (request, reply) => {
+  fastify.post<{ Body: { name?: string; description?: string; server_type?: string; config?: unknown; auto_install?: number; install_command?: string } }>('/', async (request, reply) => {
     try {
-      const { name, description, server_type, config } = request.body;
+      const { name, description, server_type, config, auto_install, install_command } = request.body;
 
       if (!name || typeof name !== 'string' || name.trim() === '') {
         reply.code(400);
@@ -63,6 +63,8 @@ export const mcpServerRoutes: FastifyPluginAsync<McpServerRouteOptions> = async 
         ...(description ? { description } : {}),
         server_type: server_type as 'stdio' | 'http',
         config: config as Record<string, unknown>,
+        auto_install: auto_install ?? 0,
+        ...(install_command ? { install_command } : {}),
       });
       return successResponse(server, 'MCP server created');
     } catch (error) {
@@ -72,9 +74,9 @@ export const mcpServerRoutes: FastifyPluginAsync<McpServerRouteOptions> = async 
     }
   });
 
-  fastify.put<{ Params: IdParams; Body: { name?: string; description?: string; server_type?: string; config?: unknown } }>('/:id', async (request, reply) => {
+  fastify.put<{ Params: IdParams; Body: { name?: string; description?: string; server_type?: string; config?: unknown; auto_install?: number; install_command?: string } }>('/:id', async (request, reply) => {
     try {
-      const { name, description, server_type, config } = request.body;
+      const { name, description, server_type, config, auto_install, install_command } = request.body;
 
       if (server_type !== undefined && !VALID_SERVER_TYPES.includes(server_type)) {
         reply.code(400);
@@ -86,11 +88,13 @@ export const mcpServerRoutes: FastifyPluginAsync<McpServerRouteOptions> = async 
         return errorResponse('name cannot be blank');
       }
 
-      const updates: { name?: string; description?: string; server_type?: 'stdio' | 'http'; config?: Record<string, unknown> } = {};
+      const updates: { name?: string; description?: string; server_type?: 'stdio' | 'http'; config?: Record<string, unknown>; auto_install?: number; install_command?: string } = {};
       if (name !== undefined) updates.name = name.trim();
       if (description !== undefined) updates.description = description;
       if (server_type !== undefined) updates.server_type = server_type as 'stdio' | 'http';
       if (config !== undefined) updates.config = config as Record<string, unknown>;
+      if (auto_install !== undefined) updates.auto_install = auto_install;
+      if (install_command !== undefined) updates.install_command = install_command;
 
       const updated = await mcpServerService.updateMcpServer(parseNumber(request.params.id), updates);
       if (!updated) {
@@ -102,6 +106,32 @@ export const mcpServerRoutes: FastifyPluginAsync<McpServerRouteOptions> = async 
       request.log.error(error);
       reply.code(getStatusCode(error));
       return errorResponse(getErrorMessage(error, 'Failed to update MCP server'));
+    }
+  });
+
+  fastify.post<{ Body: { server_type?: string; config?: unknown } }>('/validate', async (request, reply) => {
+    try {
+      const { server_type, config } = request.body;
+
+      if (!server_type || !VALID_SERVER_TYPES.includes(server_type)) {
+        reply.code(400);
+        return errorResponse('server_type must be "stdio" or "http"');
+      }
+
+      if (!config || typeof config !== 'object' || Array.isArray(config)) {
+        reply.code(400);
+        return errorResponse('config is required and must be an object');
+      }
+
+      const result = await mcpServerService.validateMcpServer({
+        server_type: server_type as 'stdio' | 'http',
+        config: config as Record<string, unknown>,
+      });
+      return successResponse(result);
+    } catch (error) {
+      request.log.error(error);
+      reply.code(getStatusCode(error));
+      return errorResponse(getErrorMessage(error, 'Failed to validate MCP server'));
     }
   });
 

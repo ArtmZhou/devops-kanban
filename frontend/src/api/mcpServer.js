@@ -5,5 +5,6 @@ export const mcpServerApi = {
   get: (id) => api.get(`/mcp-servers/${id}`),
   create: (data) => api.post('/mcp-servers', data),
   update: (id, data) => api.put(`/mcp-servers/${id}`, data),
-  delete: (id) => api.delete(`/mcp-servers/${id}`)
+  delete: (id) => api.delete(`/mcp-servers/${id}`),
+  validate: (data) => api.post('/mcp-servers/validate', data),
 }

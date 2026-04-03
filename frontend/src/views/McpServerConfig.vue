@@ -54,6 +54,9 @@
                 <h2>{{ selectedServer.name }}</h2>
               </div>
               <div class="header-actions">
+                <button class="btn btn-secondary btn-sm" :disabled="validating" @click="testConnection">
+                  {{ validating ? $t('common.loading') : $t('mcpServer.testConnection') }}
+                </button>
                 <button class="btn btn-secondary btn-sm" @click="openEditForm">
                   {{ $t('common.edit') }}
                 </button>
@@ -151,6 +154,17 @@
                   <button type="button" class="btn btn-secondary btn-sm" @click="addEnvPair">{{ $t('mcpServer.addEnv') }}</button>
                 </div>
               </div>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" v-model="form.auto_install" :true-value="1" :false-value="0" />
+                  {{ $t('mcpServer.autoInstall') }}
+                </label>
+                <p class="form-hint">{{ $t('mcpServer.autoInstallHint') }}</p>
+              </div>
+              <div class="form-group" v-if="form.auto_install">
+                <label>{{ $t('mcpServer.installCommand') }}</label>
+                <input v-model="form.install_command" type="text" :placeholder="$t('mcpServer.installCommandPlaceholder')" />
+              </div>
             </template>
 
             <!-- HTTP config -->
@@ -225,6 +239,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMcpServerStore } from '../stores/mcpServerStore'
+import { mcpServerApi } from '../api/mcpServer'
 
 const { t } = useI18n()
 const mcpServerStore = useMcpServerStore()
@@ -236,6 +251,7 @@ const selectedServer = ref(null)
 const inputMode = ref('form')
 const jsonText = ref('')
 const jsonError = ref('')
+const validating = ref(false)
 
 function getDefaultForm() {
   return {
@@ -245,6 +261,8 @@ function getDefaultForm() {
     config: { command: '', args: [] },
     envPairs: [],
     headerPairs: [],
+    auto_install: 0,
+    install_command: '',
   }
 }
 
@@ -393,6 +411,28 @@ const loadServers = async () => {
 
 const selectServer = (server) => {
   selectedServer.value = server
+}
+
+const testConnection = async () => {
+  if (!selectedServer.value) return
+  validating.value = true
+  try {
+    const res = await mcpServerApi.validate({
+      server_type: selectedServer.value.server_type,
+      config: selectedServer.value.config,
+    })
+    if (res.data?.success && res.data?.data?.valid) {
+      showToast(res.data.data.message || t('mcpServer.connectionOk'), 'success')
+    } else {
+      const msg = res.data?.data?.message || res.data?.message || t('mcpServer.connectionFailed')
+      const details = res.data?.data?.details ? `\n${res.data.data.details}` : ''
+      showToast(msg + details, 'error')
+    }
+  } catch (e) {
+    showToast(e?.response?.data?.message || e?.message || t('mcpServer.connectionFailed'), 'error')
+  } finally {
+    validating.value = false
+  }
 }
 
 const openAddForm = () => {

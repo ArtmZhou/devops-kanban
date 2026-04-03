@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS mcp_servers (
   description TEXT,
   server_type TEXT NOT NULL DEFAULT 'stdio',
   config TEXT NOT NULL DEFAULT '{}',
+  auto_install INTEGER NOT NULL DEFAULT 0,
+  install_command TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

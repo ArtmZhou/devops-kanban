@@ -7,7 +7,7 @@ import { WorkflowInstanceService } from '../workflowInstanceService.js';
 import { WorkflowLifecycle } from './workflowLifecycle.js';
 import { buildWorkflowFromInstance, getWorkflowFromWorkflowId } from './workflows.js';
 import { type WorkflowTaskRecord } from '../../types/workflow.js';
-import { WorkflowInstanceEntity } from '../../types/entities.js';
+import { WorkflowInstanceEntity, WorkflowTemplateEntity } from '../../types/entities.js';
 
 
 function createValidationError(message: string) {
@@ -31,6 +31,7 @@ function toStepState(instance: WorkflowInstanceEntity) {
 
 type StartWorkflowOptions = {
   workflowTemplateId: string;
+  workflowTemplateSnapshot?: WorkflowTemplateEntity | undefined;
 };
 
 class WorkflowService {
@@ -82,7 +83,9 @@ class WorkflowService {
     }
 
     // Create WorkflowInstance (immutable snapshot)
-    const instance = await this.instanceService.createFromTemplate(options.workflowTemplateId);
+    const instance = options.workflowTemplateSnapshot
+      ? await this.instanceService.createFromTemplateSnapshot(options.workflowTemplateSnapshot)
+      : await this.instanceService.createFromTemplate(options.workflowTemplateId);
     await this.validateInstanceAgents(instance);
 
     const run = await this.workflowRunRepo.create({
