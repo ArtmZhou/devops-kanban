@@ -127,76 +127,57 @@
       :title="editingAgent ? $t('agent.editAgent') : $t('agent.createAgent')"
       width="520px"
     >
-      <form data-testid="agent-form" @submit.prevent="saveAgent">
-        <div class="form-group">
-          <label>{{ $t('agent.agentName') }}</label>
-          <input v-model="form.name" data-testid="agent-name-input" type="text" required />
-        </div>
+      <el-form data-testid="agent-form" label-position="top" @submit.prevent="saveAgent">
+        <el-form-item :label="$t('agent.agentName')">
+          <el-input v-model="form.name" data-testid="agent-name-input" />
+        </el-form-item>
 
-        <div class="form-group">
-          <label>{{ $t('agent.agentType') }}</label>
-          <select v-model="form.executorType" data-testid="agent-executor-type-select" required>
-            <option value="CLAUDE_CODE">{{ $t('agent.types.CLAUDE_CODE') }}</option>
-          </select>
-        </div>
+        <el-form-item :label="$t('agent.agentType')">
+          <el-select v-model="form.executorType" data-testid="agent-executor-type-select" style="width: 100%">
+            <el-option value="CLAUDE_CODE" :label="$t('agent.types.CLAUDE_CODE')" />
+          </el-select>
+        </el-form-item>
 
-        <div class="form-group">
-          <label>{{ $t('agent.role') }}</label>
-          <select v-model="form.role" required @change="onRoleChange">
-            <option v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
+        <el-form-item :label="$t('agent.role')">
+          <el-select v-model="form.role" style="width: 100%" @change="onRoleChange">
+            <el-option v-for="opt in roleOptions" :key="opt.value" :value="opt.value" :label="opt.label" />
+          </el-select>
+        </el-form-item>
 
-        <div class="form-group">
-          <label>{{ $t('agent.skills') }}</label>
-          <div class="skills-editor">
-            <select v-model="selectedSkillToAdd" class="skill-select" @change="addSelectedSkill">
-              <option value="">{{ $t('agent.selectExistingSkill') }}</option>
-              <option v-for="skill in availableSkillOptions" :key="skill" :value="skill">
-                {{ skillStore.skills.find(s => s.id === skill)?.name }}
-              </option>
-            </select>
-            <div class="skills-input-container">
-              <span v-for="(skillId, index) in form.skills" :key="index" class="skill-tag-input">
+        <el-form-item :label="$t('agent.skills')">
+          <div style="display: flex; flex-direction: column; gap: 8px; width: 100%">
+            <el-select v-model="selectedSkillToAdd" :placeholder="$t('agent.selectExistingSkill')" style="width: 100%" @change="addSelectedSkill">
+              <el-option v-for="skill in availableSkillOptions" :key="skill" :value="skill" :label="skillStore.skills.find(s => s.id === skill)?.name" />
+            </el-select>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+              <el-tag v-for="(skillId, index) in form.skills" :key="index" closable @close="removeSkill(index)">
                 {{ skillStore.skills.find(s => s.id === skillId)?.name }}
-                <button type="button" class="remove-skill-btn" @click="removeSkill(index)">&times;</button>
-              </span>
+              </el-tag>
             </div>
           </div>
-        </div>
+        </el-form-item>
 
-        <div class="form-group">
-          <label>{{ $t('agent.mcpServers') }}</label>
-          <div class="skills-editor">
-            <select v-model="selectedMcpServerToAdd" class="skill-select" @change="addSelectedMcpServer">
-              <option value="">{{ $t('agent.selectMcpServer') }}</option>
-              <option v-for="server in availableMcpServerOptions" :key="server.id" :value="server.id">
-                {{ server.name }}
-              </option>
-            </select>
-            <div class="skills-input-container">
-              <span v-for="(serverId, index) in form.mcpServers" :key="index" class="skill-tag-input mcp-tag-input">
+        <el-form-item :label="$t('agent.mcpServers')">
+          <div style="display: flex; flex-direction: column; gap: 8px; width: 100%">
+            <el-select v-model="selectedMcpServerToAdd" :placeholder="$t('agent.selectMcpServer')" style="width: 100%" @change="addSelectedMcpServer">
+              <el-option v-for="server in availableMcpServerOptions" :key="server.id" :value="server.id" :label="server.name" />
+            </el-select>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+              <el-tag v-for="(serverId, index) in form.mcpServers" :key="index" closable @close="removeMcpServer(index)">
                 {{ mcpServerStore.mcpServers.find(s => s.id === serverId)?.name }}
-                <button type="button" class="remove-skill-btn" @click="removeMcpServer(index)">&times;</button>
-              </span>
+              </el-tag>
             </div>
           </div>
-        </div>
+        </el-form-item>
 
-        <div class="form-group">
-          <label>{{ $t('agent.description') }}</label>
-          <input v-model="form.description" type="text" :placeholder="$t('agent.descriptionPlaceholder')" />
-        </div>
+        <el-form-item :label="$t('agent.description')">
+          <el-input v-model="form.description" :placeholder="$t('agent.descriptionPlaceholder')" />
+        </el-form-item>
 
-        <div class="form-group">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="form.enabled" />
-            {{ $t('common.enabled') }}
-          </label>
-        </div>
-      </form>
+        <el-form-item>
+          <el-checkbox v-model="form.enabled">{{ $t('common.enabled') }}</el-checkbox>
+        </el-form-item>
+      </el-form>
       <template #footer>
         <el-button @click="closeForm">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" :disabled="saving" @click="saveAgent">{{ saving ? $t('common.loading') : $t('common.save') }}</el-button>

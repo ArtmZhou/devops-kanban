@@ -308,51 +308,48 @@
       :title="isEditing ? $t('task.editTask') : $t('task.newTask')"
       width="520px"
     >
-      <div class="form-group">
-        <label>{{ $t('task.taskTitle') }}</label>
-        <input
-          v-model="taskForm.title"
-          type="text"
-          :placeholder="$t('task.taskTitlePlaceholder')"
-        />
-      </div>
-      <div class="form-group">
-        <label>{{ $t('task.taskDescription') }}</label>
-        <textarea
-          v-model="taskForm.description"
-          rows="4"
-          :placeholder="$t('task.taskDescriptionPlaceholder')"
-        ></textarea>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>{{ $t('task.status') }}</label>
-          <select v-model="taskForm.status">
-            <option value="TODO">{{ $t('status.TODO') }}</option>
-            <option value="IN_PROGRESS">{{ $t('status.IN_PROGRESS') }}</option>
-            <option value="DONE">{{ $t('status.DONE') }}</option>
-            <option value="BLOCKED">{{ $t('status.BLOCKED') }}</option>
-          </select>
+      <el-form label-position="top">
+        <el-form-item :label="$t('task.taskTitle')">
+          <el-input
+            v-model="taskForm.title"
+            :placeholder="$t('task.taskTitlePlaceholder')"
+          />
+        </el-form-item>
+        <el-form-item :label="$t('task.taskDescription')">
+          <el-input
+            v-model="taskForm.description"
+            type="textarea"
+            :rows="4"
+            :placeholder="$t('task.taskDescriptionPlaceholder')"
+          />
+        </el-form-item>
+        <div class="form-row">
+          <el-form-item :label="$t('task.status')">
+            <el-select v-model="taskForm.status">
+              <el-option value="TODO" :label="$t('status.TODO')" />
+              <el-option value="IN_PROGRESS" :label="$t('status.IN_PROGRESS')" />
+              <el-option value="DONE" :label="$t('status.DONE')" />
+              <el-option value="BLOCKED" :label="$t('status.BLOCKED')" />
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="$t('task.priority')">
+            <el-select v-model="taskForm.priority">
+              <el-option value="LOW" :label="$t('priority.LOW')" />
+              <el-option value="MEDIUM" :label="$t('priority.MEDIUM')" />
+              <el-option value="HIGH" :label="$t('priority.HIGH')" />
+              <el-option value="CRITICAL" :label="$t('priority.CRITICAL')" />
+            </el-select>
+          </el-form-item>
         </div>
-        <div class="form-group">
-          <label>{{ $t('task.priority') }}</label>
-          <select v-model="taskForm.priority">
-            <option value="LOW">{{ $t('priority.LOW') }}</option>
-            <option value="MEDIUM">{{ $t('priority.MEDIUM') }}</option>
-            <option value="HIGH">{{ $t('priority.HIGH') }}</option>
-            <option value="CRITICAL">{{ $t('priority.CRITICAL') }}</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>{{ $t('task.iteration') }}</label>
-        <IterationSelect
-          v-model="taskForm.iteration_id"
-          :iterations="projectIterations"
-          :placeholder="$t('task.selectIteration')"
-        />
-        <p class="form-help">{{ $t('task.iterationHint') }}</p>
-      </div>
+        <el-form-item :label="$t('task.iteration')">
+          <IterationSelect
+            v-model="taskForm.iteration_id"
+            :iterations="projectIterations"
+            :placeholder="$t('task.selectIteration')"
+          />
+          <p class="form-help">{{ $t('task.iterationHint') }}</p>
+        </el-form-item>
+      </el-form>
       <template #footer>
         <el-button @click="closeTaskModal">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" @click="saveTask">{{ $t('common.save') }}</el-button>

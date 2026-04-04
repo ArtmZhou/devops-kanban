@@ -100,8 +100,9 @@ describe('AgentConfig', () => {
     await flushPromises()
     await openEditModal(wrapper)
 
+    // Element Plus el-select renders as a div with class el-select
     expect(wrapper.text()).toContain('选择已有技能')
-    expect(wrapper.find('.skill-select').exists()).toBe(true)
+    expect(wrapper.find('.el-select').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('推荐技能')
   })
 
@@ -110,10 +111,13 @@ describe('AgentConfig', () => {
     await flushPromises()
     await openEditModal(wrapper)
 
-    // The skills select uses @change to add skills; setValue triggers change event
-    const selects = wrapper.findAll('.skill-select')
-    await selects[0].setValue(2) // select skill id 2 (systematic-debugging) in skills dropdown
-    await wrapper.get('[data-testid="agent-form"]').trigger('submit')
+    // Directly set selectedSkillToAdd and call addSelectedSkill (simulates el-select @change)
+    wrapper.vm.selectedSkillToAdd = 2
+    wrapper.vm.addSelectedSkill()
+    await flushPromises()
+
+    // Trigger save via the form submit
+    await wrapper.find('[data-testid="agent-form"]').trigger('submit')
     await flushPromises()
 
     expect(mockAgentStore.updateAgent).toHaveBeenCalled()
@@ -141,10 +145,10 @@ describe('AgentConfig', () => {
     await openEditModal(wrapper)
 
     expect(wrapper.text()).toContain('头脑风暴')
-    // id 999 is not in skillStore, so it won't appear
+    // id 999 is not in skillStore, so it won't appear as a name
     expect(wrapper.text()).not.toContain('999')
 
-    await wrapper.get('[data-testid="agent-form"]').trigger('submit')
+    await wrapper.find('[data-testid="agent-form"]').trigger('submit')
     await flushPromises()
 
     const payload = mockAgentStore.updateAgent.mock.calls[0][1]

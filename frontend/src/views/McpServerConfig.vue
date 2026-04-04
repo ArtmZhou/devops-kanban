@@ -100,100 +100,89 @@
       :title="editingServer ? $t('mcpServer.editServer') : $t('mcpServer.createServer')"
       width="600px"
     >
-      <div class="mode-toggle">
-        <button type="button" class="mode-toggle-btn" :class="{ active: inputMode === 'form' }" @click="switchMode('form')">{{ $t('mcpServer.formMode') }}</button>
-        <button type="button" class="mode-toggle-btn" :class="{ active: inputMode === 'json' }" @click="switchMode('json')">{{ $t('mcpServer.jsonMode') }}</button>
-      </div>
+      <el-button-group class="mode-toggle">
+        <el-button :type="inputMode === 'form' ? 'primary' : ''" size="small" @click="switchMode('form')">{{ $t('mcpServer.formMode') }}</el-button>
+        <el-button :type="inputMode === 'json' ? 'primary' : ''" size="small" @click="switchMode('json')">{{ $t('mcpServer.jsonMode') }}</el-button>
+      </el-button-group>
 
       <!-- Form Mode -->
-      <form v-if="inputMode === 'form'" data-testid="mcp-server-form" @submit.prevent="saveServer">
-        <div class="form-group">
-          <label>{{ $t('mcpServer.serverName') }}</label>
-          <input v-model="form.name" data-testid="mcp-server-name-input" type="text" required :placeholder="$t('mcpServer.namePlaceholder')" />
-        </div>
+      <el-form v-if="inputMode === 'form'" data-testid="mcp-server-form" label-position="top" @submit.prevent="saveServer">
+        <el-form-item :label="$t('mcpServer.serverName')">
+          <el-input v-model="form.name" data-testid="mcp-server-name-input" :placeholder="$t('mcpServer.namePlaceholder')" />
+        </el-form-item>
 
-        <div class="form-group">
-          <label>{{ $t('mcpServer.description') }}</label>
-          <input v-model="form.description" type="text" :placeholder="$t('mcpServer.descriptionPlaceholder')" />
-        </div>
+        <el-form-item :label="$t('mcpServer.description')">
+          <el-input v-model="form.description" :placeholder="$t('mcpServer.descriptionPlaceholder')" />
+        </el-form-item>
 
-        <div class="form-group">
-          <label>{{ $t('mcpServer.serverType') }}</label>
-          <select v-model="form.server_type" required>
-            <option value="stdio">Stdio</option>
-            <option value="http">HTTP</option>
-          </select>
-        </div>
+        <el-form-item :label="$t('mcpServer.serverType')">
+          <el-select v-model="form.server_type" style="width: 100%">
+            <el-option value="stdio" label="Stdio" />
+            <el-option value="http" label="HTTP" />
+          </el-select>
+        </el-form-item>
 
         <!-- Stdio config -->
         <template v-if="form.server_type === 'stdio'">
-          <div class="form-group">
-            <label>{{ $t('mcpServer.command') }}</label>
-            <input v-model="form.config.command" type="text" required :placeholder="$t('mcpServer.commandPlaceholder')" />
-          </div>
-          <div class="form-group">
-            <label>{{ $t('mcpServer.args') }}</label>
+          <el-form-item :label="$t('mcpServer.command')">
+            <el-input v-model="form.config.command" :placeholder="$t('mcpServer.commandPlaceholder')" />
+          </el-form-item>
+          <el-form-item :label="$t('mcpServer.args')">
             <div class="dynamic-list">
               <div v-for="(_, index) in form.config.args" :key="index" class="dynamic-list-item">
-                <input v-model="form.config.args[index]" type="text" :placeholder="`${$t('mcpServer.args')} ${index + 1}`" />
-                <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeArg(index)">&times;</button>
+                <el-input v-model="form.config.args[index]" :placeholder="`${$t('mcpServer.args')} ${index + 1}`" />
+                <el-button type="danger" size="small" @click="removeArg(index)">&times;</el-button>
               </div>
-              <button type="button" class="btn btn-secondary btn-sm" @click="addArg">{{ $t('mcpServer.addArg') }}</button>
+              <el-button size="small" @click="addArg">{{ $t('mcpServer.addArg') }}</el-button>
             </div>
-          </div>
-          <div class="form-group">
-            <label>{{ $t('mcpServer.env') }}</label>
+          </el-form-item>
+          <el-form-item :label="$t('mcpServer.env')">
             <div class="dynamic-list">
               <div v-for="(_, index) in form.envPairs" :key="index" class="dynamic-list-item">
-                <input v-model="form.envPairs[index].key" type="text" :placeholder="$t('mcpServer.envKeyPlaceholder')" />
-                <input v-model="form.envPairs[index].value" type="text" :placeholder="$t('mcpServer.envValuePlaceholder')" />
-                <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeEnvPair(index)">&times;</button>
+                <el-input v-model="form.envPairs[index].key" :placeholder="$t('mcpServer.envKeyPlaceholder')" />
+                <el-input v-model="form.envPairs[index].value" :placeholder="$t('mcpServer.envValuePlaceholder')" />
+                <el-button type="danger" size="small" @click="removeEnvPair(index)">&times;</el-button>
               </div>
-              <button type="button" class="btn btn-secondary btn-sm" @click="addEnvPair">{{ $t('mcpServer.addEnv') }}</button>
+              <el-button size="small" @click="addEnvPair">{{ $t('mcpServer.addEnv') }}</el-button>
             </div>
-          </div>
-          <div class="form-group">
-            <label class="checkbox-label">
-              <input type="checkbox" v-model="form.auto_install" :true-value="1" :false-value="0" />
-              {{ $t('mcpServer.autoInstall') }}
-            </label>
+          </el-form-item>
+          <el-form-item>
+            <el-checkbox v-model="form.auto_install" :true-value="1" :false-value="0">{{ $t('mcpServer.autoInstall') }}</el-checkbox>
             <p class="form-hint">{{ $t('mcpServer.autoInstallHint') }}</p>
-          </div>
-          <div class="form-group" v-if="form.auto_install">
-            <label>{{ $t('mcpServer.installCommand') }}</label>
-            <input v-model="form.install_command" type="text" :placeholder="$t('mcpServer.installCommandPlaceholder')" />
-          </div>
+          </el-form-item>
+          <el-form-item v-if="form.auto_install" :label="$t('mcpServer.installCommand')">
+            <el-input v-model="form.install_command" :placeholder="$t('mcpServer.installCommandPlaceholder')" />
+          </el-form-item>
         </template>
 
         <!-- HTTP config -->
         <template v-if="form.server_type === 'http'">
-          <div class="form-group">
-            <label>{{ $t('mcpServer.url') }}</label>
-            <input v-model="form.config.url" type="text" required :placeholder="$t('mcpServer.urlPlaceholder')" />
-          </div>
-          <div class="form-group">
-            <label>{{ $t('mcpServer.headers') }}</label>
+          <el-form-item :label="$t('mcpServer.url')">
+            <el-input v-model="form.config.url" :placeholder="$t('mcpServer.urlPlaceholder')" />
+          </el-form-item>
+          <el-form-item :label="$t('mcpServer.headers')">
             <div class="dynamic-list">
               <div v-for="(_, index) in form.headerPairs" :key="index" class="dynamic-list-item">
-                <input v-model="form.headerPairs[index].key" type="text" :placeholder="$t('mcpServer.headerKeyPlaceholder')" />
-                <input v-model="form.headerPairs[index].value" type="text" :placeholder="$t('mcpServer.headerValuePlaceholder')" />
-                <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeHeaderPair(index)">&times;</button>
+                <el-input v-model="form.headerPairs[index].key" :placeholder="$t('mcpServer.headerKeyPlaceholder')" />
+                <el-input v-model="form.headerPairs[index].value" :placeholder="$t('mcpServer.headerValuePlaceholder')" />
+                <el-button type="danger" size="small" @click="removeHeaderPair(index)">&times;</el-button>
               </div>
-              <button type="button" class="btn btn-secondary btn-sm" @click="addHeaderPair">{{ $t('mcpServer.addHeader') }}</button>
+              <el-button size="small" @click="addHeaderPair">{{ $t('mcpServer.addHeader') }}</el-button>
             </div>
-          </div>
+          </el-form-item>
         </template>
-      </form>
+      </el-form>
 
       <!-- JSON Mode -->
       <div v-if="inputMode === 'json'" class="json-mode">
-        <div class="form-group">
-          <label>{{ $t('mcpServer.jsonEditorLabel') }}</label>
-          <textarea
-            v-model="jsonText"
-            class="json-textarea"
-            spellcheck="false"
-            :placeholder='`{
+        <el-form label-position="top">
+          <el-form-item :label="$t('mcpServer.jsonEditorLabel')">
+            <el-input
+              v-model="jsonText"
+              type="textarea"
+              :rows="16"
+              spellcheck="false"
+              :placeholder='`{
   &quot;name&quot;: &quot;my-server&quot;,
   &quot;server_type&quot;: &quot;stdio&quot;,
   &quot;config&quot;: {
@@ -201,8 +190,9 @@
     &quot;args&quot;: [&quot;-y&quot;, &quot;@upstash/context7-mcp&quot;]
   }
 }`'
-          ></textarea>
-        </div>
+            />
+          </el-form-item>
+        </el-form>
         <div v-if="jsonError" class="json-error">{{ jsonError }}</div>
       </div>
 
@@ -687,6 +677,11 @@ onMounted(loadServers)
   word-break: break-all;
 }
 
+/* Mode toggle (handled by el-button-group, class kept for spacing) */
+.mode-toggle {
+  margin-bottom: 16px;
+}
+
 /* Dynamic list for form */
 .dynamic-list {
   border: 1px solid var(--border-color);
@@ -702,75 +697,8 @@ onMounted(loadServers)
   align-items: center;
 }
 
-.dynamic-list-item input {
+.dynamic-list-item .el-input {
   flex: 1;
-  padding: 6px 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 12px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-}
-
-.dynamic-list-item input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
-}
-
-.remove-item-btn {
-  flex-shrink: 0;
-  padding: 4px 8px;
-}
-
-/* Mode toggle in modal header */
-.mode-toggle {
-  display: flex;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.mode-toggle-btn {
-  padding: 4px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  border: none;
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.mode-toggle-btn.active {
-  background: var(--accent-color);
-  color: white;
-}
-
-.mode-toggle-btn:not(.active):hover {
-  background: var(--bg-secondary);
-}
-
-/* JSON textarea */
-.json-textarea {
-  width: 100%;
-  min-height: 320px;
-  padding: 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 13px;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  line-height: 1.6;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  resize: vertical;
-  tab-size: 2;
-}
-
-.json-textarea:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
 }
 
 .json-error {
@@ -783,21 +711,6 @@ onMounted(loadServers)
   font-size: 12px;
   font-family: 'Consolas', 'Monaco', monospace;
   word-break: break-all;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-secondary);
-  user-select: none;
-}
-
-.checkbox-label input {
-  width: auto;
-  accent-color: var(--accent-color);
 }
 
 .form-hint {

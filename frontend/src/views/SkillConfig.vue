@@ -163,28 +163,24 @@
       :title="editingSkill ? $t('skill.editSkill') : $t('skill.createSkill')"
       width="450px"
     >
-      <form data-testid="skill-form" @submit.prevent="saveSkill">
-        <div class="form-group">
-          <label>{{ $t('skill.skillName') }}</label>
-          <input
+      <el-form data-testid="skill-form" label-position="top" @submit.prevent="saveSkill">
+        <el-form-item :label="$t('skill.skillName')">
+          <el-input
             v-model="form.name"
             data-testid="skill-name-input"
-            type="text"
-            required
             :placeholder="$t('skill.namePlaceholder')"
           />
-        </div>
-
-        <div class="form-group">
-          <label>{{ $t('skill.description') }}</label>
-          <textarea
+        </el-form-item>
+        <el-form-item :label="$t('skill.description')">
+          <el-input
             v-model="form.description"
             data-testid="skill-description-input"
+            type="textarea"
+            :rows="3"
             :placeholder="$t('skill.descriptionPlaceholder')"
-            rows="3"
-          ></textarea>
-        </div>
-      </form>
+          />
+        </el-form-item>
+      </el-form>
       <template #footer>
         <el-button @click="closeForm">{{ $t('common.cancel') }}</el-button>
         <el-button type="primary" :disabled="saving" @click="saveSkill">{{ saving ? $t('common.loading') : $t('common.save') }}</el-button>
