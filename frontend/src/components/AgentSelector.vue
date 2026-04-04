@@ -1,9 +1,8 @@
 <template>
-  <el-dialog
+  <BaseDialog
     v-model="dialogVisible"
     :title="$t('agent.selectAgent')"
     width="450px"
-    :close-on-click-modal="false"
     @close="handleClose"
   >
     <div v-if="loading" class="loading-container">
@@ -41,18 +40,16 @@
     </div>
 
     <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
-        <el-button
-          type="primary"
-          :disabled="!selectedAgentId || starting"
-          @click="confirmSelect"
-        >
-          {{ starting ? $t('common.loading') : $t('common.confirm') }}
-        </el-button>
-      </div>
+      <el-button @click="handleClose">{{ $t('common.cancel') }}</el-button>
+      <el-button
+        type="primary"
+        :disabled="!selectedAgentId || starting"
+        @click="confirmSelect"
+      >
+        {{ starting ? $t('common.loading') : $t('common.confirm') }}
+      </el-button>
     </template>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
@@ -66,6 +63,7 @@ import {
   User
 } from '@element-plus/icons-vue'
 import { getAgents } from '../api/agent'
+import BaseDialog from './BaseDialog.vue'
 
 const { t } = useI18n()
 
@@ -250,11 +248,5 @@ onMounted(() => {
 
 .check-icon {
   font-size: 20px;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
 }
 </style>

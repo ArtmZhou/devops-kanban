@@ -1,10 +1,9 @@
 <template>
-  <el-dialog
+  <BaseDialog
     :model-value="modelValue"
-    :close-on-click-modal="false"
     :title="$t('workflowTemplate.selectDialogTitle')"
     width="560px"
-    @update:modelValue="emit('update:modelValue', $event)"
+    @update:model-value="emit('update:modelValue', $event)"
   >
     <div v-if="loading" class="workflow-template-select-dialog__state">
       {{ $t('common.loading') }}
@@ -62,13 +61,14 @@
         {{ $t('common.confirm') }}
       </el-button>
     </template>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Warning } from '@element-plus/icons-vue'
+import BaseDialog from '../BaseDialog.vue'
 import { getWorkflowTemplates } from '../../api/workflowTemplate'
 
 const props = defineProps({

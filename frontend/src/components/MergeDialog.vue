@@ -1,9 +1,8 @@
 <template>
-  <el-dialog
+  <BaseDialog
     :model-value="true"
     :title="$t('git.mergeBranch', '合并分支')"
     width="500px"
-    :close-on-click-modal="false"
     @close="$emit('close')"
   >
     <div class="merge-content">
@@ -64,7 +63,7 @@
         {{ mergeLoading ? $t('git.merging', '合并中...') : $t('git.mergeBranch', '合并') }}
       </el-button>
     </template>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
@@ -72,6 +71,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { mergeBranch, listBranches } from '../api/git'
 import { useToast } from '../composables/ui/useToast'
+import BaseDialog from './BaseDialog.vue'
 
 const props = defineProps({
   projectId: {

@@ -95,116 +95,105 @@
     </div>
 
     <!-- Add/Edit Modal -->
-    <div class="modal-overlay" v-if="showForm" @click.self="closeForm">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>{{ editingServer ? $t('mcpServer.editServer') : $t('mcpServer.createServer') }}</h2>
-          <div class="mode-toggle">
-            <button type="button" class="mode-toggle-btn" :class="{ active: inputMode === 'form' }" @click="switchMode('form')">{{ $t('mcpServer.formMode') }}</button>
-            <button type="button" class="mode-toggle-btn" :class="{ active: inputMode === 'json' }" @click="switchMode('json')">{{ $t('mcpServer.jsonMode') }}</button>
-          </div>
-          <button class="close-btn" @click="closeForm">&times;</button>
+    <BaseDialog
+      v-model="showForm"
+      :title="editingServer ? $t('mcpServer.editServer') : $t('mcpServer.createServer')"
+      width="600px"
+    >
+      <div class="mode-toggle">
+        <button type="button" class="mode-toggle-btn" :class="{ active: inputMode === 'form' }" @click="switchMode('form')">{{ $t('mcpServer.formMode') }}</button>
+        <button type="button" class="mode-toggle-btn" :class="{ active: inputMode === 'json' }" @click="switchMode('json')">{{ $t('mcpServer.jsonMode') }}</button>
+      </div>
+
+      <!-- Form Mode -->
+      <form v-if="inputMode === 'form'" data-testid="mcp-server-form" @submit.prevent="saveServer">
+        <div class="form-group">
+          <label>{{ $t('mcpServer.serverName') }}</label>
+          <input v-model="form.name" data-testid="mcp-server-name-input" type="text" required :placeholder="$t('mcpServer.namePlaceholder')" />
         </div>
 
-        <div class="modal-body">
-          <!-- Form Mode -->
-          <form v-if="inputMode === 'form'" data-testid="mcp-server-form" @submit.prevent="saveServer">
-            <div class="form-group">
-              <label>{{ $t('mcpServer.serverName') }}</label>
-              <input v-model="form.name" data-testid="mcp-server-name-input" type="text" required :placeholder="$t('mcpServer.namePlaceholder')" />
+        <div class="form-group">
+          <label>{{ $t('mcpServer.description') }}</label>
+          <input v-model="form.description" type="text" :placeholder="$t('mcpServer.descriptionPlaceholder')" />
+        </div>
+
+        <div class="form-group">
+          <label>{{ $t('mcpServer.serverType') }}</label>
+          <select v-model="form.server_type" required>
+            <option value="stdio">Stdio</option>
+            <option value="http">HTTP</option>
+          </select>
+        </div>
+
+        <!-- Stdio config -->
+        <template v-if="form.server_type === 'stdio'">
+          <div class="form-group">
+            <label>{{ $t('mcpServer.command') }}</label>
+            <input v-model="form.config.command" type="text" required :placeholder="$t('mcpServer.commandPlaceholder')" />
+          </div>
+          <div class="form-group">
+            <label>{{ $t('mcpServer.args') }}</label>
+            <div class="dynamic-list">
+              <div v-for="(_, index) in form.config.args" :key="index" class="dynamic-list-item">
+                <input v-model="form.config.args[index]" type="text" :placeholder="`${$t('mcpServer.args')} ${index + 1}`" />
+                <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeArg(index)">&times;</button>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" @click="addArg">{{ $t('mcpServer.addArg') }}</button>
             </div>
-
-            <div class="form-group">
-              <label>{{ $t('mcpServer.description') }}</label>
-              <input v-model="form.description" type="text" :placeholder="$t('mcpServer.descriptionPlaceholder')" />
+          </div>
+          <div class="form-group">
+            <label>{{ $t('mcpServer.env') }}</label>
+            <div class="dynamic-list">
+              <div v-for="(_, index) in form.envPairs" :key="index" class="dynamic-list-item">
+                <input v-model="form.envPairs[index].key" type="text" :placeholder="$t('mcpServer.envKeyPlaceholder')" />
+                <input v-model="form.envPairs[index].value" type="text" :placeholder="$t('mcpServer.envValuePlaceholder')" />
+                <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeEnvPair(index)">&times;</button>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" @click="addEnvPair">{{ $t('mcpServer.addEnv') }}</button>
             </div>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="form.auto_install" :true-value="1" :false-value="0" />
+              {{ $t('mcpServer.autoInstall') }}
+            </label>
+            <p class="form-hint">{{ $t('mcpServer.autoInstallHint') }}</p>
+          </div>
+          <div class="form-group" v-if="form.auto_install">
+            <label>{{ $t('mcpServer.installCommand') }}</label>
+            <input v-model="form.install_command" type="text" :placeholder="$t('mcpServer.installCommandPlaceholder')" />
+          </div>
+        </template>
 
-            <div class="form-group">
-              <label>{{ $t('mcpServer.serverType') }}</label>
-              <select v-model="form.server_type" required>
-                <option value="stdio">Stdio</option>
-                <option value="http">HTTP</option>
-              </select>
+        <!-- HTTP config -->
+        <template v-if="form.server_type === 'http'">
+          <div class="form-group">
+            <label>{{ $t('mcpServer.url') }}</label>
+            <input v-model="form.config.url" type="text" required :placeholder="$t('mcpServer.urlPlaceholder')" />
+          </div>
+          <div class="form-group">
+            <label>{{ $t('mcpServer.headers') }}</label>
+            <div class="dynamic-list">
+              <div v-for="(_, index) in form.headerPairs" :key="index" class="dynamic-list-item">
+                <input v-model="form.headerPairs[index].key" type="text" :placeholder="$t('mcpServer.headerKeyPlaceholder')" />
+                <input v-model="form.headerPairs[index].value" type="text" :placeholder="$t('mcpServer.headerValuePlaceholder')" />
+                <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeHeaderPair(index)">&times;</button>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" @click="addHeaderPair">{{ $t('mcpServer.addHeader') }}</button>
             </div>
+          </div>
+        </template>
+      </form>
 
-            <!-- Stdio config -->
-            <template v-if="form.server_type === 'stdio'">
-              <div class="form-group">
-                <label>{{ $t('mcpServer.command') }}</label>
-                <input v-model="form.config.command" type="text" required :placeholder="$t('mcpServer.commandPlaceholder')" />
-              </div>
-              <div class="form-group">
-                <label>{{ $t('mcpServer.args') }}</label>
-                <div class="dynamic-list">
-                  <div v-for="(_, index) in form.config.args" :key="index" class="dynamic-list-item">
-                    <input v-model="form.config.args[index]" type="text" :placeholder="`${$t('mcpServer.args')} ${index + 1}`" />
-                    <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeArg(index)">&times;</button>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-sm" @click="addArg">{{ $t('mcpServer.addArg') }}</button>
-                </div>
-              </div>
-              <div class="form-group">
-                <label>{{ $t('mcpServer.env') }}</label>
-                <div class="dynamic-list">
-                  <div v-for="(_, index) in form.envPairs" :key="index" class="dynamic-list-item">
-                    <input v-model="form.envPairs[index].key" type="text" :placeholder="$t('mcpServer.envKeyPlaceholder')" />
-                    <input v-model="form.envPairs[index].value" type="text" :placeholder="$t('mcpServer.envValuePlaceholder')" />
-                    <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeEnvPair(index)">&times;</button>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-sm" @click="addEnvPair">{{ $t('mcpServer.addEnv') }}</button>
-                </div>
-              </div>
-              <div class="form-group">
-                <label class="checkbox-label">
-                  <input type="checkbox" v-model="form.auto_install" :true-value="1" :false-value="0" />
-                  {{ $t('mcpServer.autoInstall') }}
-                </label>
-                <p class="form-hint">{{ $t('mcpServer.autoInstallHint') }}</p>
-              </div>
-              <div class="form-group" v-if="form.auto_install">
-                <label>{{ $t('mcpServer.installCommand') }}</label>
-                <input v-model="form.install_command" type="text" :placeholder="$t('mcpServer.installCommandPlaceholder')" />
-              </div>
-            </template>
-
-            <!-- HTTP config -->
-            <template v-if="form.server_type === 'http'">
-              <div class="form-group">
-                <label>{{ $t('mcpServer.url') }}</label>
-                <input v-model="form.config.url" type="text" required :placeholder="$t('mcpServer.urlPlaceholder')" />
-              </div>
-              <div class="form-group">
-                <label>{{ $t('mcpServer.headers') }}</label>
-                <div class="dynamic-list">
-                  <div v-for="(_, index) in form.headerPairs" :key="index" class="dynamic-list-item">
-                    <input v-model="form.headerPairs[index].key" type="text" :placeholder="$t('mcpServer.headerKeyPlaceholder')" />
-                    <input v-model="form.headerPairs[index].value" type="text" :placeholder="$t('mcpServer.headerValuePlaceholder')" />
-                    <button type="button" class="btn btn-danger btn-sm remove-item-btn" @click="removeHeaderPair(index)">&times;</button>
-                  </div>
-                  <button type="button" class="btn btn-secondary btn-sm" @click="addHeaderPair">{{ $t('mcpServer.addHeader') }}</button>
-                </div>
-              </div>
-            </template>
-
-            <div class="form-actions">
-              <button type="button" class="btn btn-secondary" @click="closeForm">
-                {{ $t('common.cancel') }}
-              </button>
-              <button type="submit" class="btn btn-primary" :disabled="saving">
-                {{ saving ? $t('common.loading') : $t('common.save') }}
-              </button>
-            </div>
-          </form>
-
-          <!-- JSON Mode -->
-          <div v-if="inputMode === 'json'" class="json-mode">
-            <div class="form-group">
-              <label>{{ $t('mcpServer.jsonEditorLabel') }}</label>
-              <textarea
-                v-model="jsonText"
-                class="json-textarea"
-                spellcheck="false"
-                :placeholder='`{
+      <!-- JSON Mode -->
+      <div v-if="inputMode === 'json'" class="json-mode">
+        <div class="form-group">
+          <label>{{ $t('mcpServer.jsonEditorLabel') }}</label>
+          <textarea
+            v-model="jsonText"
+            class="json-textarea"
+            spellcheck="false"
+            :placeholder='`{
   &quot;name&quot;: &quot;my-server&quot;,
   &quot;server_type&quot;: &quot;stdio&quot;,
   &quot;config&quot;: {
@@ -212,21 +201,16 @@
     &quot;args&quot;: [&quot;-y&quot;, &quot;@upstash/context7-mcp&quot;]
   }
 }`'
-              ></textarea>
-            </div>
-            <div v-if="jsonError" class="json-error">{{ jsonError }}</div>
-            <div class="form-actions">
-              <button type="button" class="btn btn-secondary" @click="closeForm">
-                {{ $t('common.cancel') }}
-              </button>
-              <button type="button" class="btn btn-primary" :disabled="saving" @click="saveServer">
-                {{ saving ? $t('common.loading') : $t('common.save') }}
-              </button>
-            </div>
-          </div>
+          ></textarea>
         </div>
+        <div v-if="jsonError" class="json-error">{{ jsonError }}</div>
       </div>
-    </div>
+
+      <template #footer>
+        <el-button @click="closeForm">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="saving" @click="saveServer">{{ saving ? $t('common.loading') : $t('common.save') }}</el-button>
+      </template>
+    </BaseDialog>
 
     <!-- Toast -->
     <div v-if="toast.show" class="toast" :class="toast.type">
@@ -240,6 +224,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMcpServerStore } from '../stores/mcpServerStore'
 import { mcpServerApi } from '../api/mcpServer'
+import BaseDialog from '../components/BaseDialog.vue'
 
 const { t } = useI18n()
 const mcpServerStore = useMcpServerStore()

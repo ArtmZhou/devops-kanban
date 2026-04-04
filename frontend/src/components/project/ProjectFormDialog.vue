@@ -1,9 +1,8 @@
 <template>
-  <el-dialog
+  <BaseDialog
     v-model="visible"
     :title="isEditing ? $t('project.editProject') : $t('project.createProject')"
     width="500px"
-    :close-on-click-modal="false"
   >
     <el-form
       ref="formRef"
@@ -60,13 +59,14 @@
         {{ loading ? (isEditing ? $t('common.saving', '保存中...') : $t('common.creating', '创建中...')) : (isEditing ? $t('common.save') : $t('common.create')) }}
       </el-button>
     </template>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Link, FolderOpened } from '@element-plus/icons-vue'
+import BaseDialog from '../BaseDialog.vue'
 
 const props = defineProps({
   modelValue: {

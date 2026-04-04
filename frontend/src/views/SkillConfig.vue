@@ -158,69 +158,51 @@
     </div>
 
     <!-- Add/Edit Form Modal -->
-    <div class="modal-overlay" v-if="showForm" @click.self="closeForm">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>{{ editingSkill ? $t('skill.editSkill') : $t('skill.createSkill') }}</h2>
-          <button class="close-btn" @click="closeForm">&times;</button>
+    <BaseDialog
+      v-model="showForm"
+      :title="editingSkill ? $t('skill.editSkill') : $t('skill.createSkill')"
+      width="450px"
+    >
+      <form data-testid="skill-form" @submit.prevent="saveSkill">
+        <div class="form-group">
+          <label>{{ $t('skill.skillName') }}</label>
+          <input
+            v-model="form.name"
+            data-testid="skill-name-input"
+            type="text"
+            required
+            :placeholder="$t('skill.namePlaceholder')"
+          />
         </div>
 
-        <div class="modal-body">
-          <form data-testid="skill-form" @submit.prevent="saveSkill">
-            <div class="form-group">
-              <label>{{ $t('skill.skillName') }}</label>
-              <input
-                v-model="form.name"
-                data-testid="skill-name-input"
-                type="text"
-                required
-                :placeholder="$t('skill.namePlaceholder')"
-              />
-            </div>
-
-            <div class="form-group">
-              <label>{{ $t('skill.description') }}</label>
-              <textarea
-                v-model="form.description"
-                data-testid="skill-description-input"
-                :placeholder="$t('skill.descriptionPlaceholder')"
-                rows="3"
-              ></textarea>
-            </div>
-
-            <div class="form-actions">
-              <button type="button" class="btn btn-secondary" @click="closeForm">
-                {{ $t('common.cancel') }}
-              </button>
-              <button type="submit" class="btn btn-primary" :disabled="saving">
-                {{ saving ? $t('common.loading') : $t('common.save') }}
-              </button>
-            </div>
-          </form>
+        <div class="form-group">
+          <label>{{ $t('skill.description') }}</label>
+          <textarea
+            v-model="form.description"
+            data-testid="skill-description-input"
+            :placeholder="$t('skill.descriptionPlaceholder')"
+            rows="3"
+          ></textarea>
         </div>
-      </div>
-    </div>
+      </form>
+      <template #footer>
+        <el-button @click="closeForm">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="saving" @click="saveSkill">{{ saving ? $t('common.loading') : $t('common.save') }}</el-button>
+      </template>
+    </BaseDialog>
 
     <!-- Create Skill from ZIP Modal -->
-    <div class="modal-overlay" v-if="showCreateDialog" @click.self="showCreateDialog = false">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>{{ $t('skill.createFromZip') }}</h2>
-          <button class="close-btn" @click="showCreateDialog = false">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p class="modal-hint">{{ $t('skill.selectZipHint') }}</p>
-          <div class="form-actions">
-            <button type="button" class="btn btn-secondary" @click="showCreateDialog = false">
-              {{ $t('common.cancel') }}
-            </button>
-            <button type="button" class="btn btn-primary" @click="triggerCreateFromZip">
-              {{ $t('skill.selectZipFile') }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <BaseDialog
+      v-model="showCreateDialog"
+      :title="$t('skill.createFromZip')"
+      width="400px"
+    >
+      <p class="modal-hint">{{ $t('skill.selectZipHint') }}</p>
+      <template #footer>
+        <el-button @click="showCreateDialog = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="triggerCreateFromZip">{{ $t('skill.selectZipFile') }}</el-button>
+      </template>
+    </BaseDialog>
     <input
       ref="createZipInputRef"
       type="file"
@@ -240,6 +222,7 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSkillStore } from '../stores/skillStore'
+import BaseDialog from '../components/BaseDialog.vue'
 
 const { t } = useI18n()
 const skillStore = useSkillStore()

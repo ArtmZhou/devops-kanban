@@ -122,96 +122,86 @@
     </div>
 
     <!-- Add/Edit Form Modal -->
-    <div class="modal-overlay" v-if="showForm" @click.self="closeForm">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>{{ editingAgent ? $t('agent.editAgent') : $t('agent.createAgent') }}</h2>
-          <button class="close-btn" @click="closeForm">&times;</button>
+    <BaseDialog
+      v-model="showForm"
+      :title="editingAgent ? $t('agent.editAgent') : $t('agent.createAgent')"
+      width="520px"
+    >
+      <form data-testid="agent-form" @submit.prevent="saveAgent">
+        <div class="form-group">
+          <label>{{ $t('agent.agentName') }}</label>
+          <input v-model="form.name" data-testid="agent-name-input" type="text" required />
         </div>
 
-        <div class="modal-body">
-          <form data-testid="agent-form" @submit.prevent="saveAgent">
-            <div class="form-group">
-              <label>{{ $t('agent.agentName') }}</label>
-              <input v-model="form.name" data-testid="agent-name-input" type="text" required />
-            </div>
-
-            <div class="form-group">
-              <label>{{ $t('agent.agentType') }}</label>
-              <select v-model="form.executorType" data-testid="agent-executor-type-select" required>
-                <option value="CLAUDE_CODE">{{ $t('agent.types.CLAUDE_CODE') }}</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>{{ $t('agent.role') }}</label>
-              <select v-model="form.role" required @change="onRoleChange">
-                <option v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
-                  {{ opt.label }}
-                </option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label>{{ $t('agent.skills') }}</label>
-              <div class="skills-editor">
-                <select v-model="selectedSkillToAdd" class="skill-select" @change="addSelectedSkill">
-                  <option value="">{{ $t('agent.selectExistingSkill') }}</option>
-                  <option v-for="skill in availableSkillOptions" :key="skill" :value="skill">
-                    {{ skillStore.skills.find(s => s.id === skill)?.name }}
-                  </option>
-                </select>
-                <div class="skills-input-container">
-                  <span v-for="(skillId, index) in form.skills" :key="index" class="skill-tag-input">
-                    {{ skillStore.skills.find(s => s.id === skillId)?.name }}
-                    <button type="button" class="remove-skill-btn" @click="removeSkill(index)">&times;</button>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>{{ $t('agent.mcpServers') }}</label>
-              <div class="skills-editor">
-                <select v-model="selectedMcpServerToAdd" class="skill-select" @change="addSelectedMcpServer">
-                  <option value="">{{ $t('agent.selectMcpServer') }}</option>
-                  <option v-for="server in availableMcpServerOptions" :key="server.id" :value="server.id">
-                    {{ server.name }}
-                  </option>
-                </select>
-                <div class="skills-input-container">
-                  <span v-for="(serverId, index) in form.mcpServers" :key="index" class="skill-tag-input mcp-tag-input">
-                    {{ mcpServerStore.mcpServers.find(s => s.id === serverId)?.name }}
-                    <button type="button" class="remove-skill-btn" @click="removeMcpServer(index)">&times;</button>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>{{ $t('agent.description') }}</label>
-              <input v-model="form.description" type="text" :placeholder="$t('agent.descriptionPlaceholder')" />
-            </div>
-
-            <div class="form-group">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="form.enabled" />
-                {{ $t('common.enabled') }}
-              </label>
-            </div>
-
-            <div class="form-actions">
-              <button type="button" class="btn btn-secondary" @click="closeForm">
-                {{ $t('common.cancel') }}
-              </button>
-              <button type="submit" class="btn btn-primary" :disabled="saving">
-                {{ saving ? $t('common.loading') : $t('common.save') }}
-              </button>
-            </div>
-          </form>
+        <div class="form-group">
+          <label>{{ $t('agent.agentType') }}</label>
+          <select v-model="form.executorType" data-testid="agent-executor-type-select" required>
+            <option value="CLAUDE_CODE">{{ $t('agent.types.CLAUDE_CODE') }}</option>
+          </select>
         </div>
-      </div>
-    </div>
+
+        <div class="form-group">
+          <label>{{ $t('agent.role') }}</label>
+          <select v-model="form.role" required @change="onRoleChange">
+            <option v-for="opt in roleOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>{{ $t('agent.skills') }}</label>
+          <div class="skills-editor">
+            <select v-model="selectedSkillToAdd" class="skill-select" @change="addSelectedSkill">
+              <option value="">{{ $t('agent.selectExistingSkill') }}</option>
+              <option v-for="skill in availableSkillOptions" :key="skill" :value="skill">
+                {{ skillStore.skills.find(s => s.id === skill)?.name }}
+              </option>
+            </select>
+            <div class="skills-input-container">
+              <span v-for="(skillId, index) in form.skills" :key="index" class="skill-tag-input">
+                {{ skillStore.skills.find(s => s.id === skillId)?.name }}
+                <button type="button" class="remove-skill-btn" @click="removeSkill(index)">&times;</button>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>{{ $t('agent.mcpServers') }}</label>
+          <div class="skills-editor">
+            <select v-model="selectedMcpServerToAdd" class="skill-select" @change="addSelectedMcpServer">
+              <option value="">{{ $t('agent.selectMcpServer') }}</option>
+              <option v-for="server in availableMcpServerOptions" :key="server.id" :value="server.id">
+                {{ server.name }}
+              </option>
+            </select>
+            <div class="skills-input-container">
+              <span v-for="(serverId, index) in form.mcpServers" :key="index" class="skill-tag-input mcp-tag-input">
+                {{ mcpServerStore.mcpServers.find(s => s.id === serverId)?.name }}
+                <button type="button" class="remove-skill-btn" @click="removeMcpServer(index)">&times;</button>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>{{ $t('agent.description') }}</label>
+          <input v-model="form.description" type="text" :placeholder="$t('agent.descriptionPlaceholder')" />
+        </div>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="form.enabled" />
+            {{ $t('common.enabled') }}
+          </label>
+        </div>
+      </form>
+      <template #footer>
+        <el-button @click="closeForm">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" :disabled="saving" @click="saveAgent">{{ saving ? $t('common.loading') : $t('common.save') }}</el-button>
+      </template>
+    </BaseDialog>
 
     <!-- Toast Notification -->
     <div v-if="toast.show" class="toast" :class="toast.type">
@@ -228,6 +218,7 @@ import { useAgentStore } from '../stores/agentStore'
 import { useSkillStore } from '../stores/skillStore'
 import { useMcpServerStore } from '../stores/mcpServerStore'
 import { ROLE_CONFIG, getRoleConfig } from '../constants/agent'
+import BaseDialog from '../components/BaseDialog.vue'
 
 const { t, locale } = useI18n()
 const agentStore = useAgentStore()
