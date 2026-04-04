@@ -202,7 +202,6 @@ export default {
     importSuccess: '成功导入 {count} 个任务',
     importFailed: '导入失败',
     noTasksToImport: '没有可导入的任务',
-    importFailed: '导入失败',
     // New keys for CRUD UI
     add: '添加任务源',
     addFirst: '添加第一个任务源',
@@ -347,8 +346,6 @@ export default {
     title: '会话',
     createSession: '创建会话',
     startSession: '启动会话',
-    stopSession: '停止会话',
-    deleteSession: '删除会话',
     continueSession: '继续',
     status: {
       none: '无会话',

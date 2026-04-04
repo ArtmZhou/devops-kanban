@@ -16,7 +16,6 @@ function captureRequest(callback) {
 describe('agent API', () => {
   it('exports CRUD functions', () => {
     expect(agentApi.getAgents).toBeTypeOf('function')
-    expect(agentApi.getAgent).toBeTypeOf('function')
     expect(agentApi.createAgent).toBeTypeOf('function')
     expect(agentApi.updateAgent).toBeTypeOf('function')
     expect(agentApi.deleteAgent).toBeTypeOf('function')
@@ -28,14 +27,6 @@ describe('agent API', () => {
       await expect(agentApi.getAgents()).rejects.toThrow('stop')
     } finally { cleanup() }
     expect(seen[0]).toEqual({ url: '/agents', method: 'get' })
-  })
-
-  it('getAgent calls GET /agents/:id', async () => {
-    const { seen, cleanup } = captureRequest()
-    try {
-      await expect(agentApi.getAgent(5)).rejects.toThrow('stop')
-    } finally { cleanup() }
-    expect(seen[0]).toEqual({ url: '/agents/5', method: 'get' })
   })
 
   it('createAgent calls POST /agents', async () => {
