@@ -110,6 +110,49 @@ describe('api error normalization', () => {
   })
 })
 
+describe('task reorder', () => {
+  it('reorderTasks maps tasks to ordered updates', async () => {
+    const seen = []
+    const interceptor = api.interceptors.request.use((config) => {
+      seen.push({ url: config.url, method: config.method, data: config.data })
+      return Promise.reject(new Error('stop'))
+    })
+
+    const { reorderTasks } = await import('../src/api/task.js')
+
+    try {
+      await expect(reorderTasks([{ id: 5 }, { id: 3 }, { id: 7 }])).rejects.toThrow('stop')
+    } finally {
+      api.interceptors.request.eject(interceptor)
+    }
+
+    const reorderCall = seen.find(s => s.url === '/tasks/reorder')
+    expect(reorderCall).toBeTruthy()
+    expect(reorderCall.data).toEqual({
+      updates: [{ id: 5, order: 0 }, { id: 3, order: 1 }, { id: 7, order: 2 }]
+    })
+  })
+
+  it('reorderTasks handles empty array', async () => {
+    const seen = []
+    const interceptor = api.interceptors.request.use((config) => {
+      seen.push({ url: config.url, data: config.data })
+      return Promise.reject(new Error('stop'))
+    })
+
+    const { reorderTasks } = await import('../src/api/task.js')
+
+    try {
+      await expect(reorderTasks([])).rejects.toThrow('stop')
+    } finally {
+      api.interceptors.request.eject(interceptor)
+    }
+
+    const reorderCall = seen.find(s => s.url === '/tasks/reorder')
+    expect(reorderCall.data).toEqual({ updates: [] })
+  })
+})
+
 describe('git api exports', () => {
   it('exports mergeBranch as a public api function', () => {
     expect('mergeBranch' in gitApi).toBe(true)

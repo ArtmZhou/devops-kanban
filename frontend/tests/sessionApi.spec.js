@@ -6,6 +6,51 @@ import * as sessionApi from '../src/api/session.js'
 let getSessionEventsSpy
 
 describe('session api helpers', () => {
+  it('getSession calls GET /sessions/:id', async () => {
+    const seen = []
+    const interceptor = api.interceptors.request.use((config) => {
+      seen.push({ url: config.url, method: config.method })
+      return Promise.reject(new Error('stop'))
+    })
+
+    try {
+      await expect(sessionApi.getSession(7)).rejects.toThrow('stop')
+    } finally {
+      api.interceptors.request.eject(interceptor)
+    }
+    expect(seen[0]).toEqual({ url: '/sessions/7', method: 'get' })
+  })
+
+  it('continueSession sends POST with input', async () => {
+    const seen = []
+    const interceptor = api.interceptors.request.use((config) => {
+      seen.push({ url: config.url, method: config.method, data: config.data })
+      return Promise.reject(new Error('stop'))
+    })
+
+    try {
+      await expect(sessionApi.continueSession(7, 'yes')).rejects.toThrow('stop')
+    } finally {
+      api.interceptors.request.eject(interceptor)
+    }
+    expect(seen[0]).toEqual({ url: '/sessions/7/continue', method: 'post', data: { input: 'yes' } })
+  })
+
+  it('getSessionEvents omits limit when not provided', async () => {
+    const seen = []
+    const interceptor = api.interceptors.request.use((config) => {
+      seen.push({ url: config.url, params: config.params })
+      return Promise.reject(new Error('stop'))
+    })
+
+    try {
+      await expect(sessionApi.getSessionEvents(7, { afterSeq: 5 })).rejects.toThrow('stop')
+    } finally {
+      api.interceptors.request.eject(interceptor)
+    }
+    expect(seen[0].params).toEqual({ after_seq: 5 })
+  })
+
   it('requests session event history with afterSeq and limit params', async () => {
     const seen = []
     const interceptor = api.interceptors.request.use((config) => {
