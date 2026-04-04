@@ -71,12 +71,12 @@
     </div>
 
     <!-- Add/Edit Dialog -->
-    <el-dialog
+    <BaseDialog
       v-model="dialogVisible"
-      :close-on-click-modal="false"
       :title="isEditMode ? $t('taskSource.editTitle') : $t('taskSource.addTitle')"
       width="520px"
-      class="task-source-dialog"
+      custom-class="task-source-dialog"
+      :body-padding="false"
     >
       <div class="dialog-content">
         <el-form ref="formRef" :model="formData" :rules="formRules" label-position="top">
@@ -186,22 +186,19 @@
       </div>
 
       <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
-          <el-button type="primary" @click="submitForm" :disabled="submitting">
-            {{ submitting ? $t('common.submitting', '提交中...') : $t('common.confirm') }}
-          </el-button>
-        </div>
+        <el-button @click="dialogVisible = false">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="submitForm" :disabled="submitting">
+          {{ submitting ? $t('common.submitting', '提交中...') : $t('common.confirm') }}
+        </el-button>
       </template>
-    </el-dialog>
+    </BaseDialog>
 
     <!-- Sync Preview Dialog -->
-    <el-dialog
+    <BaseDialog
       v-model="taskSourceStore.showPreviewDialog"
-      :close-on-click-modal="false"
       :title="$t('taskSource.previewTitle')"
       width="650px"
-      class="sync-preview-dialog"
+      custom-class="sync-preview-dialog"
     >
       <div v-if="taskSourceStore.syncPreviewTasks.length === 0 && !taskSourceStore.syncError" class="sync-preview-loading">
         <el-icon class="is-loading"><Loading /></el-icon>
@@ -274,12 +271,11 @@
           {{ $t('taskSource.confirmImport') }} ({{ taskSourceStore.selectedSyncTasks.size }})
         </el-button>
       </template>
-    </el-dialog>
+    </BaseDialog>
 
     <!-- Test Result Dialog -->
-    <el-dialog
+    <BaseDialog
       v-model="testDialogVisible"
-      :close-on-click-modal="false"
       :title="$t('taskSource.testResult')"
       width="400px"
     >
@@ -292,7 +288,7 @@
       <template #footer>
         <el-button @click="testDialogVisible = false">{{ $t('common.close') }}</el-button>
       </template>
-    </el-dialog>
+    </BaseDialog>
   </div>
 </template>
 
@@ -303,6 +299,7 @@ import { useRoute } from 'vue-router'
 import { useProjectStore } from '../stores/projectStore'
 import { useTaskSourceStore } from '../stores/taskSourceStore'
 import { useTaskStore } from '../stores/taskStore'
+import BaseDialog from '../components/BaseDialog.vue'
 import { ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { formatTaskDescription } from '../utils/taskDescriptionFormatter'
@@ -767,7 +764,7 @@ onMounted(loadProjects)
 }
 
 .source-card:hover {
-  border-color: rgba(99, 102, 241, 0.35);
+  border-color: rgba(37, 198, 201, 0.35);
   box-shadow: var(--shadow-md);
 }
 
@@ -1040,30 +1037,6 @@ onMounted(loadProjects)
 }
 
 /* Dialog Styling */
-:deep(.task-source-dialog) {
-  .el-dialog__header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border-color);
-    margin-right: 0;
-  }
-
-  .el-dialog__title {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .el-dialog__body {
-    padding: 0;
-  }
-
-  .el-dialog__footer {
-    padding: 12px 20px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-secondary);
-  }
-}
-
 .dialog-content {
   padding: 16px 20px;
 }
@@ -1100,12 +1073,6 @@ onMounted(loadProjects)
 
 .type-name {
   font-size: 13px;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 :deep(.el-form-item) {

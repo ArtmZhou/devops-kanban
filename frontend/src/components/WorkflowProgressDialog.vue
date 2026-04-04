@@ -1,10 +1,10 @@
 <template>
-  <el-dialog
+  <BaseDialog
     v-model="visible"
-    :close-on-click-modal="false"
     :title="dialogTitle"
     width="960px"
-    class="workflow-progress-dialog"
+    :body-padding="false"
+    custom-class="workflow-progress-dialog"
     @close="handleClose"
     @opened="startPolling"
   >
@@ -103,27 +103,26 @@
     </div>
 
     <template #footer>
-      <div class="dialog-footer">
-        <el-button
-          v-if="canCancel"
-          type="danger"
-          size="small"
-          @click="handleCancel"
-          :disabled="cancelling"
-        >
-          {{ cancelling ? '取消中...' : '取消工作流' }}
-        </el-button>
-        <el-button size="small" @click="fetchRun" :disabled="loading">
-          {{ loading ? '刷新中...' : '刷新' }}
-        </el-button>
-      </div>
+      <el-button
+        v-if="canCancel"
+        type="danger"
+        size="small"
+        @click="handleCancel"
+        :disabled="cancelling"
+      >
+        {{ cancelling ? '取消中...' : '取消工作流' }}
+      </el-button>
+      <el-button size="small" @click="fetchRun" :disabled="loading">
+        {{ loading ? '刷新中...' : '刷新' }}
+      </el-button>
     </template>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
 import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
+import BaseDialog from './BaseDialog.vue'
 import { getWorkflowRun, cancelWorkflow, resumeWorkflow } from '../api/workflow.js'
 import StepSessionPanel from './workflow/StepSessionPanel.vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
@@ -364,10 +363,6 @@ watch(() => props.workflowRunId, () => {
 </script>
 
 <style scoped>
-.workflow-progress-dialog :deep(.el-dialog__body) {
-  padding: 16px 20px;
-}
-
 .loading-state,
 .error-state,
 .detail-empty {
@@ -469,12 +464,6 @@ watch(() => props.workflowRunId, () => {
 
 .step-name { font-size: 13px; font-weight: 600; color: #0f172a; }
 .step-status-text { font-size: 12px; color: #64748b; }
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
 
 .suspend-section {
   background: #fffbeb;

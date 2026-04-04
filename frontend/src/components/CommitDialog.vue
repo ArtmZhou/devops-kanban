@@ -1,12 +1,12 @@
 <template>
-  <el-dialog
+  <BaseDialog
     :model-value="true"
     title="提交更改"
     width="90%"
     :top="top"
-    :close-on-click-modal="false"
+    :body-padding="false"
+    custom-class="commit-dialog"
     @close="$emit('close')"
-    class="commit-dialog"
   >
     <div class="dialog-body-wrapper">
       <GitDiffViewer
@@ -45,12 +45,13 @@
         </div>
       </div>
     </template>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
+import BaseDialog from './BaseDialog.vue'
 import GitDiffViewer from './GitDiffViewer.vue'
 import { commit, getUncommittedChanges, getDiff } from '../api/git'
 
@@ -256,83 +257,5 @@ onMounted(() => {
   border-radius: 8px;
   font-weight: 500;
   transition: all 0.2s ease;
-}
-
-:deep(.el-dialog__header) {
-  margin: 0;
-  padding: 18px 24px;
-  border-bottom: 1px solid var(--border-color);
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
-  flex-shrink: 0;
-}
-
-:deep(.el-dialog__title) {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-:deep(.el-dialog__title)::before {
-  content: '';
-  display: block;
-  width: 6px;
-  height: 20px;
-  background: var(--accent-color);
-  border-radius: 3px;
-}
-
-:deep(.el-dialog__body) {
-  padding: 0;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-  box-sizing: border-box;
-  width: 100%;
-  background: var(--bg-primary);
-  display: flex;
-  flex-direction: column;
-  border-radius: 0;
-}
-
-:deep(.el-dialog) {
-  height: auto;
-  max-height: 75vh;
-  max-width: 90vw !important;
-  margin: 0 auto !important;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-  border: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.commit-dialog {
-  display: flex;
-  flex-direction: column;
-}
-
-:deep(.el-dialog__headerbtn) {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-:deep(.el-dialog__headerbtn:hover) {
-  background: var(--bg-secondary);
-}
-
-:deep(.el-dialog__footer) {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  flex-shrink: 0;
 }
 </style>

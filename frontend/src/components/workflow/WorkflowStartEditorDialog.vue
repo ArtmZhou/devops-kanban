@@ -1,5 +1,5 @@
 <template>
-  <el-dialog :model-value="modelValue" :title="$t('workflowTemplate.startEditorTitle')" width="920px" :close-on-click-modal="false" @close="handleCancel">
+  <BaseDialog :model-value="modelValue" :title="$t('workflowTemplate.startEditorTitle')" width="920px" @close="handleCancel">
     <template v-if="draftTemplate">
       <div class="template-meta">
         <div class="meta-row">
@@ -125,12 +125,12 @@
       <el-button data-testid="confirm-start-button" type="primary" :disabled="!canConfirm" @click="handleConfirm">{{ $t('workflowTemplate.confirmStart') }}</el-button>
     </template>
 
-    <el-dialog
+    <BaseDialog
       :model-value="showStepDetailsDialog"
-      :close-on-click-modal="false"
       :title="selectedStep?.name || $t('workflowTemplate.stepDetailsTitle')"
       width="680px"
-      append-to-body
+      :append-to-body="true"
+      @update:model-value="showStepDetailsDialog = $event"
       @close="closeStepDetails"
     >
       <div v-if="selectedStep" class="step-editor-card">
@@ -193,8 +193,8 @@
       <template #footer>
         <el-button @click="closeStepDetails">{{ $t('common.close') }}</el-button>
       </template>
-    </el-dialog>
-  </el-dialog>
+    </BaseDialog>
+  </BaseDialog>
 </template>
 
 <script setup>
@@ -203,6 +203,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
+import BaseDialog from '../BaseDialog.vue'
 import { getAgents } from '../../api/agent.js'
 import { useSkillStore } from '../../stores/skillStore'
 import {
@@ -451,7 +452,7 @@ const handleConfirm = () => emit('confirm', buildWorkflowTemplatePayload(localTe
   font-size: 10px;
   font-weight: 500;
   background: rgba(99, 102, 241, 0.08);
-  color: #6366f1;
+  color: #25C6C9;
   border: 1px solid rgba(99, 102, 241, 0.15);
 }
 
