@@ -230,7 +230,7 @@
                   <div
                     class="item-description"
                     :class="{ expanded: expandedPreviewDescriptions.has(task.external_id) }"
-                    :ref="(el) => { if (el) { descriptionRefs.value[task.external_id] = el; checkPreviewDescriptionOverflow(task.external_id) } }"
+                    :ref="(el) => setDescriptionRef(el, task.external_id)"
                     v-html="formatTaskDescription(task.description || '')"
                   ></div>
                   <button
@@ -588,7 +588,7 @@
 </template>
 
 <script setup>
-import { h, ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { h, ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus'
@@ -675,6 +675,13 @@ const expandedDescriptionTaskId = ref(null)
 const expandedPreviewDescriptions = ref(new Set())
 const overflowPreviewDescriptions = ref(new Set())
 const descriptionRefs = ref({})
+
+const setDescriptionRef = (el, externalId) => {
+  if (el && descriptionRefs.value) {
+    descriptionRefs.value[externalId] = el
+    checkPreviewDescriptionOverflow(externalId)
+  }
+}
 
 const checkPreviewDescriptionOverflow = (externalId) => {
   nextTick(() => {
