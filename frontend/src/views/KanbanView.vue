@@ -668,6 +668,7 @@ watch(() => selectedTask.value?.status, (newStatus) => {
 })
 
 const listStatusFilter = ref(['TODO', 'IN_PROGRESS', 'DONE', 'BLOCKED'])
+const isComponentMounted = ref(false)
 
 const {
   runningTasks,
@@ -1022,6 +1023,7 @@ const getStatusText = (status) => {
 const handleProjectChange = async () => {
   selectedTask.value = null
   await onProjectChange()
+  if (!isComponentMounted.value) return
   router.replace(`/kanban/${selectedProjectId.value}`)
   updateColumnRefs()
 }
@@ -1268,8 +1270,10 @@ const handleAgentSelect = ({ task }) => {
 
 // Lifecycle
 onMounted(async () => {
+  isComponentMounted.value = true
   try {
     await initializeSelection()
+    if (!isComponentMounted.value) return
     if (selectedProjectId.value && route.params.projectId !== selectedProjectId.value) {
       router.replace(`/kanban/${selectedProjectId.value}`)
     }
@@ -1280,6 +1284,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  isComponentMounted.value = false
   cleanupTimer()
 })
 </script>
