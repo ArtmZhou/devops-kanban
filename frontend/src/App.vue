@@ -71,6 +71,15 @@
           </svg>
           <span v-if="!isSidebarCollapsed" class="nav-text">{{ $t('nav.skills') }}</span>
         </router-link>
+
+        <router-link to="/mcp-servers" class="nav-item" :class="{ 'router-link-active': $route.path.startsWith('/mcp-servers') }" :title="$t('nav.mcpServers')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
+            <path d="M2 12h20"></path>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span v-if="!isSidebarCollapsed" class="nav-text">{{ $t('nav.mcpServers') }}</span>
+        </router-link>
       </nav>
 
       <!-- 底部操作区 -->
@@ -168,13 +177,7 @@ const toggleSidebar = () => {
   --accent-color: #25C6C9;
   --accent-color-soft: rgba(37, 198, 201, 0.14);
   --accent-color-strong: #1EA9AC;
-  --el-color-primary: #25C6C9;
-  --el-color-primary-light-3: #55d2d5;
-  --el-color-primary-light-5: #7fdddf;
-  --el-color-primary-light-7: #a8e8e9;
-  --el-color-primary-light-8: #c3eff0;
-  --el-color-primary-light-9: #e9f8f8;
-  --el-color-primary-dark-2: #1EA9AC;
+  /* Element Plus theme vars — overridden in components.css (loaded after el-plus) */
   --icon-primary: #25C6C9;
   --icon-secondary: #EAB445;
   --primary-color: #25C6C9;

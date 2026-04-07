@@ -173,11 +173,11 @@
         />
       </div>
 
-      <el-dialog
+      <BaseDialog
         v-model="taskSourceStore.showPreviewDialog"
         :title="$t('taskSource.previewTitle')"
         width="650px"
-        class="sync-preview-dialog"
+        custom-class="sync-preview-dialog"
       >
         <div v-if="taskSourceStore.syncPreviewTasks.length === 0 && !taskSourceStore.syncError" class="sync-preview-empty">
           {{ $t('common.loading') }}
@@ -249,7 +249,7 @@
             {{ $t('taskSource.confirmImport') }} ({{ taskSourceStore.selectedSyncTasks.size }})
           </el-button>
         </template>
-      </el-dialog>
+      </BaseDialog>
 
       <div class="chat-container" :class="{ collapsed: isChatCollapsed }">
         <div class="chat-toggle-btn" @click="isChatCollapsed = !isChatCollapsed" :title="isChatCollapsed ? 'Expand Chat' : 'Collapse Chat'">
@@ -303,67 +303,58 @@
       </div>
     </div>
 
-    <div v-if="showTaskModal" class="modal-overlay" @click.self="closeTaskModal">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>{{ isEditing ? $t('task.editTask') : $t('task.newTask') }}</h2>
-          <button class="modal-close" @click="closeTaskModal">&times;</button>
+    <BaseDialog
+      v-model="showTaskModal"
+      :title="isEditing ? $t('task.editTask') : $t('task.newTask')"
+      width="520px"
+    >
+      <el-form label-position="top">
+        <el-form-item :label="$t('task.taskTitle')">
+          <el-input
+            v-model="taskForm.title"
+            :placeholder="$t('task.taskTitlePlaceholder')"
+          />
+        </el-form-item>
+        <el-form-item :label="$t('task.taskDescription')">
+          <el-input
+            v-model="taskForm.description"
+            type="textarea"
+            :rows="4"
+            :placeholder="$t('task.taskDescriptionPlaceholder')"
+          />
+        </el-form-item>
+        <div class="form-row">
+          <el-form-item :label="$t('task.status')">
+            <el-select v-model="taskForm.status">
+              <el-option value="TODO" :label="$t('status.TODO')" />
+              <el-option value="IN_PROGRESS" :label="$t('status.IN_PROGRESS')" />
+              <el-option value="DONE" :label="$t('status.DONE')" />
+              <el-option value="BLOCKED" :label="$t('status.BLOCKED')" />
+            </el-select>
+          </el-form-item>
+          <el-form-item :label="$t('task.priority')">
+            <el-select v-model="taskForm.priority">
+              <el-option value="LOW" :label="$t('priority.LOW')" />
+              <el-option value="MEDIUM" :label="$t('priority.MEDIUM')" />
+              <el-option value="HIGH" :label="$t('priority.HIGH')" />
+              <el-option value="CRITICAL" :label="$t('priority.CRITICAL')" />
+            </el-select>
+          </el-form-item>
         </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>{{ $t('task.taskTitle') }}</label>
-            <input
-              v-model="taskForm.title"
-              type="text"
-              :placeholder="$t('task.taskTitlePlaceholder')"
-            />
-          </div>
-          <div class="form-group">
-            <label>{{ $t('task.taskDescription') }}</label>
-            <textarea
-              v-model="taskForm.description"
-              rows="4"
-              :placeholder="$t('task.taskDescriptionPlaceholder')"
-            ></textarea>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>{{ $t('task.status') }}</label>
-              <select v-model="taskForm.status">
-                <option value="TODO">{{ $t('status.TODO') }}</option>
-                <option value="IN_PROGRESS">{{ $t('status.IN_PROGRESS') }}</option>
-                <option value="DONE">{{ $t('status.DONE') }}</option>
-                <option value="BLOCKED">{{ $t('status.BLOCKED') }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>{{ $t('task.priority') }}</label>
-              <select v-model="taskForm.priority">
-                <option value="LOW">{{ $t('priority.LOW') }}</option>
-                <option value="MEDIUM">{{ $t('priority.MEDIUM') }}</option>
-                <option value="HIGH">{{ $t('priority.HIGH') }}</option>
-                <option value="CRITICAL">{{ $t('priority.CRITICAL') }}</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>{{ $t('task.iteration') }}</label>
-            <IterationSelect
-              v-model="taskForm.iteration_id"
-              :iterations="projectIterations"
-              :placeholder="$t('task.selectIteration')"
-            />
-            <p class="form-help">{{ $t('task.iterationHint') }}</p>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <div class="modal-actions">
-            <button class="btn btn-secondary" @click="closeTaskModal">{{ $t('common.cancel') }}</button>
-            <button class="btn btn-primary" @click="saveTask">{{ $t('common.save') }}</button>
-          </div>
-        </div>
-      </div>
-    </div>
+        <el-form-item :label="$t('task.iteration')">
+          <IterationSelect
+            v-model="taskForm.iteration_id"
+            :iterations="projectIterations"
+            :placeholder="$t('task.selectIteration')"
+          />
+          <p class="form-help">{{ $t('task.iterationHint') }}</p>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="closeTaskModal">{{ $t('common.cancel') }}</el-button>
+        <el-button type="primary" @click="saveTask">{{ $t('common.save') }}</el-button>
+      </template>
+    </BaseDialog>
 
     <AgentSelector
       v-if="showAgentSelector"
@@ -415,7 +406,7 @@
       @merged="handleMerged"
     />
 
-    <el-dialog
+    <BaseDialog
       v-model="showIterationManager"
       :title="$t('iteration.manageIterationsTitle')"
       width="720px"
@@ -435,7 +426,7 @@
         @edit="handleEditIteration"
         @delete="handleDeleteIteration"
       />
-    </el-dialog>
+    </BaseDialog>
 
     <IterationForm
       v-model="showIterationModal"
@@ -457,112 +448,107 @@
       @confirm="handleWorkflowStartEditorConfirm"
     />
 
-    <div v-if="showNodeDialog && selectedNode" class="modal-overlay" @click.self="showNodeDialog = false">
-      <div class="modal node-detail-modal">
-        <div class="modal-header">
-          <div class="header-content">
-            <el-icon class="header-icon"><component :is="getNodeRoleIcon(selectedNode.role)" /></el-icon>
-            <div>
-              <h2>{{ selectedNode.name }}</h2>
-              <span class="node-subtitle"><el-icon><component :is="getNodeRoleIcon(selectedNode.role)" /></el-icon> {{ selectedNode.role }} · {{ selectedNode.agentName }}</span>
-            </div>
-          </div>
-          <button class="modal-close" @click="showNodeDialog = false">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="info-card">
-            <h3 class="info-card-title">基本信息</h3>
-            <div class="info-grid">
-              <div class="info-item">
-                <span class="info-label">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M12 16v-4"></path>
-                    <path d="M12 8h.01"></path>
-                  </svg>
-                  状态
-                </span>
-                <span class="info-value status-badge" :class="'status-' + selectedNode.status?.toLowerCase()">
-                  <span class="status-dot"></span>
-                  {{ getStatusText(selectedNode.status) }}
-                </span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                  </svg>
-                  Agent
-                </span>
-                <span class="info-value agent-badge">
-                  <el-icon class="agent-icon"><component :is="getAgentIcon(selectedNode.agentType)" /></el-icon>
-                  {{ selectedNode.agentName }}
-                </span>
-              </div>
-              <div class="info-item" v-if="selectedNode.duration">
-                <span class="info-label">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                  </svg>
-                  耗时
-                </span>
-                <span class="info-value duration-value">{{ selectedNode.duration }} 分钟</span>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="selectedNode.rejectedReason" class="info-card rejected-reason-card">
-            <h3 class="info-card-title rejected-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                <line x1="12" y1="9" x2="12" y2="13"></line>
-                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    <BaseDialog
+      v-model="showNodeDialog"
+      :title="selectedNode?.name || ''"
+      width="600px"
+      :body-padding="false"
+      custom-class="node-detail-dialog"
+    >
+      <div class="node-subtitle-header">
+        <el-icon><component :is="getNodeRoleIcon(selectedNode?.role)" /></el-icon>
+        {{ selectedNode?.role }} · {{ selectedNode?.agentName }}
+      </div>
+      <div class="info-card">
+        <h3 class="info-card-title">基本信息</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 16v-4"></path>
+                <path d="M12 8h.01"></path>
               </svg>
-              打回原因
-            </h3>
-            <p class="rejected-reason-text">{{ selectedNode.rejectedReason }}</p>
+              状态
+            </span>
+            <span class="info-value status-badge" :class="'status-' + selectedNode?.status?.toLowerCase()">
+              <span class="status-dot"></span>
+              {{ getStatusText(selectedNode?.status) }}
+            </span>
           </div>
-
-          <div v-if="selectedNode.isParent && selectedNode.childNodes" class="info-card">
-            <h3 class="info-card-title">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="16 18 22 12 16 6"></polyline>
-                <polyline points="8 6 2 12 8 18"></polyline>
+          <div class="info-item">
+            <span class="info-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
               </svg>
-              子节点完成情况
-            </h3>
-            <div class="child-nodes-list">
-              <div v-for="child in selectedNode.childNodes" :key="child.id" class="child-node-item" :class="'status-' + child.status?.toLowerCase()">
-                <span class="child-status-icon">
-                  <span v-if="child.status === 'DONE'">✅</span>
-                  <span v-else-if="child.status === 'IN_PROGRESS'">🔄</span>
-                  <span v-else-if="child.status === 'REJECTED'">↩️</span>
-                  <span v-else-if="child.status === 'FAILED'">❌</span>
-                  <span v-else>⏳</span>
-                </span>
-                <div class="child-node-info">
-                  <span class="child-node-name">{{ child.name }}</span>
-                  <span class="child-node-agent">{{ child.agentName }}</span>
-                </div>
-                <span class="child-node-status status-badge" :class="'status-' + child.status?.toLowerCase()">{{ getStatusText(child.status) }}</span>
-              </div>
-            </div>
+              Agent
+            </span>
+            <span class="info-value agent-badge">
+              <el-icon class="agent-icon"><component :is="getAgentIcon(selectedNode?.agentType)" /></el-icon>
+              {{ selectedNode?.agentName }}
+            </span>
           </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary btn-close" @click="showNodeDialog = false">关闭</button>
+          <div class="info-item" v-if="selectedNode?.duration">
+            <span class="info-label">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              耗时
+            </span>
+            <span class="info-value duration-value">{{ selectedNode?.duration }} 分钟</span>
+          </div>
         </div>
       </div>
-    </div>
+
+      <div v-if="selectedNode?.rejectedReason" class="info-card rejected-reason-card">
+        <h3 class="info-card-title rejected-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          打回原因
+        </h3>
+        <p class="rejected-reason-text">{{ selectedNode?.rejectedReason }}</p>
+      </div>
+
+      <div v-if="selectedNode?.isParent && selectedNode?.childNodes" class="info-card">
+        <h3 class="info-card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="16 18 22 12 16 6"></polyline>
+            <polyline points="8 6 2 12 8 18"></polyline>
+          </svg>
+          子节点完成情况
+        </h3>
+        <div class="child-nodes-list">
+          <div v-for="child in selectedNode?.childNodes" :key="child.id" class="child-node-item" :class="'status-' + child.status?.toLowerCase()">
+            <span class="child-status-icon">
+              <span v-if="child.status === 'DONE'">✅</span>
+              <span v-else-if="child.status === 'IN_PROGRESS'">🔄</span>
+              <span v-else-if="child.status === 'REJECTED'">↩️</span>
+              <span v-else-if="child.status === 'FAILED'">❌</span>
+              <span v-else>⏳</span>
+            </span>
+            <div class="child-node-info">
+              <span class="child-node-name">{{ child.name }}</span>
+              <span class="child-node-agent">{{ child.agentName }}</span>
+            </div>
+            <span class="child-node-status status-badge" :class="'status-' + child.status?.toLowerCase()">{{ getStatusText(child.status) }}</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="showNodeDialog = false">关闭</el-button>
+      </template>
+    </BaseDialog>
   </div>
 
-  <el-dialog
+  <BaseDialog
     v-model="showDeleteConfirm"
     :title="t('task.deleteConfirmTitle')"
     width="400px"
-    :close-on-click-modal="false"
   >
     <div class="delete-confirm-content">
       <p>{{ t('task.deleteConfirmMessage') }}</p>
@@ -576,7 +562,7 @@
         {{ t('common.delete') }}
       </el-button>
     </template>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
@@ -586,13 +572,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElCheckbox, ElMessage, ElMessageBox } from 'element-plus'
 import {
   Monitor, VideoPlay, Edit, Cpu,
-  OfficeBuilding, User, Setting, Brush, Search, Coin, Document,
-  Aim, CircleCheck, View, Lock, Promotion, Box, Loading
+  OfficeBuilding, User, Setting, Document,
+  CircleCheck, Lock, Promotion, Box, Loading
 } from '@element-plus/icons-vue'
 import { useProjectStore } from '../stores/projectStore'
 import { useTaskStore } from '../stores/taskStore'
 import { useIterationStore } from '../stores/iterationStore'
 import { useTaskSourceStore } from '../stores/taskSourceStore'
+import BaseDialog from '../components/BaseDialog.vue'
 import AgentSelector from '../components/AgentSelector.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
 import DiffSelectDialog from '../components/DiffSelectDialog.vue'
@@ -1389,14 +1376,6 @@ onUnmounted(() => {
   background: var(--button-surface-hover-bg);
   border-color: var(--button-surface-hover-border);
   color: var(--button-surface-hover-text);
-}
-
-.btn-icon {
-  padding: 10px;
-  width: 40px;
-  height: 40px;
-  justify-content: center;
-  border-radius: 10px;
 }
 
 .main-content-wrapper {
@@ -2773,76 +2752,6 @@ onUnmounted(() => {
 .step-status-badge {
   border-radius: 999px;
 }
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: var(--panel-bg);
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
-  border: 1px solid rgba(219, 227, 239, 0.8);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 22px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.modal-header h2 {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 28px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.modal-close:hover {
-  background: var(--hover-bg);
-}
-
-.modal-body {
-  padding: 22px;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 16px 22px;
-  border-top: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-}
 
 .form-group {
   margin-bottom: 18px;
@@ -2877,10 +2786,6 @@ onUnmounted(() => {
   box-shadow: 0 0 0 3px var(--accent-color-soft);
 }
 
-.modal-footer .btn,
-.modal-actions .btn {
-  min-height: 38px;
-}
 .form-group textarea {
   resize: vertical;
   min-height: 80px;
@@ -2907,11 +2812,6 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--text-secondary);
   margin-top: 6px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
 }
 
 .auto-assign-modal {
@@ -3040,27 +2940,13 @@ onUnmounted(() => {
   text-align: center;
 }
 
-.node-detail-modal {
-  max-width: 800px;
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.header-icon {
-  font-size: 24px;
-  color: var(--accent-color);
-}
-
-.node-subtitle {
+.node-subtitle-header {
   font-size: 12px;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 4px;
+  padding: 0 20px 12px;
 }
 
 .info-card {
@@ -3236,9 +3122,6 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-.btn-close {
-  min-width: 80px;
-}
 
 .icon-spin {
   animation: spin 1s linear infinite;
@@ -3269,7 +3152,7 @@ onUnmounted(() => {
   gap: 8px;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border-color);
-  background: #eef2ff;
+  background: rgba(37, 198, 201, 0.06);
   border-radius: 12px 12px 0 0;
   font-weight: 600;
   font-size: 14px;
@@ -3293,7 +3176,7 @@ onUnmounted(() => {
 }
 
 .column-status.status-requirement {
-  background: #6366f1;
+  background: #25C6C9;
 }
 
 .column-status.status-todo {
@@ -3650,9 +3533,9 @@ onUnmounted(() => {
 }
 
 .add-requirement-btn:hover {
-  border-color: #6366f1;
-  color: #6366f1;
-  background: #eef2ff;
+  border-color: #25C6C9;
+  color: #25C6C9;
+  background: rgba(37, 198, 201, 0.06);
 }
 
 .delete-confirm-content {

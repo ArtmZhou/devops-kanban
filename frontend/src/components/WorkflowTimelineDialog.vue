@@ -1,9 +1,10 @@
 <template>
-  <el-dialog
+  <BaseDialog
     v-model="visible"
     :title="$t('workflow.title')"
     width="80%"
-    class="workflow-dialog"
+    :body-padding="false"
+    custom-class="workflow-dialog"
     @close="handleClose"
   >
     <div v-if="loading" class="empty-workflow">
@@ -24,12 +25,13 @@
     <div v-else class="empty-workflow">
       <p>{{ $t('workflow.noWorkflow') }}</p>
     </div>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import BaseDialog from './BaseDialog.vue'
 import WorkflowTimeline from './workflow/WorkflowTimeline.vue'
 import { getWorkflowRun } from '../api/workflow.js'
 import { toTimelineWorkflow } from '../utils/workflowRunViewModel'
@@ -113,10 +115,6 @@ const handleStartWorkflow = (wf) => {
 <style scoped>
 .workflow-dialog {
   max-height: 80vh;
-}
-
-.workflow-dialog :deep(.el-dialog__body) {
-  padding: 16px 20px;
 }
 
 .empty-workflow {
