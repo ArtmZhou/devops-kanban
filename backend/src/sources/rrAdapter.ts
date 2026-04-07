@@ -176,7 +176,7 @@ class RRAdapter extends DevOpsBaseAdapter {
         throw new Error(`RR API list item is missing identifier field: ${this.detailIdField}`);
       }
 
-      const detailPath = this._buildDetailPath(identifier);
+      const detailPath = `/vision-workitem/api/raw_requirements/${encodeURIComponent(String(identifier))}/description`;
       console.log(`[RRAdapter] Fetching detail for identifier: ${identifier}, detailPath: ${detailPath}, detailIdField: ${this.detailIdField}`);
       const detailResponse = await this._request(detailPath);
       console.log(`[RRAdapter] Detail response for ${identifier}:`, JSON.stringify(detailResponse, null, 2));
