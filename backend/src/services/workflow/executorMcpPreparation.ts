@@ -1,8 +1,9 @@
 import { ensureMcpJsonInWorktree, cleanupMcpJson } from '../../utils/mcpSync.js';
 import type { McpServerConfig } from '../../utils/mcpSync.js';
+import {ExecutorType} from "../../types/executors.js";
 
 type PrepareExecutionMcpInput = {
-  executorType: string;
+  executorType: ExecutorType;
   mcpServerConfigs: McpServerConfig[];
   executionPath: string;
 };
@@ -13,7 +14,7 @@ async function prepareExecutionMcp({ executorType, mcpServerConfigs, executionPa
     return;
   }
 
-  if (executorType === 'CLAUDE_CODE') {
+  if (executorType === ExecutorType.CLAUDE_CODE) {
     await ensureMcpJsonInWorktree(mcpServerConfigs, executionPath);
   }
 }
