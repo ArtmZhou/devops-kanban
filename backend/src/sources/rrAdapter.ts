@@ -31,7 +31,7 @@ class RRAdapter extends DevOpsBaseAdapter {
     this.userId = typeof config.userId === 'string' && config.userId ? config.userId : undefined;
     if (!this.listPath) this.listPath = DEFAULT_RR_LIST_PATH;
     if (!this.detailPath) this.detailPath = DEFAULT_RR_DETAIL_PATH;
-    if (typeof config.detailIdField !== 'string' || !config.detailIdField) this.detailIdField = 'number';
+    if (typeof config.detailIdField !== 'string' || !config.detailIdField) this.detailIdField = 'id';
   }
 
   _buildRRListBody(page: number): Record<string, unknown> {
