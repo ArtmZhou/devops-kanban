@@ -14,18 +14,12 @@
                 class="node-inline"
                 :class="[
                   `status-${node.status?.toLowerCase()}`,
-                  { 'is-current': node.id === currentNodeId && node.status === 'IN_PROGRESS', 'is-selected': node.id === currentNodeId, 'is-suspended': node.status === 'SUSPENDED', 'has-session': node.sessionId }
+                  { 'is-current': node.id === currentNodeId && node.status === 'IN_PROGRESS', 'is-selected': node.id === currentNodeId, 'is-suspended': node.status === 'SUSPENDED' }
                 ]"
                 @click.stop="$emit('node-click', node)"
               >
                 <span class="node-status-dot"></span>
                 <span class="node-name-inline">{{ node.name }}</span>
-                <!-- Session indicator -->
-                <span v-if="node.sessionId" class="node-session-badge" :title="'Session #' + node.sessionId">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                </span>
                 <!-- Suspend icon -->
                 <span v-if="node.status === 'SUSPENDED'" class="node-suspend-icon" title="等待确认">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -207,24 +201,6 @@ const sortedStages = computed(() => {
   justify-content: center;
   color: #d97706;
   flex-shrink: 0;
-}
-
-.node-session-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #25C6C9;
-  flex-shrink: 0;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.node-inline:hover .node-session-badge {
-  opacity: 1;
-}
-
-.node-inline.has-session {
-  cursor: pointer;
 }
 
 .stage-arrow {

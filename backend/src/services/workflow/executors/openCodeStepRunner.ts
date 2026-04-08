@@ -121,7 +121,7 @@ export function parseStreamEvent(json: Record<string, unknown>): WorkflowExecuti
   // Step start event: capture sessionID for continue functionality
   if (type === 'step_start') {
     const sessionId = typeof json.sessionID === 'string' ? json.sessionID : undefined;
-    return buildEvent('status', 'system', 'step started', {
+    return buildEvent('status', 'system', sessionId ? `session: ${sessionId}` : 'step started', {
       ...(sessionId ? { session_id: sessionId } : {}),
       part: json.part,
     });
@@ -130,7 +130,7 @@ export function parseStreamEvent(json: Record<string, unknown>): WorkflowExecuti
   // Step finish event: capture sessionID as fallback
   if (type === 'step_finish') {
     const sessionId = typeof json.sessionID === 'string' ? json.sessionID : undefined;
-    return buildEvent('status', 'system', 'step finished', {
+    return buildEvent('status', 'system', sessionId ? `session: ${sessionId} (finished)` : 'step finished', {
       ...(sessionId ? { session_id: sessionId } : {}),
       part: json.part,
     });
