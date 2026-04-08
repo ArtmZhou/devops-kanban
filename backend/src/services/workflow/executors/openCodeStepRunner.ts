@@ -118,22 +118,14 @@ export function parseStreamEvent(json: Record<string, unknown>): WorkflowExecuti
     return null;
   }
 
-  // Step start event: capture sessionID for continue functionality
+  // Step start event: ignore to avoid redundant status updates in chat
   if (type === 'step_start') {
-    const sessionId = typeof json.sessionID === 'string' ? json.sessionID : undefined;
-    return buildEvent('status', 'system', sessionId ? `session: ${sessionId}` : 'step started', {
-      ...(sessionId ? { session_id: sessionId } : {}),
-      part: json.part,
-    });
+    return null;
   }
 
-  // Step finish event: capture sessionID as fallback
+  // Step finish event: ignore to avoid redundant status updates in chat
   if (type === 'step_finish') {
-    const sessionId = typeof json.sessionID === 'string' ? json.sessionID : undefined;
-    return buildEvent('status', 'system', sessionId ? `session: ${sessionId} (finished)` : 'step finished', {
-      ...(sessionId ? { session_id: sessionId } : {}),
-      part: json.part,
-    });
+    return null;
   }
 
   // Tool use event: OpenCode CLI outputs tool calls as top-level tool_use events
