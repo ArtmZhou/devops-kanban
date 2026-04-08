@@ -114,7 +114,7 @@ if [ ! -d "node_modules" ]; then
 fi
 pkill -f "vite" 2>/dev/null || true
 mkdir -p "$PROJECT_ROOT/log/frontend" "$PROJECT_ROOT/log/backend"
-TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+TIMESTAMP=$(date +%Y%m%d-%H%M%S-%3N)
 FRONTEND_LOG="$PROJECT_ROOT/log/frontend/kanban-frontend-${TIMESTAMP}.log"
 LANG=en_US.UTF-8 npm run dev > "$FRONTEND_LOG" 2>&1 &
 FRONTEND_PID=$!
