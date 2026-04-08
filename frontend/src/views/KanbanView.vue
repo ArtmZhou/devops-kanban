@@ -291,7 +291,13 @@
                   {{ getStatusText(currentViewingNode.status) }}
                 </span>
                 <span class="step-node-name">{{ currentViewingNode.name }}</span>
-                <span class="step-node-role">@{{ currentViewingNode.role }}</span>
+                <span class="step-node-role" v-if="currentViewingNode.role">@{{ currentViewingNode.role }}</span>
+                <span v-if="currentViewingNode.sessionId" class="step-session-id" :title="'Session #' + currentViewingNode.sessionId">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  #{{ currentViewingNode.sessionId }}
+                </span>
                 <span v-if="currentViewingNode.duration" class="step-node-duration">{{ currentViewingNode.duration }}min</span>
               </div>
             </div>
@@ -2756,6 +2762,23 @@ onUnmounted(() => {
 .step-node-duration {
   font-size: 12px;
   color: #6b7280;
+}
+
+.step-session-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #25C6C9;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: rgba(37, 198, 201, 0.08);
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.step-session-id:hover {
+  background: rgba(37, 198, 201, 0.15);
 }
 
 .step-chat-body {

@@ -47,6 +47,7 @@
               <div class="step-info">
                 <span class="step-name">{{ step.name }}</span>
                 <span class="step-status-text">{{ stepStatusText(step) }}</span>
+                <span v-if="step.session_id" class="step-session-id">Session #{{ step.session_id }}</span>
               </div>
             </div>
           </template>
@@ -464,6 +465,7 @@ watch(() => props.workflowRunId, () => {
 
 .step-name { font-size: 13px; font-weight: 600; color: #0f172a; }
 .step-status-text { font-size: 12px; color: #64748b; }
+.step-session-id { font-size: 11px; color: #25C6C9; font-weight: 500; margin-left: 6px; }
 
 .suspend-section {
   background: #fffbeb;
