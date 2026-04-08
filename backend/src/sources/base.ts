@@ -171,6 +171,7 @@ class UniversalAdapter extends TaskSourceAdapter {
         path: urlObj.pathname + urlObj.search,
         headers,
         method: method.toUpperCase(),
+        timeout: 30000,
       };
 
       if (urlObj.protocol === 'https:') {
@@ -198,6 +199,7 @@ class UniversalAdapter extends TaskSourceAdapter {
       });
 
       req.on('error', reject);
+      req.on('timeout', () => { req.destroy(new Error('Request timeout after 30s')); });
       req.end();
     });
   }

@@ -190,6 +190,7 @@
       </div>
 
       <BaseDialog
+        v-if="!showTaskSourcePanel"
         v-model="taskSourceStore.showPreviewDialog"
         :title="$t('taskSource.previewTitle')"
         width="650px"
