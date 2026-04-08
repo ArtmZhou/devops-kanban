@@ -801,12 +801,19 @@ const handleSyncTaskSources = async () => {
   if (!selectedProjectId.value) return
 
   try {
+    // Show dialog immediately with loading state
+    taskSourceStore.showPreviewDialog = true
+    taskSourceStore.syncPreviewTasks = []
+    taskSourceStore.syncError = null
+
     const tasks = await taskSourceStore.openSyncPreviewForProject(selectedProjectId.value)
     if (tasks.length === 0) {
       taskSourceStore.closePreviewDialog()
+      toast.warning(t('taskSource.noTasksToImport', '没有可同步的任务'))
     }
   } catch (err) {
     console.error('Failed to sync task sources:', err)
+    taskSourceStore.closePreviewDialog()
     toast.error(err.message || t('taskSource.syncFailed'))
   }
 }

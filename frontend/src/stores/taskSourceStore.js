@@ -217,7 +217,7 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
   }
 
   async function openSyncPreviewForProject(projectId) {
-    closePreviewDialog()
+    // Don't closePreviewDialog here — caller may have already opened it
     await fetchTaskSources(projectId)
 
     const results = await Promise.allSettled(

@@ -132,7 +132,7 @@ abstract class DevOpsBaseAdapter extends TaskSourceAdapter {
       const requestFactory = this._getRequestFactory(url);
       const body = requestOptions.body === undefined ? undefined : JSON.stringify(requestOptions.body);
       const options = this._buildRequestOptions(url, requestOptions, body);
-      (options as Record<string, unknown>).timeout = 30000;
+      (options as Record<string, unknown>).timeout = 10000;
 
       console.log(`[DevOpsBaseAdapter] → ${options.method} ${url.toString()}`);
 
@@ -165,7 +165,7 @@ abstract class DevOpsBaseAdapter extends TaskSourceAdapter {
       });
 
       req.on('timeout', () => {
-        req.destroy(new Error('API request timeout after 30s'));
+        req.destroy(new Error('API request timeout after 10s'));
       });
 
       if (body !== undefined) {
