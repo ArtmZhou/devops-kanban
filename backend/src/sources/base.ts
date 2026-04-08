@@ -288,7 +288,6 @@ class UniversalAdapter extends TaskSourceAdapter {
     const headers = this._buildHeaders(this.request.headers);
     const url = this._buildUrl(this.request.path, params);
 
-    console.log(`[TaskSource] Fetch request URL: ${url.toString()}`);
     const response = await this._httpRequest(url.toString(), method, headers);
 
     const items = this.response.path ? this._getNestedValue(response, this.response.path) : response;
@@ -306,7 +305,6 @@ class UniversalAdapter extends TaskSourceAdapter {
   override async testConnection(): Promise<boolean> {
     try {
       const url = this._buildUrl(this.request.path, {});
-      console.log(`[TaskSource] Test connection URL: ${url.toString()}`);
       await this._httpRequest(url.toString(), 'GET', this._buildHeaders(this.request.headers));
       return true;
     } catch (error) {
