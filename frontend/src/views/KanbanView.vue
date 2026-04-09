@@ -1121,6 +1121,8 @@ const getStatusText = (status) => {
     'PENDING': '待处理',
     'FAILED': '失败',
     'REJECTED': '已打回',
+    'CANCELLED': '已取消',
+    'SUSPENDED': '等待确认',
     'TODO': '待办'
   }
   return statusMap[status] || status
@@ -2821,6 +2823,16 @@ onUnmounted(() => {
 .step-status-badge.step-rejected {
   background: #fdecec;
   color: #dc2626;
+}
+
+.step-status-badge.step-cancelled {
+  background: #eceff3;
+  color: #6b7280;
+}
+
+.step-status-badge.step-suspended {
+  background: #fff4e5;
+  color: #d97706;
 }
 
 .step-node-name {
