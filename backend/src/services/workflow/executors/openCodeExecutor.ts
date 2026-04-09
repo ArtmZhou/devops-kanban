@@ -23,6 +23,9 @@ class OpenCodeExecutor implements Executor {
       ...(onEvent || onProviderState ? { onEvent: async (event) => {
         if (onProviderState && event.kind === 'status' && event.payload?.session_id) {
           await onProviderState({ providerSessionId: event.payload.session_id as string });
+          if (event.payload?.step_type === 'step_start' || event.payload?.step_type === 'step_finish') {
+            return;
+          }
         }
         await onEvent?.(event);
       }} : {}),
@@ -62,6 +65,9 @@ class OpenCodeExecutor implements Executor {
       ...(onEvent || onProviderState ? { onEvent: async (event) => {
         if (onProviderState && event.kind === 'status' && event.payload?.session_id) {
           await onProviderState({ providerSessionId: event.payload.session_id as string });
+          if (event.payload?.step_type === 'step_start' || event.payload?.step_type === 'step_finish') {
+            return;
+          }
         }
         await onEvent?.(event);
       }} : {}),

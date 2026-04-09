@@ -309,7 +309,17 @@
                 </span>
                 <span class="step-node-name">{{ currentViewingNode.name }}</span>
                 <span class="step-node-role" v-if="currentViewingNode.role">@{{ currentViewingNode.role }}</span>
-                <span v-if="currentViewingNode.sessionId" class="step-session-id" :title="'Session #' + currentViewingNode.sessionId">
+                <span v-if="currentViewingAgent" class="step-agent-badge">
+                  <el-icon class="agent-icon"><component :is="getAgentIcon(currentViewingAgent.executorType)" /></el-icon>
+                  {{ currentViewingAgent.name }}
+                </span>
+                <span v-if="currentViewingNode.providerSessionId" class="step-session-id" :title="'Provider Session: ' + currentViewingNode.providerSessionId">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  {{ currentViewingNode.providerSessionId }}
+                </span>
+                <span v-else-if="currentViewingNode.sessionId" class="step-session-id" :title="'Session #' + currentViewingNode.sessionId">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                   </svg>
@@ -620,6 +630,7 @@ import { useProjectStore } from '../stores/projectStore'
 import { useTaskStore } from '../stores/taskStore'
 import { useIterationStore } from '../stores/iterationStore'
 import { useTaskSourceStore } from '../stores/taskSourceStore'
+import { useAgentStore } from '../stores/agentStore'
 import BaseDialog from '../components/BaseDialog.vue'
 import AgentSelector from '../components/AgentSelector.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
@@ -656,6 +667,7 @@ const projectStore = useProjectStore()
 const taskStore = useTaskStore()
 const iterationStore = useIterationStore()
 const taskSourceStore = useTaskSourceStore()
+const agentStore = useAgentStore()
 const { handleWorktree } = useWorktree()
 
 const {
@@ -1085,6 +1097,12 @@ const getNodeRoleIcon = (role) => {
   const iconName = roleConfig[role]?.icon || 'Document'
   return roleIconMap[iconName] || Document
 }
+
+const currentViewingAgent = computed(() => {
+  const agentId = currentViewingNode.value?.agentId
+  if (!agentId) return null
+  return agentStore.agents.find(a => a.id === agentId) || null
+})
 
 const getAgentIcon = (agentType) => {
   if (!agentType) return Monitor
@@ -2815,6 +2833,22 @@ onUnmounted(() => {
 
 .step-session-id:hover {
   background: rgba(37, 198, 201, 0.15);
+}
+
+.step-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: #8B5CF6;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: rgba(139, 92, 246, 0.08);
+  border-radius: 4px;
+}
+
+.step-agent-badge .agent-icon {
+  font-size: 12px;
 }
 
 .step-chat-body {
