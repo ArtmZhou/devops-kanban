@@ -217,20 +217,26 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
   }
 
   async function openSyncPreviewForProject(projectId) {
-    closePreviewDialog()
+    // Don't closePreviewDialog here — caller may have already opened it
     await fetchTaskSources(projectId)
 
-    const previewTasks = []
-    for (const source of crud.items.value) {
-      try {
+    const results = await Promise.allSettled(
+      crud.items.value.map(async (source) => {
         const items = await fetchPreviewItems(source.id)
-        previewTasks.push(...items.map(item => ({
+        return items.map(item => ({
           ...item,
           sourceId: source.id,
           sourceName: source.name
-        })))
-      } catch (e) {
-        console.error(`Failed to preview source ${source.id}:`, e)
+        }))
+      })
+    )
+
+    const previewTasks = []
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        previewTasks.push(...result.value)
+      } else {
+        console.error('Failed to preview source:', result.reason)
       }
     }
 

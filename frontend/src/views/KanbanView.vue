@@ -70,8 +70,24 @@
             >
               {{ $t('iteration.manageIterations') }}
             </el-button>
+            <el-button
+              size="small"
+              :disabled="!selectedProjectId"
+              @click="showTaskSourcePanel = !showTaskSourcePanel"
+            >
+              任务源 {{ showTaskSourcePanel ? '▲' : '▼' }}
+            </el-button>
           </div>
         </div>
+
+        <!-- Task Source Panel -->
+        <TaskSourcePanel
+          v-if="showTaskSourcePanel"
+          :project-id="selectedProjectId"
+          :visible="showTaskSourcePanel"
+          @update:visible="showTaskSourcePanel = $event"
+          @tasks-imported="handleTasksImported"
+        />
 
         <!-- Kanban Board -->
         <div v-if="viewMode === 'kanban'" class="kanban-board" ref="kanbanBoardRef">
@@ -174,6 +190,7 @@
       </div>
 
       <BaseDialog
+        v-if="!showTaskSourcePanel"
         v-model="taskSourceStore.showPreviewDialog"
         :title="$t('taskSource.previewTitle')"
         width="650px"
@@ -616,6 +633,7 @@ import WorkflowStartEditorDialog from '../components/workflow/WorkflowStartEdito
 import IterationSelect from '../components/iteration/IterationSelect.vue'
 import IterationList from '../components/iteration/IterationList.vue'
 import IterationForm from '../components/iteration/IterationForm.vue'
+import TaskSourcePanel from '../components/taskSource/TaskSourcePanel.vue'
 import KanbanColumn from '../components/kanban/TaskColumn.vue'
 import KanbanListView from '../components/kanban/KanbanListView.vue'
 import { useTaskTimer } from '../composables/kanban/useTaskTimer'
@@ -665,6 +683,7 @@ const commitDialogData = ref(null)
 const showMergeDialog = ref(false)
 const mergeDialogData = ref(null)
 const showIterationManager = ref(false)
+const showTaskSourcePanel = ref(false)
 const showIterationModal = ref(false)
 const editingIteration = ref(null)
 const creatingIteration = ref(false)
@@ -782,13 +801,26 @@ const handleSyncTaskSources = async () => {
   if (!selectedProjectId.value) return
 
   try {
+    // Show dialog immediately with loading state
+    taskSourceStore.showPreviewDialog = true
+    taskSourceStore.syncPreviewTasks = []
+    taskSourceStore.syncError = null
+
     const tasks = await taskSourceStore.openSyncPreviewForProject(selectedProjectId.value)
     if (tasks.length === 0) {
       taskSourceStore.closePreviewDialog()
+      toast.warning(t('taskSource.noTasksToImport', '没有可同步的任务'))
     }
   } catch (err) {
     console.error('Failed to sync task sources:', err)
+    taskSourceStore.closePreviewDialog()
     toast.error(err.message || t('taskSource.syncFailed'))
+  }
+}
+
+const handleTasksImported = async () => {
+  if (selectedProjectId.value) {
+    await taskStore.fetchTasks(selectedProjectId.value)
   }
 }
 

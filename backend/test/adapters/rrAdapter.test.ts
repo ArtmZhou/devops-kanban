@@ -148,29 +148,29 @@ test.test('RRAdapter fetches paginated list and detail, maps all tasks to TODO',
 
   assert.equal(tasks.length, 2);
 
-  assert.equal(tasks[0].external_id, 'RR2022122300218');
-  assert.equal(tasks[0].title, '需求分析报告');
-  assert.ok(tasks[0].description.includes('背景'));
-  assert.ok(tasks[0].description.includes('项目背景说明'));
-  assert.ok(tasks[0].description.includes('子项'));
-  assert.ok(tasks[0].description.includes('详细背景'));
-  assert.ok(tasks[0].description.includes('目标'));
-  assert.ok(tasks[0].description.includes('主要目标'));
-  assert.equal(tasks[0].status, 'TODO');
-  assert.equal(tasks[0].external_url, 'https://devops.example/vision-workitem/api/raw_requirements/RR2022122300218');
-  assert.deepEqual(tasks[0].labels, []);
-  assert.equal(tasks[0].created_at, '2024-01-15T08:00:00Z');
-  assert.equal(tasks[0].updated_at, '2024-01-16T10:30:00Z');
+  assert.equal(tasks[0]!.external_id, 'RR2022122300218');
+  assert.equal(tasks[0]!.title, '需求分析报告');
+  assert.ok(tasks[0]!.description!.includes('背景'));
+  assert.ok(tasks[0]!.description!.includes('项目背景说明'));
+  assert.ok(tasks[0]!.description!.includes('子项'));
+  assert.ok(tasks[0]!.description!.includes('详细背景'));
+  assert.ok(tasks[0]!.description!.includes('目标'));
+  assert.ok(tasks[0]!.description!.includes('主要目标'));
+  assert.equal(tasks[0]!.status, 'TODO');
+  assert.equal(tasks[0]!.external_url, 'https://devops.example/vision-workitem/api/raw_requirements/RR2022122300218');
+  assert.deepEqual(tasks[0]!.labels, []);
+  assert.equal(tasks[0]!.created_at, '2024-01-15T08:00:00Z');
+  assert.equal(tasks[0]!.updated_at, '2024-01-16T10:30:00Z');
 
-  assert.equal(tasks[1].external_id, 'RR2022122300219');
-  assert.equal(tasks[1].title, '系统设计方案');
-  assert.ok(tasks[1].description.includes('范围'));
-  assert.ok(tasks[1].description.includes('设计范围'));
-  assert.equal(tasks[1].status, 'TODO');
-  assert.equal(tasks[1].external_url, 'https://devops.example/vision-workitem/api/raw_requirements/RR2022122300219');
-  assert.deepEqual(tasks[1].labels, []);
-  assert.equal(tasks[1].created_at, '2024-02-01T09:00:00Z');
-  assert.equal(tasks[1].updated_at, '2024-02-02T14:20:00Z');
+  assert.equal(tasks[1]!.external_id, 'RR2022122300219');
+  assert.equal(tasks[1]!.title, '系统设计方案');
+  assert.ok(tasks[1]!.description!.includes('范围'));
+  assert.ok(tasks[1]!.description!.includes('设计范围'));
+  assert.equal(tasks[1]!.status, 'TODO');
+  assert.equal(tasks[1]!.external_url, 'https://devops.example/vision-workitem/api/raw_requirements/RR2022122300219');
+  assert.deepEqual(tasks[1]!.labels, []);
+  assert.equal(tasks[1]!.created_at, '2024-02-01T09:00:00Z');
+  assert.equal(tasks[1]!.updated_at, '2024-02-02T14:20:00Z');
 });
 
 test.test('RRAdapter testConnection returns true on successful POST', async () => {
@@ -329,12 +329,12 @@ test.test('RRAdapter converts HTML in description to Markdown', async () => {
   const tasks = await adapter.fetch();
 
   assert.equal(tasks.length, 1);
-  assert.equal(tasks[0].external_id, 'RR-HTML-001');
-  assert.ok(tasks[0].description.includes('## 标题'));
-  assert.ok(tasks[0].description.includes('**重点：**'));
-  assert.ok(tasks[0].description.includes('项目A'));
-  assert.ok(tasks[0].description.includes('链接 (https://example.com)'));
-  assert.equal(tasks[0].status, 'TODO');
+  assert.equal(tasks[0]!.external_id, 'RR-HTML-001');
+  assert.ok(tasks[0]!.description!.includes('## 标题'));
+  assert.ok(tasks[0]!.description!.includes('**重点：**'));
+  assert.ok(tasks[0]!.description!.includes('项目A'));
+  assert.ok(tasks[0]!.description!.includes('链接 (https://example.com)'));
+  assert.equal(tasks[0]!.status, 'TODO');
 });
 
 test.test('RRAdapter handles empty descriptions gracefully', async () => {
@@ -383,9 +383,9 @@ test.test('RRAdapter handles empty descriptions gracefully', async () => {
   const tasks = await adapter.fetch();
 
   assert.equal(tasks.length, 1);
-  assert.equal(tasks[0].external_id, 'RR-EMPTY');
-  assert.equal(tasks[0].description, '');
-  assert.equal(tasks[0].status, 'TODO');
+  assert.equal(tasks[0]!.external_id, 'RR-EMPTY');
+  assert.equal(tasks[0]!.description, '');
+  assert.equal(tasks[0]!.status, 'TODO');
 });
 
 test.test('RRAdapter uses default paths when not configured', () => {
@@ -483,7 +483,7 @@ test.test('RRAdapter handles single page response', async () => {
   });
 
   const requests: string[] = [];
-  adapter._request = async (pathValue: string, requestOptions?: { method?: string; body?: unknown }) => {
+  adapter._request = async (pathValue: string, _requestOptions?: { method?: string; body?: unknown }) => {
     requests.push(pathValue);
     if (pathValue === '/vision-workitem/api/query/requirements/single_list') {
       return {
@@ -517,9 +517,9 @@ test.test('RRAdapter handles single page response', async () => {
   const tasks = await adapter.fetch();
 
   assert.equal(tasks.length, 1);
-  assert.equal(tasks[0].external_id, 'RR-SINGLE');
-  assert.equal(tasks[0].title, '单页需求');
-  assert.equal(tasks[0].status, 'TODO');
+  assert.equal(tasks[0]!.external_id, 'RR-SINGLE');
+  assert.equal(tasks[0]!.title, '单页需求');
+  assert.equal(tasks[0]!.status, 'TODO');
   assert.equal(requests.length, 2);
 });
 
@@ -566,7 +566,184 @@ test.test('RRAdapter handles error response from detail API gracefully', async (
   const tasks = await adapter.fetch();
 
   assert.equal(tasks.length, 1);
-  assert.equal(tasks[0].external_id, 'RR-ERROR');
-  assert.equal(tasks[0].description, '');
-  assert.equal(tasks[0].status, 'TODO');
+  assert.equal(tasks[0]!.external_id, 'RR-ERROR');
+  assert.equal(tasks[0]!.description, '');
+  assert.equal(tasks[0]!.status, 'TODO');
+});
+
+test.test('RRAdapter fetch respects limit option and stops early', async () => {
+  const adapter = new RRAdapter({
+    type: 'CLOUDDEVOPS_RR',
+    config: {
+      baseUrl: 'https://devops.example',
+      token: 'Bearer rr-token',
+      userId: '20001',
+      pageSize: 2,
+    },
+  });
+
+  let requestCount = 0;
+  adapter._request = async (pathValue: string) => {
+    requestCount++;
+
+    if (pathValue === '/vision-workitem/api/query/requirements/single_list') {
+      return {
+        code: 200,
+        data: {
+          result: [
+            { id: 1, number: 'RR1', title: 'Task 1', created_time: '2024-01-01T00:00:00Z', updated_time: '2024-01-01T00:00:00Z' },
+            { id: 2, number: 'RR2', title: 'Task 2', created_time: '2024-01-02T00:00:00Z', updated_time: '2024-01-02T00:00:00Z' },
+          ],
+          total_pages: 10,
+          current_page: requestCount,
+          page_size: 2,
+        },
+      };
+    }
+
+    if (pathValue.includes('/description')) {
+      return { code: 200, data: { descriptions: [{ attr_name: 'desc', value: 'test' }] } };
+    }
+
+    throw new Error(`Unexpected path: ${pathValue}`);
+  };
+
+  const tasks = await adapter.fetch({ limit: 1 });
+
+  assert.equal(tasks.length, 1);
+  assert.equal(requestCount, 2);
+  assert.equal(tasks[0]!.external_id, 'RR1');
+});
+
+test.test('RRAdapter fetch stops on invalid response format', async () => {
+  const adapter = new RRAdapter({
+    type: 'CLOUDDEVOPS_RR',
+    config: {
+      baseUrl: 'https://devops.example',
+      token: 'Bearer rr-token',
+      userId: '20001',
+      pageSize: 2,
+    },
+  });
+
+  let listRequestCount = 0;
+  adapter._request = async (pathValue: string) => {
+    if (pathValue === '/vision-workitem/api/query/requirements/single_list') {
+      listRequestCount++;
+
+      if (listRequestCount === 1) {
+        return {
+          code: 200,
+          data: {
+            result: [{ id: 1, number: 'RR1', title: 'Task 1', created_time: '2024-01-01T00:00:00Z', updated_time: '2024-01-01T00:00:00Z' }],
+            total_pages: 5,
+            current_page: 1,
+            page_size: 2,
+          },
+        };
+      }
+      return 'invalid response';
+    }
+
+    if (pathValue.includes('/description')) {
+      return { code: 200, data: { descriptions: [{ attr_name: 'desc', value: 'test' }] } };
+    }
+
+    throw new Error(`Unexpected path: ${pathValue}`);
+  };
+
+  const tasks = await adapter.fetch();
+
+  assert.equal(tasks.length, 1);
+  assert.equal(listRequestCount, 2); // 1 次成功 + 1 次无效响应后停止
+});
+
+test.test('RRAdapter fetch stops on empty data response', async () => {
+  const adapter = new RRAdapter({
+    type: 'CLOUDDEVOPS_RR',
+    config: {
+      baseUrl: 'https://devops.example',
+      token: 'Bearer rr-token',
+      userId: '20001',
+      pageSize: 2,
+    },
+  });
+
+  let listRequestCount = 0;
+  adapter._request = async (pathValue: string) => {
+    if (pathValue === '/vision-workitem/api/query/requirements/single_list') {
+      listRequestCount++;
+
+      if (listRequestCount === 1) {
+        return {
+          code: 200,
+          data: {
+            result: [{ id: 1, number: 'RR1', title: 'Task 1', created_time: '2024-01-01T00:00:00Z', updated_time: '2024-01-01T00:00:00Z' }],
+            total_pages: 5,
+            current_page: 1,
+            page_size: 2,
+          },
+        };
+      }
+      return { code: 200, data: {} };
+    }
+
+    if (pathValue.includes('/description')) {
+      return { code: 200, data: { descriptions: [{ attr_name: 'desc', value: 'test' }] } };
+    }
+
+    throw new Error(`Unexpected path: ${pathValue}`);
+  };
+
+  const tasks = await adapter.fetch();
+
+  assert.equal(tasks.length, 1);
+  assert.equal(listRequestCount, 2); // 1 次成功 + 1 次空数据后停止
+});
+
+test.test('RRAdapter fetch respects maxPages limit', async () => {
+  const adapter = new RRAdapter({
+    type: 'CLOUDDEVOPS_RR',
+    config: {
+      baseUrl: 'https://devops.example',
+      token: 'Bearer rr-token',
+      userId: '20001',
+      pageSize: 2,
+    },
+  });
+
+  let listRequestCount = 0;
+  adapter._request = async (pathValue: string) => {
+    if (pathValue === '/vision-workitem/api/query/requirements/single_list') {
+      listRequestCount++;
+
+      if (listRequestCount > 20) {
+        throw new Error('Should not exceed maxPages limit');
+      }
+
+      return {
+        code: 200,
+        data: {
+          result: [
+            { id: listRequestCount * 2 - 1, number: `RR${listRequestCount * 2 - 1}`, title: `Task ${listRequestCount * 2 - 1}`, created_time: '2024-01-01T00:00:00Z', updated_time: '2024-01-01T00:00:00Z' },
+            { id: listRequestCount * 2, number: `RR${listRequestCount * 2}`, title: `Task ${listRequestCount * 2}`, created_time: '2024-01-01T00:00:00Z', updated_time: '2024-01-01T00:00:00Z' },
+          ],
+          total_pages: 100,
+          current_page: listRequestCount,
+          page_size: 2,
+        },
+      };
+    }
+
+    if (pathValue.includes('/description')) {
+      return { code: 200, data: { descriptions: [{ attr_name: 'desc', value: 'test' }] } };
+    }
+
+    throw new Error(`Unexpected path: ${pathValue}`);
+  };
+
+  const tasks = await adapter.fetch();
+
+  assert.equal(tasks.length, 40);
+  assert.equal(listRequestCount, 20);
 });
