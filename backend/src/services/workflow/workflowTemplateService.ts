@@ -72,9 +72,8 @@ function normalizeTemplate(template: unknown): Omit<WorkflowTemplateEntity, 'id'
   };
 }
 
-const BUILTIN_TEMPLATES: WorkflowTemplateEntity[] = [
+const BUILTIN_TEMPLATES: Omit<WorkflowTemplateEntity, 'id' | 'created_at' | 'updated_at'>[] = [
   {
-    id: -1,
     template_id: 'repo-explorer',
     name: '探索代码仓',
     steps: [
@@ -90,19 +89,13 @@ const BUILTIN_TEMPLATES: WorkflowTemplateEntity[] = [
 4. **架构模式**：识别架构模式（MVC、分层架构等）
 
 最终输出格式化的 Markdown 报告，保存到 REPO_ANALYSIS.md 文件中。`,
-        agentId: 0,
+        agentId: 1,
         requiresConfirmation: false,
       },
     ],
-    order: 0,
-    created_at: '',
-    updated_at: '',
+    order: 3,
   },
 ];
-
-function getBuiltinTemplates(): WorkflowTemplateEntity[] {
-  return BUILTIN_TEMPLATES.map((t, i) => ({ ...t, order: t.order ?? i }));
-}
 
 class WorkflowTemplateService {
   workflowTemplateRepo: WorkflowTemplateRepository;
@@ -113,17 +106,12 @@ class WorkflowTemplateService {
 
   async getTemplates(): Promise<WorkflowTemplateEntity[]> {
     const templates = await this.workflowTemplateRepo.findAll();
-    if (templates.length > 0) {
-      return templates.map((t, index) => ({ ...t, order: t.order ?? index })).sort((a, b) => a.order - b.order);
-    }
-    return getBuiltinTemplates();
+    return templates
+      .map((t, index) => ({ ...t, order: t.order ?? index }))
+      .sort((a, b) => a.order - b.order);
   }
 
   async getTemplateById(templateId: string): Promise<WorkflowTemplateEntity | null> {
-    const builtin = BUILTIN_TEMPLATES.find((t) => t.template_id === templateId);
-    if (builtin) {
-      return builtin;
-    }
     return await this.workflowTemplateRepo.findByTemplateId(templateId);
   }
 
@@ -179,3 +167,14 @@ class WorkflowTemplateService {
 }
 
 export { WorkflowTemplateService, normalizeTemplate };
+
+export async function bootstrapBuiltinTemplates(repo?: WorkflowTemplateRepository): Promise<void> {
+  const service = new WorkflowTemplateService(repo ? { workflowTemplateRepo: repo } : {});
+  for (const tpl of BUILTIN_TEMPLATES) {
+    const existing = await service.getTemplateById(tpl.template_id);
+    if (!existing) {
+      await service.createTemplate(tpl);
+      console.log(`[Templates] Built-in template "${tpl.name}" created.`);
+    }
+  }
+}
