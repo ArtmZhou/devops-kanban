@@ -19,7 +19,7 @@ class StoryAdapter extends DevOpsBaseAdapter {
   category: string;
   status: string;
 
-  constructor(source: { config: Record<string, unknown> }) {
+  constructor(source: { type: string; config: Record<string, unknown> }) {
     super(source);
     const config = source.config;
     this.userId = typeof config.userId === 'string' && config.userId ? config.userId : undefined;
@@ -78,13 +78,14 @@ class StoryAdapter extends DevOpsBaseAdapter {
   }
 
   _isLastWorkitemPage(response: unknown, itemCount: number): boolean {
+    // 如果响应格式不对，立即停止（可能是错误响应）
     if (!response || typeof response !== 'object' || Array.isArray(response)) {
-      return itemCount < this.pageSize;
+      return true;
     }
 
     const data = (response as UnknownRecord).data;
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      return itemCount < this.pageSize;
+      return true;
     }
 
     const lastPage = (data as UnknownRecord).last_page;
@@ -98,6 +99,7 @@ class StoryAdapter extends DevOpsBaseAdapter {
       return responseCurrentPage >= totalPages;
     }
 
+    // 没有分页信息时，如果返回 item 数量少于 pageSize，说明是最后一页
     return itemCount < this.pageSize;
   }
 
@@ -204,16 +206,34 @@ class StoryAdapter extends DevOpsBaseAdapter {
     const items: UnknownRecord[] = [];
     let currentPage = 1;
     const limit = options?.limit;
+    const maxPages = 20; // 安全限制，防止无限循环和过长等待
 
-    while (true) {
-      const response = await this._request(this.listPath, {
-        method: 'POST',
-        body: this._buildWorkitemListBody(currentPage),
-      });
-      this._assertWorkitemSuccessResponse(response);
-      const pageItems = this._extractListItems(response);
+    while (currentPage <= maxPages) {
+      let response: unknown;
+      try {
+        response = await this._request(this.listPath, {
+          method: 'POST',
+          body: this._buildWorkitemListBody(currentPage),
+        });
+        this._assertWorkitemSuccessResponse(response);
+      } catch (error) {
+        // 请求失败或响应错误时停止分页
+        console.warn(`[StoryAdapter] Page ${currentPage} request failed, stopping pagination`);
+        break;
+      }
+
+      let pageItems: UnknownRecord[] = [];
+      try {
+        pageItems = this._extractListItems(response);
+      } catch (error) {
+        // 响应格式错误时停止分页
+        console.warn(`[StoryAdapter] Page ${currentPage} response format invalid, stopping pagination`);
+        break;
+      }
+
       items.push(...pageItems);
 
+      // 如果已达到限制数量，停止分页
       if (limit != null && items.length >= limit) {
         return items.slice(0, limit);
       }
@@ -224,6 +244,8 @@ class StoryAdapter extends DevOpsBaseAdapter {
 
       currentPage += 1;
     }
+
+    return items;
   }
 
   override async fetch(options?: { limit?: number; offset?: number }): Promise<ImportedTask[]> {

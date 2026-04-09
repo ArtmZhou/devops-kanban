@@ -172,6 +172,7 @@ class UniversalAdapter extends TaskSourceAdapter {
         path: urlObj.pathname + urlObj.search,
         headers,
         method: method.toUpperCase(),
+        timeout: 10000,
       };
 
       if (urlObj.protocol === 'https:') {
@@ -199,6 +200,7 @@ class UniversalAdapter extends TaskSourceAdapter {
       });
 
       req.on('error', reject);
+      req.on('timeout', () => { req.destroy(new Error('Request timeout after 10s')); });
       req.end();
     });
   }
@@ -289,7 +291,6 @@ class UniversalAdapter extends TaskSourceAdapter {
     const headers = this._buildHeaders(this.request.headers);
     const url = this._buildUrl(this.request.path, params);
 
-    logger.info('BaseSource', `Fetch request URL: ${url.toString()}`);
     const response = await this._httpRequest(url.toString(), method, headers);
 
     const items = this.response.path ? this._getNestedValue(response, this.response.path) : response;
@@ -307,7 +308,6 @@ class UniversalAdapter extends TaskSourceAdapter {
   override async testConnection(): Promise<boolean> {
     try {
       const url = this._buildUrl(this.request.path, {});
-      logger.info('BaseSource', `Test connection URL: ${url.toString()}`);
       await this._httpRequest(url.toString(), 'GET', this._buildHeaders(this.request.headers));
       return true;
     } catch (error) {

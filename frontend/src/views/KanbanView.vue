@@ -70,8 +70,24 @@
             >
               {{ $t('iteration.manageIterations') }}
             </el-button>
+            <el-button
+              size="small"
+              :disabled="!selectedProjectId"
+              @click="showTaskSourcePanel = !showTaskSourcePanel"
+            >
+              任务源 {{ showTaskSourcePanel ? '▲' : '▼' }}
+            </el-button>
           </div>
         </div>
+
+        <!-- Task Source Panel -->
+        <TaskSourcePanel
+          v-if="showTaskSourcePanel"
+          :project-id="selectedProjectId"
+          :visible="showTaskSourcePanel"
+          @update:visible="showTaskSourcePanel = $event"
+          @tasks-imported="handleTasksImported"
+        />
 
         <!-- Kanban Board -->
         <div v-if="viewMode === 'kanban'" class="kanban-board" ref="kanbanBoardRef">
@@ -174,6 +190,7 @@
       </div>
 
       <BaseDialog
+        v-if="!showTaskSourcePanel"
         v-model="taskSourceStore.showPreviewDialog"
         :title="$t('taskSource.previewTitle')"
         width="650px"
@@ -291,7 +308,13 @@
                   {{ getStatusText(currentViewingNode.status) }}
                 </span>
                 <span class="step-node-name">{{ currentViewingNode.name }}</span>
-                <span class="step-node-role">@{{ currentViewingNode.role }}</span>
+                <span class="step-node-role" v-if="currentViewingNode.role">@{{ currentViewingNode.role }}</span>
+                <span v-if="currentViewingNode.sessionId" class="step-session-id" :title="'Session #' + currentViewingNode.sessionId">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  #{{ currentViewingNode.sessionId }}
+                </span>
                 <span v-if="currentViewingNode.duration" class="step-node-duration">{{ currentViewingNode.duration }}min</span>
               </div>
             </div>
@@ -320,26 +343,29 @@
     <BaseDialog
       v-model="showTaskModal"
       :title="isEditing ? $t('task.editTask') : $t('task.newTask')"
-      width="520px"
+      width="800px"
+      custom-class="task-editor-dialog"
     >
       <el-form label-position="top">
         <el-form-item :label="$t('task.taskTitle')">
           <el-input
             v-model="taskForm.title"
             :placeholder="$t('task.taskTitlePlaceholder')"
+            class="task-title-input"
           />
         </el-form-item>
         <el-form-item :label="$t('task.taskDescription')">
           <el-input
             v-model="taskForm.description"
             type="textarea"
-            :rows="4"
+            :rows="12"
             :placeholder="$t('task.taskDescriptionPlaceholder')"
+            class="task-description-input"
           />
         </el-form-item>
         <div class="form-row">
           <el-form-item :label="$t('task.status')">
-            <el-select v-model="taskForm.status">
+            <el-select v-model="taskForm.status" class="full-width">
               <el-option value="TODO" :label="$t('status.TODO')" />
               <el-option value="IN_PROGRESS" :label="$t('status.IN_PROGRESS')" />
               <el-option value="DONE" :label="$t('status.DONE')" />
@@ -347,7 +373,7 @@
             </el-select>
           </el-form-item>
           <el-form-item :label="$t('task.priority')">
-            <el-select v-model="taskForm.priority">
+            <el-select v-model="taskForm.priority" class="full-width">
               <el-option value="LOW" :label="$t('priority.LOW')" />
               <el-option value="MEDIUM" :label="$t('priority.MEDIUM')" />
               <el-option value="HIGH" :label="$t('priority.HIGH')" />
@@ -360,6 +386,7 @@
             v-model="taskForm.iteration_id"
             :iterations="projectIterations"
             :placeholder="$t('task.selectIteration')"
+            class="full-width"
           />
           <p class="form-help">{{ $t('task.iterationHint') }}</p>
         </el-form-item>
@@ -606,6 +633,7 @@ import WorkflowStartEditorDialog from '../components/workflow/WorkflowStartEdito
 import IterationSelect from '../components/iteration/IterationSelect.vue'
 import IterationList from '../components/iteration/IterationList.vue'
 import IterationForm from '../components/iteration/IterationForm.vue'
+import TaskSourcePanel from '../components/taskSource/TaskSourcePanel.vue'
 import KanbanColumn from '../components/kanban/TaskColumn.vue'
 import KanbanListView from '../components/kanban/KanbanListView.vue'
 import { useTaskTimer } from '../composables/kanban/useTaskTimer'
@@ -655,6 +683,7 @@ const commitDialogData = ref(null)
 const showMergeDialog = ref(false)
 const mergeDialogData = ref(null)
 const showIterationManager = ref(false)
+const showTaskSourcePanel = ref(false)
 const showIterationModal = ref(false)
 const editingIteration = ref(null)
 const creatingIteration = ref(false)
@@ -772,13 +801,26 @@ const handleSyncTaskSources = async () => {
   if (!selectedProjectId.value) return
 
   try {
+    // Show dialog immediately with loading state
+    taskSourceStore.showPreviewDialog = true
+    taskSourceStore.syncPreviewTasks = []
+    taskSourceStore.syncError = null
+
     const tasks = await taskSourceStore.openSyncPreviewForProject(selectedProjectId.value)
     if (tasks.length === 0) {
       taskSourceStore.closePreviewDialog()
+      toast.warning(t('taskSource.noTasksToImport', '没有可同步的任务'))
     }
   } catch (err) {
     console.error('Failed to sync task sources:', err)
+    taskSourceStore.closePreviewDialog()
     toast.error(err.message || t('taskSource.syncFailed'))
+  }
+}
+
+const handleTasksImported = async () => {
+  if (selectedProjectId.value) {
+    await taskStore.fetchTasks(selectedProjectId.value)
   }
 }
 
@@ -2758,6 +2800,23 @@ onUnmounted(() => {
   color: #6b7280;
 }
 
+.step-session-id {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #25C6C9;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: rgba(37, 198, 201, 0.08);
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.step-session-id:hover {
+  background: rgba(37, 198, 201, 0.15);
+}
+
 .step-chat-body {
   flex: 1;
   min-height: 0;
@@ -3629,5 +3688,153 @@ onUnmounted(() => {
 
 .delete-worktree-checkbox {
   color: var(--text-secondary);
+}
+
+/* Task Editor Dialog - Modern Refined Style */
+.task-editor-dialog :deep(.el-form) {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.task-editor-dialog :deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
+.task-editor-dialog :deep(.el-form-item__label) {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-title-input :deep(.el-input__wrapper),
+.task-description-input :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  padding: 12px 14px;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.task-title-input :deep(.el-input__wrapper):hover,
+.task-description-input :deep(.el-input__wrapper):hover {
+  border-color: var(--border-color-hover);
+  background: var(--bg-secondary);
+}
+
+.task-title-input :deep(.el-input__wrapper.is-focus),
+.task-description-input :deep(.el-input__wrapper.is-focus) {
+  border-color: #25C6C9;
+  box-shadow: 0 0 0 3px rgba(37, 198, 201, 0.08);
+  background: var(--bg-primary);
+}
+
+.task-title-input :deep(.el-input__inner) {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.task-description-input :deep(.el-input__inner) {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.task-description-input :deep(.el-input__wrapper) {
+  padding: 14px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.task-editor-dialog :deep(.el-select) {
+  width: 100%;
+}
+
+.task-editor-dialog :deep(.el-select__wrapper) {
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  padding: 10px 12px;
+  min-height: 42px;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.task-editor-dialog :deep(.el-select__wrapper:hover) {
+  border-color: var(--border-color-hover);
+  background: var(--bg-secondary);
+}
+
+.task-editor-dialog :deep(.el-select__wrapper.is-focus) {
+  border-color: #25C6C9;
+  box-shadow: 0 0 0 3px rgba(37, 198, 201, 0.08);
+}
+
+.task-editor-dialog :deep(.el-select__placeholder) {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.full-width {
+  width: 100%;
+}
+
+.form-help {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.task-editor-dialog :deep(.el-form-item:last-child) {
+  margin-bottom: 0;
+}
+
+.task-editor-dialog :deep(.el-button) {
+  min-height: 36px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.task-editor-dialog :deep(.el-button--primary) {
+  background: linear-gradient(135deg, #25C6C9 0%, #1EA9AC 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(37, 198, 201, 0.24);
+}
+
+.task-editor-dialog :deep(.el-button--primary:hover) {
+  background: linear-gradient(135deg, #1EA9AC 0%, #189496 100%);
+  box-shadow: 0 4px 12px rgba(37, 198, 201, 0.32);
+  transform: translateY(-1px);
+}
+
+.task-editor-dialog :deep(.el-button--default) {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.task-editor-dialog :deep(.el-button--default:hover) {
+  background: var(--bg-secondary);
+  border-color: var(--border-color-hover);
+  color: var(--text-primary);
 }
 </style>

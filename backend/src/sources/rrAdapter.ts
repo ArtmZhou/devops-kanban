@@ -49,13 +49,14 @@ class RRAdapter extends DevOpsBaseAdapter {
   }
 
   _isLastRRPage(response: unknown, itemCount: number): boolean {
+    // 如果响应格式不对，立即停止（可能是错误响应）
     if (!response || typeof response !== 'object' || Array.isArray(response)) {
-      return itemCount < this.pageSize;
+      return true;
     }
 
     const data = (response as UnknownRecord).data;
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      return itemCount < this.pageSize;
+      return true;
     }
 
     const totalPages = (data as UnknownRecord).total_pages;
@@ -64,6 +65,8 @@ class RRAdapter extends DevOpsBaseAdapter {
       return currentPage >= totalPages;
     }
 
+    // 没有分页信息时，如果返回item数量少于pageSize，说明是最后一页
+    // 否则继续请求下一页
     return itemCount < this.pageSize;
   }
 
@@ -90,31 +93,25 @@ class RRAdapter extends DevOpsBaseAdapter {
 
   _parseRRDescriptionResponse(response: unknown): string {
     if (!response || typeof response !== 'object' || Array.isArray(response)) {
-      logger.info('RRAdapter', `_parseRRDescriptionResponse: invalid response type: ${typeof response}`);
       return '';
     }
 
     const code = (response as UnknownRecord).code;
     if (typeof code === 'number' && code !== 200) {
-      logger.info('RRAdapter', `_parseRRDescriptionResponse: non-200 code: ${code}`);
       return '';
     }
 
     const data = (response as UnknownRecord).data;
     if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      logger.info('RRAdapter', `_parseRRDescriptionResponse: invalid data, type: ${typeof data}, isArray: ${Array.isArray(data)}`);
       return '';
     }
 
     const descriptions = (data as UnknownRecord).descriptions;
     if (!Array.isArray(descriptions)) {
-      logger.info('RRAdapter', `_parseRRDescriptionResponse: descriptions is not array, data keys: ${Object.keys(data as UnknownRecord).join(',')}`);
       return '';
     }
 
-    logger.info('RRAdapter', `_parseRRDescriptionResponse: found ${descriptions.length} description nodes`);
     const rawDescription = this._concatDescriptions(descriptions as DescriptionNode[]);
-    logger.info('RRAdapter', `_parseRRDescriptionResponse: raw HTML length=${rawDescription.length}`);
     return this._normalizeWorkitemDescription(rawDescription);
   }
 
@@ -132,35 +129,52 @@ class RRAdapter extends DevOpsBaseAdapter {
     }
   }
 
-  async _fetchRRItems(): Promise<UnknownRecord[]> {
+  async _fetchRRItems(options?: { limit?: number; offset?: number }): Promise<UnknownRecord[]> {
     const items: UnknownRecord[] = [];
     let currentPage = 1;
+    const maxPages = 20; // 安全限制，防止无限循环和过长等待
+    const limit = options?.limit;
 
-    logger.info('RRAdapter', `Fetching list page ${currentPage}, listPath: ${this.listPath}`);
-
-    while (true) {
+    while (currentPage <= maxPages) {
       const body = this._buildRRListBody(currentPage);
-      logger.info('RRAdapter', `List request body: ${JSON.stringify(body)}`);
-      const response = await this._request(this.listPath, {
-        method: 'POST',
-        body,
-      });
-      logger.info('RRAdapter', `List response: ${JSON.stringify(response)}`);
-      this._assertRRSuccessResponse(response);
-      const pageItems = this._extractListItems(response);
-      logger.info('RRAdapter', `Page ${currentPage} extracted ${pageItems.length} items`);
+      let response: unknown;
+      try {
+        response = await this._request(this.listPath, {
+          method: 'POST',
+          body,
+        });
+        this._assertRRSuccessResponse(response);
+      } catch (error) {
+        logger.warn('RRAdapter', `Page ${currentPage} request failed, stopping pagination`);
+        break;
+      }
+
+      let pageItems: UnknownRecord[] = [];
+      try {
+        pageItems = this._extractListItems(response);
+      } catch (error) {
+        logger.warn('RRAdapter', `Page ${currentPage} response format invalid, stopping pagination`);
+        break;
+      }
+
       items.push(...pageItems);
 
+      // 如果已达到限制数量，停止分页
+      if (limit != null && items.length >= limit) {
+        return items.slice(0, limit);
+      }
+
       if (this._isLastRRPage(response, pageItems.length)) {
-        logger.info('RRAdapter', `Total items fetched: ${items.length}`);
         return items;
       }
 
       currentPage += 1;
     }
+
+    return items;
   }
 
-  override async fetch(): Promise<ImportedTask[]> {
+  override async fetch(options?: { limit?: number; offset?: number }): Promise<ImportedTask[]> {
     if (!this.baseUrl) {
       throw new Error('RR API baseUrl is required.');
     }
@@ -168,7 +182,7 @@ class RRAdapter extends DevOpsBaseAdapter {
       throw new Error('RR API userId is required.');
     }
 
-    const items = await this._fetchRRItems();
+    const items = await this._fetchRRItems(options);
     const tasks: ImportedTask[] = [];
 
     for (const item of items) {
@@ -178,11 +192,8 @@ class RRAdapter extends DevOpsBaseAdapter {
       }
 
       const detailPath = `/vision-workitem/api/raw_requirements/${encodeURIComponent(String(identifier))}/description`;
-      logger.info('RRAdapter', `Fetching detail for identifier: ${identifier}, detailPath: ${detailPath}, detailIdField: ${this.detailIdField}`);
       const detailResponse = await this._request(detailPath);
-      logger.info('RRAdapter', `Detail response for ${identifier}: ${JSON.stringify(detailResponse)}`);
       const description = this._parseRRDescriptionResponse(detailResponse);
-      logger.info('RRAdapter', `Parsed description for ${identifier}: length=${description.length}, preview=${description.substring(0, 200)}`);
 
       const task = this.convertToTask({
         ...item,

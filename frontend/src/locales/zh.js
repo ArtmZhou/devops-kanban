@@ -161,6 +161,8 @@ export default {
     CRITICAL: '紧急'
   },
   taskSource: {
+    manageTitle: '任务源管理',
+    collapse: '收起',
     title: '任务源配置',
     createSource: '添加任务源',
     editSource: '编辑任务源',
@@ -323,7 +325,8 @@ export default {
     loadFailed: '加载成员失败',
     startSession: '开始会话',
     types: {
-      CLAUDE_CODE: 'Claude Code'
+      CLAUDE_CODE: 'Claude Code',
+      OPEN_CODE: 'OpenCode'
     },
     commandHint: '使用 {prompt} 作为任务提示的占位符',
     skills: '技能',

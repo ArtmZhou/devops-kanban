@@ -107,6 +107,7 @@ class GitHubAdapter extends TaskSourceAdapter {
         headers: this._getHeaders(),
         method: 'GET',
         rejectUnauthorized: this.rejectUnauthorized,
+        timeout: 10000,
       };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,6 +132,7 @@ class GitHubAdapter extends TaskSourceAdapter {
       });
 
       req.on('error', reject);
+      req.on('timeout', () => { req.destroy(new Error('GitHub API request timeout after 10s')); });
       req.end();
     });
   }
