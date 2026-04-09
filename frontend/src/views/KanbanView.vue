@@ -304,18 +304,28 @@
             <div class="step-header-copy">
               <span class="step-header-label">Workflow 对话</span>
               <div class="step-node-detail" v-if="currentViewingNode">
-                <span class="step-status-badge" :class="'step-' + currentViewingNode.status?.toLowerCase()">
-                  {{ getStatusText(currentViewingNode.status) }}
-                </span>
                 <span class="step-node-name">{{ currentViewingNode.name }}</span>
-                <span class="step-node-role" v-if="currentViewingNode.role">@{{ currentViewingNode.role }}</span>
-                <span v-if="currentViewingNode.sessionId" class="step-session-id" :title="'Session #' + currentViewingNode.sessionId">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  #{{ currentViewingNode.sessionId }}
-                </span>
-                <span v-if="currentViewingNode.duration" class="step-node-duration">{{ currentViewingNode.duration }}min</span>
+                <div class="step-node-meta">
+                  <span class="step-status-badge" :class="'step-' + currentViewingNode.status?.toLowerCase()">
+                    {{ getStatusText(currentViewingNode.status) }}
+                  </span>
+                  <span v-if="currentViewingAgent" class="step-agent-badge">
+                    {{ currentViewingAgent.name }}
+                  </span>
+                  <span v-if="currentViewingNode.providerSessionId" class="step-session-id" :title="'Provider Session: ' + currentViewingNode.providerSessionId">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    {{ currentViewingNode.providerSessionId }}
+                  </span>
+                  <span v-if="!currentViewingNode.providerSessionId && currentViewingNode.sessionId" class="step-session-id" :title="'Session #' + currentViewingNode.sessionId">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    #{{ currentViewingNode.sessionId }}
+                  </span>
+                  <span v-if="currentViewingNode.duration" class="step-node-duration">{{ currentViewingNode.duration }}min</span>
+                </div>
               </div>
             </div>
           </div>
@@ -620,6 +630,7 @@ import { useProjectStore } from '../stores/projectStore'
 import { useTaskStore } from '../stores/taskStore'
 import { useIterationStore } from '../stores/iterationStore'
 import { useTaskSourceStore } from '../stores/taskSourceStore'
+import { useAgentStore } from '../stores/agentStore'
 import BaseDialog from '../components/BaseDialog.vue'
 import AgentSelector from '../components/AgentSelector.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
@@ -646,6 +657,7 @@ import { normalizeWorkflowTemplate } from '../components/workflow/templateEditor
 import { formatTaskDescription } from '../utils/taskDescriptionFormatter'
 import { useToast } from '../composables/ui/useToast'
 import { useWorktree } from '../composables/useWorktree'
+import { agentConfig, roleConfig } from '../constants/workflowPresentation.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -656,6 +668,7 @@ const projectStore = useProjectStore()
 const taskStore = useTaskStore()
 const iterationStore = useIterationStore()
 const taskSourceStore = useTaskSourceStore()
+const agentStore = useAgentStore()
 const { handleWorktree } = useWorktree()
 
 const {
@@ -1082,9 +1095,17 @@ const updateColumnRefs = () => {
 
 const getNodeRoleIcon = (role) => {
   if (!role) return Document
-  const iconName = roleConfig[role]?.icon || 'Document'
-  return roleIconMap[iconName] || Document
+  // roleConfig uses emoji icons, not Element Plus icon components
+  return Document
 }
+
+const agentIconMap = { Monitor, VideoPlay, Edit, Cpu }
+
+const currentViewingAgent = computed(() => {
+  const agentId = currentViewingNode.value?.agentId
+  if (!agentId) return null
+  return agentStore.agents.find(a => a.id === agentId || String(a.id) === String(agentId)) || null
+})
 
 const getAgentIcon = (agentType) => {
   if (!agentType) return Monitor
@@ -1100,6 +1121,8 @@ const getStatusText = (status) => {
     'PENDING': '待处理',
     'FAILED': '失败',
     'REJECTED': '已打回',
+    'CANCELLED': '已取消',
+    'SUSPENDED': '等待确认',
     'TODO': '待办'
   }
   return statusMap[status] || status
@@ -1356,6 +1379,7 @@ const handleAgentSelect = ({ task }) => {
 // Lifecycle
 onMounted(async () => {
   isComponentMounted.value = true
+  agentStore.fetchAgents()
   try {
     await initializeSelection()
     if (!isComponentMounted.value) return
@@ -2753,6 +2777,19 @@ onUnmounted(() => {
 
 .step-node-detail {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.step-node-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.step-node-meta {
+  display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
@@ -2788,6 +2825,16 @@ onUnmounted(() => {
   color: #dc2626;
 }
 
+.step-status-badge.step-cancelled {
+  background: #eceff3;
+  color: #6b7280;
+}
+
+.step-status-badge.step-suspended {
+  background: #fff4e5;
+  color: #d97706;
+}
+
 .step-node-name {
   font-size: 15px;
   font-weight: 600;
@@ -2815,6 +2862,22 @@ onUnmounted(() => {
 
 .step-session-id:hover {
   background: rgba(37, 198, 201, 0.15);
+}
+
+.step-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: #8B5CF6;
+  font-weight: 500;
+  padding: 2px 6px;
+  background: rgba(139, 92, 246, 0.08);
+  border-radius: 4px;
+}
+
+.step-agent-badge .agent-icon {
+  font-size: 12px;
 }
 
 .step-chat-body {

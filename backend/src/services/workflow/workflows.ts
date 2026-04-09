@@ -163,6 +163,9 @@ export function buildWorkflowFromInstance(
                 await options.lifecycle.sessionSegmentRepo.update(segmentId, {
                   provider_session_id: providerState.providerSessionId,
                 });
+                await options.lifecycle.workflowRunRepo.updateStep(options.runId, templateStep.id, {
+                  provider_session_id: providerState.providerSessionId,
+                });
               }
             },
           });
