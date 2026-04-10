@@ -50,10 +50,10 @@ export const getFileTree = (projectId, taskId) =>
  * Read file content from a task's worktree
  */
 export const readFileContent = (projectId, taskId, filePath) =>
-  api.get(`/git/worktrees/${taskId}/files/${filePath}`, { params: { projectId } })
+  api.get(`/git/worktrees/${taskId}/files/${encodeURIComponent(filePath)}`, { params: { projectId } })
 
 /**
  * Write file content to a task's worktree
  */
 export const writeFileContent = (projectId, taskId, filePath, content) =>
-  api.put(`/git/worktrees/${taskId}/files/${filePath}`, { content }, { params: { projectId } })
+  api.put(`/git/worktrees/${taskId}/files/${encodeURIComponent(filePath)}`, { content }, { params: { projectId } })

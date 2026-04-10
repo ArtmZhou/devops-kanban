@@ -11,6 +11,8 @@ import { successResponse, errorResponse } from '../utils/response.js';
 import { getStatusCode, getErrorMessage, logError } from '../utils/http.js';
 import { logger } from '../utils/logger.js';
 import type { ProjectEntity } from '../types/entities.js';
+import { getFileTree } from '../utils/fileTree.js';
+import { readFileContent, writeFileContent } from '../utils/fileEdit.js';
 
 const projectRepo = new ProjectRepository();
 const taskRepo = new TaskRepository();
@@ -527,7 +529,6 @@ export const gitRoutes: FastifyPluginAsync = async (fastify) => {
         return errorResponse('Task has no worktree');
       }
 
-      const { getFileTree } = await import('../utils/fileTree.js');
       const tree = getFileTree(task.worktree_path, task.worktree_path);
       return successResponse(tree);
     } catch (error) {
@@ -554,7 +555,7 @@ export const gitRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         const filePath = request.params.file;
-        const { readFileContent } = await import('../utils/fileEdit.js');
+        const filePath = request.params.file;
         const result = readFileContent(task.worktree_path, filePath);
         return successResponse(result);
       } catch (error: any) {
@@ -592,7 +593,6 @@ export const gitRoutes: FastifyPluginAsync = async (fastify) => {
           return errorResponse('Content is required');
         }
 
-        const { writeFileContent } = await import('../utils/fileEdit.js');
         const diff = writeFileContent(task.worktree_path, filePath, content);
         return successResponse({ filePath, diff });
       } catch (error) {

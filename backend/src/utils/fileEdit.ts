@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 
 const MAX_FILE_SIZE = 1_000_000; // 1MB
 
@@ -68,14 +68,15 @@ export function writeFileContent(worktreePath: string, filePath: string, content
   // Generate diff for the changed file
   let diff = '';
   try {
-    diff = execSync(`git diff -- "${filePath}"`, {
+    diff = execFileSync('git', ['diff', '--', filePath], {
       cwd: worktreePath,
       encoding: 'utf-8',
       maxBuffer: 10 * 1024 * 1024,
     });
   } catch {
-    // File might be new (untracked)
-    diff = `--- /dev/null\n+++ b/${filePath}\n@@ -0,0 +1 @@\n+${content}\n`;
+    // File might be new (untracked) — generate synthetic diff
+    const lines = content.split('\n');
+    diff = `--- /dev/null\n+++ b/${filePath}\n@@ -0,0 +1,${lines.length} @@\n${lines.map(l => `+${l}`).join('\n')}\n`;
   }
 
   return diff;

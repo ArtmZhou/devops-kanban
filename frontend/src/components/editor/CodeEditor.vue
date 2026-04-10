@@ -1,10 +1,10 @@
 <template>
   <Teleport to="body">
-    <div class="editor-overlay" @click.self="$emit('close')">
+    <div class="editor-overlay" @click.self="handleClose">
       <div class="editor-panel">
         <div class="editor-header">
           <span class="editor-title">编辑 - {{ taskTitle }}</span>
-          <button class="editor-close" @click="$emit('close')">✕</button>
+          <button class="editor-close" @click="handleClose">✕</button>
         </div>
 
         <div class="editor-body">
@@ -43,8 +43,8 @@
         </div>
 
         <div class="editor-footer">
-          <span v-if="unsavedFiles.size > 0" class="unsaved-count">
-            {{ unsavedFiles.size }} 个未保存变更
+          <span v-if="unsavedCount > 0" class="unsaved-count">
+            {{ unsavedCount }} 个未保存变更
           </span>
           <span class="hint">Ctrl+S 保存当前文件</span>
         </div>
@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getFileTree, readFileContent, writeFileContent } from '../../api/git'
 import FileTree from './FileTree.vue'
@@ -74,7 +74,7 @@ const props = defineProps({
   taskTitle: { type: String, required: true },
 })
 
-defineEmits(['close'])
+const emit = defineEmits(['close'])
 
 const fileTree = ref(null)
 const currentFile = ref('')
@@ -83,11 +83,14 @@ const editorView = ref(null)
 const saving = ref(false)
 const cursorLine = ref(1)
 const cursorCol = ref(1)
-const unsavedFiles = ref(new Set())
+// Use reactive Set to ensure Vue tracks mutations
+const unsavedFileSet = reactive(new Set())
+
+const unsavedCount = computed(() => unsavedFileSet.size)
 
 const hasUnsavedChanges = computed(() => {
   if (!currentFile.value || !editorView.value) return false
-  return unsavedFiles.value.has(currentFile.value)
+  return unsavedFileSet.has(currentFile.value)
 })
 
 const fileLanguage = computed(() => {
@@ -135,7 +138,7 @@ function createEditor(content = '') {
       ]),
       EditorView.updateListener.of((update) => {
         if (update.docChanged && currentFile.value) {
-          unsavedFiles.value.add(currentFile.value)
+          unsavedFileSet.add(currentFile.value)
         }
         if (update.selectionSet) {
           const pos = update.state.selection.main.head
@@ -165,10 +168,15 @@ async function loadFileTree() {
   }
 }
 
+let openFileSeq = 0
+
 async function openFile(filePath) {
+  const seq = ++openFileSeq
   currentFile.value = filePath
   try {
     const res = await readFileContent(props.projectId, props.taskId, filePath)
+    // Bail out if user clicked another file while we were loading
+    if (seq !== openFileSeq) return
     if (res.success) {
       if (res.data.isBinary) {
         ElMessage.warning('Binary files cannot be edited')
@@ -177,9 +185,10 @@ async function openFile(filePath) {
       }
       await nextTick()
       createEditor(res.data.content)
-      unsavedFiles.value.delete(filePath)
+      unsavedFileSet.delete(filePath)
     }
   } catch {
+    if (seq !== openFileSeq) return
     ElMessage.error('Failed to load file')
   }
 }
@@ -191,7 +200,7 @@ async function saveFile() {
     const content = editorView.value.state.doc.toString()
     const res = await writeFileContent(props.projectId, props.taskId, currentFile.value, content)
     if (res.success) {
-      unsavedFiles.value.delete(currentFile.value)
+      unsavedFileSet.delete(currentFile.value)
       ElMessage.success('保存成功')
     }
   } catch {
@@ -199,6 +208,13 @@ async function saveFile() {
   } finally {
     saving.value = false
   }
+}
+
+function handleClose() {
+  if (unsavedFileSet.size > 0) {
+    if (!window.confirm(`有 ${unsavedFileSet.size} 个未保存变更，确定关闭？`)) return
+  }
+  emit('close')
 }
 
 onMounted(async () => {

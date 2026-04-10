@@ -36,8 +36,8 @@ test.test('readFileContent returns isBinary for binary files', async () => {
 
 test.test('readFileContent throws for non-existent file', async () => {
   await withTempDir(async (dir) => {
-    await assert.rejects(
-      async () => readFileContent(dir, 'nonexistent.ts'),
+    assert.throws(
+      () => readFileContent(dir, 'nonexistent.ts'),
       /File not found/
     );
   });
@@ -45,8 +45,8 @@ test.test('readFileContent throws for non-existent file', async () => {
 
 test.test('readFileContent throws for path traversal', async () => {
   await withTempDir(async (dir) => {
-    await assert.rejects(
-      async () => readFileContent(dir, '../../../etc/passwd'),
+    assert.throws(
+      () => readFileContent(dir, '../../../etc/passwd'),
       /Invalid file path/
     );
   });
@@ -54,8 +54,8 @@ test.test('readFileContent throws for path traversal', async () => {
 
 test.test('readFileContent throws for absolute path', async () => {
   await withTempDir(async (dir) => {
-    await assert.rejects(
-      async () => readFileContent(dir, '/etc/passwd'),
+    assert.throws(
+      () => readFileContent(dir, '/etc/passwd'),
       /Invalid file path/
     );
   });
@@ -68,8 +68,8 @@ test.test('readFileContent throws for files exceeding 1MB limit', async () => {
     fs.writeSync(fd, Buffer.alloc(1_000_001, 'x'));
     fs.closeSync(fd);
 
-    await assert.rejects(
-      async () => readFileContent(dir, 'large.txt'),
+    assert.throws(
+      () => readFileContent(dir, 'large.txt'),
       /File too large/
     );
   });
@@ -88,8 +88,8 @@ test.test('readFileContent handles zero-byte files as text', async () => {
 
 test.test('writeFileContent rejects path traversal', async () => {
   await withTempDir(async (dir) => {
-    await assert.rejects(
-      async () => writeFileContent(dir, '../../../etc/passwd', 'hacked'),
+    assert.throws(
+      () => writeFileContent(dir, '../../../etc/passwd', 'hacked'),
       /Invalid file path/
     );
   });
