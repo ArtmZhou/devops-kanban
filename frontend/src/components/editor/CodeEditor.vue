@@ -197,7 +197,7 @@ const sidebarTab = ref('files')
 const searchQuery = ref('')
 const recentFiles = reactive([])
 const showRecent = ref(true)
-const showFullTree = ref(false)
+const showFullTree = ref(true)
 
 // Changes state
 const changedFiles = ref([])
@@ -214,7 +214,7 @@ let mergeViewInstance = null
 // Commit state
 const commitMessage = ref('')
 const committing = ref(false)
-const showCommitArea = ref(false)
+const showCommitArea = ref(true)
 
 // Computed
 const hasUnsavedChanges = computed(() => {
