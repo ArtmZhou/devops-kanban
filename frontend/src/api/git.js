@@ -37,3 +37,23 @@ export const getDiff = (projectId, taskId) =>
  */
 export const mergeBranch = (projectId, source, target) =>
   api.post(`/git/branches/${encodeURIComponent(source)}/merge/${encodeURIComponent(target)}`, null, { params: { projectId } })
+
+// ==================== File Editing ====================
+
+/**
+ * Get file tree for a task's worktree
+ */
+export const getFileTree = (projectId, taskId) =>
+  api.get(`/git/worktrees/${taskId}/files`, { params: { projectId } })
+
+/**
+ * Read file content from a task's worktree
+ */
+export const readFileContent = (projectId, taskId, filePath) =>
+  api.get(`/git/worktrees/${taskId}/files/${filePath}`, { params: { projectId } })
+
+/**
+ * Write file content to a task's worktree
+ */
+export const writeFileContent = (projectId, taskId, filePath, content) =>
+  api.put(`/git/worktrees/${taskId}/files/${filePath}`, { content }, { params: { projectId } })
