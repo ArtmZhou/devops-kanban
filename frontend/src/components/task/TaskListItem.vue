@@ -163,20 +163,6 @@
             </svg>
             编辑
           </button>
-          <button class="quick-action-btn" @click.stop="$emit('workflow-action', 'commit')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            提交
-          </button>
-          <button class="quick-action-btn" @click.stop="$emit('workflow-action', 'diff')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 3v18M3 12h18M8 8l-4 4 4 4M16 8l4 4-4 4"></path>
-            </svg>
-            差异
-          </button>
           <button class="quick-action-btn" @click.stop="$emit('workflow-action', 'merge')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="18" r="3"></circle>

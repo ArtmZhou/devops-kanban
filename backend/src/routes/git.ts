@@ -12,7 +12,7 @@ import { getStatusCode, getErrorMessage, logError } from '../utils/http.js';
 import { logger } from '../utils/logger.js';
 import type { ProjectEntity } from '../types/entities.js';
 import { getFileTree } from '../utils/fileTree.js';
-import { readFileContent, writeFileContent } from '../utils/fileEdit.js';
+import { readFileContent, readHeadFileContent, writeFileContent } from '../utils/fileEdit.js';
 
 const projectRepo = new ProjectRepository();
 const taskRepo = new TaskRepository();
@@ -539,7 +539,7 @@ export const gitRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // GET /worktrees/:taskId/files/* - Read file content
-  fastify.get<{ Params: { taskId: string; '*': string }; Querystring: ProjectIdQuery }>(
+  fastify.get<{ Params: { taskId: string; '*': string }; Querystring: ProjectIdQuery & { version?: string } }>(
     '/worktrees/:taskId/files/*',
     async (request, reply) => {
       try {
@@ -555,6 +555,13 @@ export const gitRoutes: FastifyPluginAsync = async (fastify) => {
         }
 
         const filePath = (request.params as any)['*'];
+        const version = (request.query as any).version;
+
+        if (version === 'head') {
+          const content = readHeadFileContent(task.worktree_path, filePath);
+          return successResponse({ content, isBinary: false, size: content.length });
+        }
+
         const result = readFileContent(task.worktree_path, filePath);
         return successResponse(result);
       } catch (error: any) {

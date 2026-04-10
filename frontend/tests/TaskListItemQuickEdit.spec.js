@@ -52,4 +52,16 @@ describe('TaskListItem quick edit', () => {
     expect(editBtn.exists()).toBe(true)
     expect(editBtn.attributes('disabled')).toBe('')
   })
+
+  it('does not render standalone commit or diff buttons', () => {
+    const wrapper = mount(TaskListItem, {
+      props: { task, selected: false, compact: false, workflowExpanded: true },
+      global: { plugins: [i18n] },
+    })
+
+    const buttons = wrapper.findAll('.quick-action-btn')
+    const buttonTexts = buttons.map(b => b.text())
+    expect(buttonTexts).not.toContain('提交')
+    expect(buttonTexts).not.toContain('差异')
+  })
 })

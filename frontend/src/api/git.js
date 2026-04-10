@@ -48,9 +48,16 @@ export const getFileTree = (projectId, taskId) =>
 
 /**
  * Read file content from a task's worktree
+ * @param {Object} [options] - Optional parameters
+ * @param {string} [options.version] - 'head' to read the committed version
  */
-export const readFileContent = (projectId, taskId, filePath) =>
-  api.get(`/git/worktrees/${taskId}/files/${encodeURIComponent(filePath)}`, { params: { projectId } })
+export const readFileContent = (projectId, taskId, filePath, options = {}) =>
+  api.get(`/git/worktrees/${taskId}/files/${encodeURIComponent(filePath)}`, {
+    params: {
+      projectId,
+      ...(options.version ? { version: options.version } : {}),
+    },
+  })
 
 /**
  * Write file content to a task's worktree

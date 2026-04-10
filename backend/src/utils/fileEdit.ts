@@ -56,6 +56,22 @@ export function readFileContent(worktreePath: string, filePath: string): {
   return { content, isBinary: false, size: stat.size };
 }
 
+export function readHeadFileContent(worktreePath: string, filePath: string): string {
+  validateFilePath(worktreePath, filePath);
+
+  try {
+    const content = execFileSync('git', ['show', `HEAD:${filePath}`], {
+      cwd: worktreePath,
+      encoding: 'utf-8',
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    return content;
+  } catch {
+    // File doesn't exist in HEAD (new file) — return empty string
+    return '';
+  }
+}
+
 export function writeFileContent(worktreePath: string, filePath: string, content: string): string {
   const fullPath = validateFilePath(worktreePath, filePath);
 
