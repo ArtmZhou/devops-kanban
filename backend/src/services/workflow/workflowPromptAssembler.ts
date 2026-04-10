@@ -55,7 +55,7 @@ function formatAgentIdentitySection(agent?: WorkflowAgent) {
 }
 
 function formatRepoAnalysisContext() {
-  return '项目上下文：如果代码仓根目录存在 KANBAN_COMPASS.md 文件，请先阅读该文件了解项目结构、技术栈和核心模块，再开始本步骤的工作。';
+  return '提示：代码仓根目录可能存在 KANBAN_COMPASS.md 文件，包含项目结构和上下文信息，需要时可参考。';
 }
 
 function assembleWorkflowPrompt({
