@@ -201,23 +201,14 @@ async function saveFile() {
   }
 }
 
-function handleKeydown(e) {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault()
-    saveFile()
-  }
-}
-
 onMounted(async () => {
   await loadFileTree()
-  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   if (editorView.value) {
     editorView.value.destroy()
   }
-  document.removeEventListener('keydown', handleKeydown)
 })
 </script>
 

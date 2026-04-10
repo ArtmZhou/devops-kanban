@@ -52,6 +52,49 @@ test.test('readFileContent throws for path traversal', async () => {
   });
 });
 
+test.test('readFileContent throws for absolute path', async () => {
+  await withTempDir(async (dir) => {
+    await assert.rejects(
+      async () => readFileContent(dir, '/etc/passwd'),
+      /Invalid file path/
+    );
+  });
+});
+
+test.test('readFileContent throws for files exceeding 1MB limit', async () => {
+  await withTempDir(async (dir) => {
+    const largePath = path.join(dir, 'large.txt');
+    const fd = fs.openSync(largePath, 'w');
+    fs.writeSync(fd, Buffer.alloc(1_000_001, 'x'));
+    fs.closeSync(fd);
+
+    await assert.rejects(
+      async () => readFileContent(dir, 'large.txt'),
+      /File too large/
+    );
+  });
+});
+
+test.test('readFileContent handles zero-byte files as text', async () => {
+  await withTempDir(async (dir) => {
+    fs.writeFileSync(path.join(dir, 'empty.txt'), '');
+
+    const result = readFileContent(dir, 'empty.txt');
+    assert.equal(result.isBinary, false);
+    assert.equal(result.content, '');
+    assert.equal(result.size, 0);
+  });
+});
+
+test.test('writeFileContent rejects path traversal', async () => {
+  await withTempDir(async (dir) => {
+    await assert.rejects(
+      async () => writeFileContent(dir, '../../../etc/passwd', 'hacked'),
+      /Invalid file path/
+    );
+  });
+});
+
 test.test('writeFileContent writes to file and returns diff', async () => {
   await withTempDir(async (dir) => {
     // Initialize git repo

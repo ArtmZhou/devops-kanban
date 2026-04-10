@@ -40,4 +40,16 @@ describe('TaskListItem quick edit', () => {
     expect(wrapper.emitted('quick-edit')).toBeTruthy()
     expect(wrapper.emitted('quick-edit')[0]).toEqual([task])
   })
+
+  it('disables quick edit button when task has no worktree', () => {
+    const taskWithoutWorktree = { ...task, worktree_status: 'none', worktree_path: null }
+    const wrapper = mount(TaskListItem, {
+      props: { task: taskWithoutWorktree, selected: false, compact: false, workflowExpanded: true },
+      global: { plugins: [i18n] },
+    })
+
+    const editBtn = wrapper.find('.quick-action-btn[title="Quick Edit"]')
+    expect(editBtn.exists()).toBe(true)
+    expect(editBtn.attributes('disabled')).toBe('')
+  })
 })

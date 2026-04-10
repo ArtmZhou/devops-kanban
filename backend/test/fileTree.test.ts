@@ -63,3 +63,67 @@ test.test('getFileTree marks binary files as binary', async () => {
     assert.equal(textFile?.isBinary, false);
   });
 });
+
+test.test('getFileTree excludes .DS_Store and dist directories', async () => {
+  await withTempDir(async (dir) => {
+    fs.mkdirSync(path.join(dir, '.DS_Store'));
+    fs.writeFileSync(path.join(dir, '.DS_Store', 'file'), '');
+    fs.mkdirSync(path.join(dir, 'dist'));
+    fs.writeFileSync(path.join(dir, 'dist', 'bundle.js'), '');
+    fs.mkdirSync(path.join(dir, 'src'));
+    fs.writeFileSync(path.join(dir, 'src', 'app.ts'), '');
+
+    const tree = getFileTree(dir, dir);
+    const dsNode = tree.children!.find((c) => c.name === '.DS_Store');
+    const distNode = tree.children!.find((c) => c.name === 'dist');
+
+    assert.ok(dsNode);
+    assert.deepEqual(dsNode.children, []);
+    assert.ok(distNode);
+    assert.deepEqual(distNode.children, []);
+  });
+});
+
+test.test('getFileTree handles empty directories', async () => {
+  await withTempDir(async (dir) => {
+    fs.mkdirSync(path.join(dir, 'empty'));
+
+    const tree = getFileTree(dir, dir);
+    const emptyNode = tree.children!.find((c) => c.name === 'empty');
+
+    assert.ok(emptyNode);
+    assert.deepEqual(emptyNode.children, []);
+  });
+});
+
+test.test('getFileTree handles zero-byte files as text', async () => {
+  await withTempDir(async (dir) => {
+    fs.writeFileSync(path.join(dir, 'empty.txt'), '');
+
+    const tree = getFileTree(dir, dir);
+    const emptyFile = tree.children!.find((c) => c.name === 'empty.txt');
+
+    assert.equal(emptyFile?.isBinary, false);
+  });
+});
+
+test.test('getFileTree handles deeply nested paths', async () => {
+  await withTempDir(async (dir) => {
+    const deepPath = path.join(dir, 'a', 'b', 'c', 'd', 'e', 'deep.ts');
+    fs.mkdirSync(path.dirname(deepPath), { recursive: true });
+    fs.writeFileSync(deepPath, '');
+
+    const tree = getFileTree(dir, dir);
+    const aNode = tree.children!.find((c) => c.name === 'a');
+    assert.ok(aNode);
+
+    // Navigate down the tree
+    let current = aNode;
+    for (const name of ['b', 'c', 'd', 'e']) {
+      current = current.children!.find((c) => c.name === name);
+      assert.ok(current);
+    }
+    const deepFile = current!.children!.find((c) => c.name === 'deep.ts');
+    assert.ok(deepFile);
+  });
+});
