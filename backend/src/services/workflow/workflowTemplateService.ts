@@ -88,7 +88,7 @@ const BUILTIN_TEMPLATES: Omit<WorkflowTemplateEntity, 'id' | 'created_at' | 'upd
 3. **依赖关系**：主要依赖及其用途、模块间依赖关系
 4. **架构模式**：识别架构模式（MVC、分层架构等）
 
-最终输出格式化的 Markdown 报告，保存到 REPO_ANALYSIS.md 文件中。`,
+最终输出格式化的 Markdown 报告，保存到 KANBAN_COMPASS.md 文件中。该文件将作为后续工作流执行的参考文档，其他工作流的 Agent 会读取此文件来了解项目结构。`,
         agentId: 1,
         requiresConfirmation: false,
       },

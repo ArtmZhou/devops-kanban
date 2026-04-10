@@ -54,6 +54,10 @@ function formatAgentIdentitySection(agent?: WorkflowAgent) {
   ].join('\n');
 }
 
+function formatRepoAnalysisContext() {
+  return '项目上下文：如果代码仓根目录存在 KANBAN_COMPASS.md 文件，请先阅读该文件了解项目结构、技术栈和核心模块，再开始本步骤的工作。';
+}
+
 function assembleWorkflowPrompt({
   step,
   state,
@@ -69,6 +73,7 @@ function assembleWorkflowPrompt({
 }) {
   const upstreamSummaries = extractUpstreamSummaries(inputData, upstreamStepIds);
   const agentIdentitySection = formatAgentIdentitySection(agent);
+  const repoAnalysisContext = formatRepoAnalysisContext();
 
   // When step's instructionPrompt already contains summary format instructions,
   // skip the generic summary instruction to avoid conflicts
@@ -86,6 +91,7 @@ function assembleWorkflowPrompt({
       ? ['上游步骤摘要：', ...upstreamSummaries.map((item) => `- ${item.stepId}:\n${item.summary}`)].join('\n')
       : '',
     agentIdentitySection,
+    repoAnalysisContext,
     `本步骤要求：\n${step.instructionPrompt}`,
     '执行完成后，只输出最后结果总结。',
     summaryInstruction,
