@@ -150,7 +150,7 @@ export function buildWorkflowFromInstance(
             throw new Error('No provider session ID found for AskUserQuestion resume');
           }
 
-          const answerPrompt = `[User's answer to your question]\n${typedResumeData.ask_user_answer}\n\nPlease continue based on this answer.`;
+          const answerPrompt = `${typedResumeData.ask_user_answer}`;
 
           try {
             // Save user's answer as a user message event
