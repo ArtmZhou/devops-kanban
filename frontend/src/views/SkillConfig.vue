@@ -19,22 +19,34 @@
       <div class="skill-list-panel">
         <div class="panel-header">
           <h3>{{ $t('skill.skillList') }}</h3>
-          <span class="skill-count">{{ filteredSkills.length }}</span>
+          <div class="panel-header-right">
+            <span v-if="selectedTemplateId" class="skill-filter-badge">Filtered</span>
+            <span class="skill-count">{{ filteredSkills.length }}</span>
+          </div>
         </div>
         <div class="skill-filter-bar">
-          <select
-            v-model="selectedTemplateId"
-            class="skill-filter-select"
-          >
-            <option value="">{{ $t('skill.filterAllTemplates') }}</option>
-            <option
-              v-for="tpl in workflowTemplates"
-              :key="tpl.template_id"
-              :value="tpl.template_id"
+          <div class="skill-filter-wrapper">
+            <span class="skill-filter-icon">&#9660;</span>
+            <select
+              v-model="selectedTemplateId"
+              class="skill-filter-select"
             >
-              {{ tpl.name }}
-            </option>
-          </select>
+              <option value="">{{ $t('skill.filterAllTemplates') }}</option>
+              <option
+                v-for="tpl in workflowTemplates"
+                :key="tpl.template_id"
+                :value="tpl.template_id"
+              >
+                {{ tpl.name }}
+              </option>
+            </select>
+          </div>
+          <button
+            v-if="selectedTemplateId"
+            class="skill-filter-clear"
+            @click="selectedTemplateId = ''"
+            :title="$t('skill.filterAllTemplates')"
+          >&times;</button>
         </div>
         <div class="skill-list" v-if="!skillStore.loading">
           <div
@@ -648,13 +660,50 @@ onMounted(loadSkills)
   font-weight: 700;
 }
 
+.panel-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-filter-badge {
+  background: var(--accent-color);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .skill-filter-bar {
-  padding: 0 12px 8px;
+  padding: 8px 12px 8px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-filter-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.skill-filter-icon {
+  position: absolute;
+  left: 8px;
+  font-size: 8px;
+  color: var(--text-secondary);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .skill-filter-select {
   width: 100%;
-  padding: 6px 8px;
+  padding: 6px 24px 6px 24px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   background: var(--input-bg, #fff);
@@ -662,9 +711,37 @@ onMounted(loadSkills)
   font-size: var(--font-size-sm);
   cursor: pointer;
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .skill-filter-select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(37, 198, 201, 0.15);
+}
+
+.skill-filter-clear {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  transition: all 0.2s;
+}
+
+.skill-filter-clear:hover {
+  background: var(--accent-color);
+  color: #fff;
   border-color: var(--accent-color);
 }
 
