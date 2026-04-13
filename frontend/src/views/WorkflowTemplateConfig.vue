@@ -36,8 +36,16 @@
               <el-button plain @click="showImportDialog = true">
                 {{ $t('workflowTemplate.importButton') }}
               </el-button>
-              <el-button plain :disabled="selectedForExport.length === 0" @click="handleBatchExport">
-                {{ $t('workflowTemplate.exportSelected', { count: selectedForExport.length }) }}
+              <template v-if="exportMode">
+                <el-button type="primary" plain :disabled="selectedForExport.length === 0" @click="handleBatchExport">
+                  {{ $t('workflowTemplate.exportConfirm', { count: selectedForExport.length }) }}
+                </el-button>
+                <el-button plain @click="cancelExportMode">
+                  {{ $t('common.cancel') }}
+                </el-button>
+              </template>
+              <el-button v-else plain @click="enterExportMode">
+                {{ $t('workflowTemplate.exportButton') }}
               </el-button>
             </div>
           </div>
@@ -64,25 +72,13 @@
                   @click="selectTemplate(item.template_id)"
                 >
                   <el-checkbox
-                    v-if="!item.isDraft"
+                    v-if="exportMode && !item.isDraft"
                     :model-value="selectedForExport.includes(item.template_id)"
                     class="template-list-item__checkbox"
                     @change="(val) => toggleExportSelect(item.template_id, val)"
                     @click.stop
                   />
                   <span class="template-list-item__name">{{ item.name }}</span>
-                  <span
-                    v-if="!item.isDraft"
-                    class="template-list-item__export"
-                    :data-testid="`export-template-${item.template_id}`"
-                    role="button"
-                    tabindex="0"
-                    :aria-label="$t('workflowTemplate.exportTemplate')"
-                    @click.stop="handleExportTemplate(item.template_id)"
-                    @keydown.enter.stop="handleExportTemplate(item.template_id)"
-                  >
-                    <el-icon :size="14"><Download /></el-icon>
-                  </span>
                   <span
                     v-if="!item.isDraft"
                     class="template-list-item__copy"
@@ -336,7 +332,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CopyDocument, Delete, Download, Plus } from '@element-plus/icons-vue'
+import { CopyDocument, Delete, Plus } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
 import WorkflowTemplateImportDialog from '../components/workflow/WorkflowTemplateImportDialog.vue'
 import {
@@ -346,7 +342,6 @@ import {
   getWorkflowTemplates,
   updateWorkflowTemplate,
   reorderWorkflowTemplates,
-  exportWorkflowTemplate,
   exportWorkflowTemplates
 } from '../api/workflowTemplate'
 import { getAgents } from '../api/agent'
@@ -390,6 +385,7 @@ let templateDetailRequestToken = 0
 let latestTemplateDetailRequestToken = 0
 
 const showImportDialog = ref(false)
+const exportMode = ref(false)
 const selectedForExport = ref([])
 
 const canDeleteSelected = computed(() => {
@@ -902,6 +898,16 @@ const toggleExportSelect = (templateId, checked) => {
   }
 }
 
+const enterExportMode = () => {
+  exportMode.value = true
+  selectedForExport.value = []
+}
+
+const cancelExportMode = () => {
+  exportMode.value = false
+  selectedForExport.value = []
+}
+
 const downloadJson = (data, filename) => {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -912,22 +918,13 @@ const downloadJson = (data, filename) => {
   URL.revokeObjectURL(url)
 }
 
-const handleExportTemplate = async (templateId) => {
-  try {
-    const data = await exportWorkflowTemplate(templateId)
-    downloadJson(data, `${templateId}.json`)
-    ElMessage.success(t('workflowTemplate.exportSuccess'))
-  } catch (error) {
-    ElMessage.error(error?.message || t('workflowTemplate.exportFailed'))
-  }
-}
-
 const handleBatchExport = async () => {
   if (selectedForExport.value.length === 0) return
   try {
     const data = await exportWorkflowTemplates(selectedForExport.value)
     downloadJson(data, `workflow-templates-${Date.now()}.json`)
     ElMessage.success(t('workflowTemplate.exportSuccess'))
+    exportMode.value = false
     selectedForExport.value = []
   } catch (error) {
     ElMessage.error(error?.message || t('workflowTemplate.exportFailed'))
