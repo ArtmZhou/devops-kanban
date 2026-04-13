@@ -292,6 +292,21 @@ function mountView() {
         'el-select': ElSelectStub,
         'el-option': ElOptionStub,
         'el-tag': ElTagStub,
+        'el-checkbox': defineComponent({
+          name: 'ElCheckboxStub',
+          props: {
+            modelValue: { type: Boolean, default: false }
+          },
+          emits: ['update:modelValue', 'change'],
+          setup(_, { attrs }) {
+            return () => h('input', {
+              type: 'checkbox',
+              class: 'el-checkbox-stub',
+              onClick: (e) => e.stopPropagation(),
+              ...attrs
+            })
+          }
+        }),
         'el-switch': defineComponent({
           name: 'ElSwitchStub',
           props: {
@@ -309,6 +324,17 @@ function mountView() {
               })
             ])
           }
+        }),
+        'WorkflowTemplateImportDialog': defineComponent({
+          name: 'WorkflowTemplateImportDialogStub',
+          props: {
+            modelValue: { type: Boolean, default: false },
+            agents: { type: Array, default: () => [] }
+          },
+          emits: ['update:modelValue', 'imported'],
+          setup() {
+            return () => h('div', { class: 'workflow-template-import-dialog-stub' })
+          }
         })
       }
     }
@@ -324,7 +350,7 @@ const getStepCards = (wrapper) => wrapper.findAll('.workflow-step-card')
 const getSelectedStepCard = (wrapper) => wrapper.find('.workflow-step-card.is-selected')
 const getConnectors = (wrapper) => wrapper.findAll('.workflow-connector--insert')
 const getDeleteStepButtons = (wrapper) => wrapper.findAll('.workflow-step-card__delete')
-const getInlineStepNameInput = (wrapper) => wrapper.findAll('input').find((input) => input.attributes('data-testid') !== 'template-name-input')
+const getInlineStepNameInput = (wrapper) => wrapper.findAll('input').find((input) => input.attributes('data-testid') !== 'template-name-input' && input.attributes('type') !== 'checkbox')
 
 const focusInlineEditor = async (wrapper, index = 0) => {
   await getStepCards(wrapper)[index].trigger('click')
