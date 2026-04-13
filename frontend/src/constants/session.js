@@ -14,7 +14,8 @@ export const SESSION_STATUS = {
 }
 
 /**
- * Session statuses that indicate a session can receive input
+ * Session statuses where the input area is visible.
+ * During RUNNING state the input is shown but disabled (see SESSION_BUSY_STATUSES).
  */
 export const SESSION_INPUT_STATUSES = [
   SESSION_STATUS.RUNNING,
@@ -22,7 +23,7 @@ export const SESSION_INPUT_STATUSES = [
   SESSION_STATUS.SUSPENDED,
   SESSION_STATUS.COMPLETED,
   SESSION_STATUS.FAILED,
-  SESSION_STATUS.CANCELLED
+  SESSION_STATUS.CANCELLED,
 ]
 
 /**

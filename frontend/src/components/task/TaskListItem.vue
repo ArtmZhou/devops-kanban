@@ -202,7 +202,7 @@
             取消
           </button>
           <button
-            v-if="workflowStatus === 'suspended' && task.workflow_run_id"
+            v-if="workflowStatus === 'suspended' && task.workflow_run_id && !isAskUserSuspended"
             class="quick-action-btn quick-action-resume"
             :disabled="resumeLoading"
             @click.stop="handleResumeWorkflow"
@@ -362,6 +362,17 @@ const resumeLoading = ref(false)
 const isWorkflowTerminal = computed(() => {
   if (!realWorkflowRun.value) return false
   return ['COMPLETED', 'FAILED', 'CANCELLED'].includes(realWorkflowRun.value.status)
+})
+
+// Check if workflow is suspended with an AskUserQuestion
+const isAskUserSuspended = computed(() => {
+  if (!realWorkflowRun.value || realWorkflowRun.value.status !== 'SUSPENDED') return false
+  const steps = realWorkflowRun.value.steps || []
+  const suspendedStep = steps.find((s) => s.status === 'SUSPENDED')
+  // If waiting for confirmation (after answer submitted), show confirm button
+  if (suspendedStep?.suspend_reason === '等待确认') return false
+  // Has pending question to answer
+  return suspendedStep?.ask_user_question?.questions?.length > 0
 })
 
 // Fetch workflow run data (used by both manual refresh and polling)

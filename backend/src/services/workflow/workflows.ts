@@ -35,7 +35,19 @@ const suspendSchema = z.object({
   reason: z.string(),
   stepName: z.string(),
   summary: z.string().optional(),
-  ask_user_question: z.any().optional(),
+  ask_user_question: z.object({
+    tool_use_id: z.string(),
+    questions: z.array(z.object({
+      question: z.string(),
+      header: z.string().optional(),
+      options: z.array(z.object({
+        label: z.string(),
+        value: z.string().optional(),
+        description: z.string().optional(),
+      })).optional(),
+      multiSelect: z.boolean().optional(),
+    })).optional(),
+  }).optional(),
 });
 
 let _mastra: Mastra | null = null;
@@ -141,6 +153,16 @@ export function buildWorkflowFromInstance(
           const answerPrompt = `[User's answer to your question]\n${typedResumeData.ask_user_answer}\n\nPlease continue based on this answer.`;
 
           try {
+            // Save user's answer as a user message event
+            await options?.lifecycle.sessionEventRepo.append({
+              session_id: sessionInfo.sessionId,
+              segment_id: sessionInfo.segmentId,
+              kind: 'message',
+              role: 'user',
+              content: answerPrompt,
+              payload: {},
+            });
+
             const result = await continueWorkflowStepWithAnswer({
               workflowInstance,
               stepId: templateStep.id,
@@ -168,6 +190,28 @@ export function buildWorkflowFromInstance(
                 }
               },
             });
+
+            // If step requires confirmation, re-suspend for confirmation instead of auto-completing
+            if (requiresConfirmation) {
+              logger.info('Workflows', `Step ${templateStep.id} requires confirmation after AskUserQuestion, re-suspending for confirmation`);
+              const now = new Date().toISOString();
+              await options.lifecycle.workflowRunRepo.updateStep(options.runId, templateStep.id, {
+                status: 'SUSPENDED',
+                completed_at: now,
+                suspend_reason: '等待确认',
+                summary: result.summary || null,
+              });
+              await options.lifecycle.workflowRunRepo.update(options.runId, {
+                status: 'SUSPENDED',
+                current_step: templateStep.id,
+              });
+
+              return await suspend({
+                reason: '等待确认',
+                stepName: templateStep.name,
+                summary: result.summary || '',
+              });
+            }
 
             await options.lifecycle.onStepComplete(options.runId, templateStep.id, result);
             return result;

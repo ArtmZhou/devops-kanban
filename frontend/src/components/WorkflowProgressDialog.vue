@@ -138,6 +138,7 @@
           :session-id="selectedStep.session_id"
           :step-name="selectedStep.name"
           :initial-message="askUserAnswer"
+          :workflow-run-id="workflowRunId"
         />
         <div v-else class="detail-empty">当前步骤暂无会话记录</div>
       </div>
@@ -232,6 +233,8 @@ const suspendedStep = computed(() => {
 })
 
 const isAskUserSuspended = computed(() => {
+  // Waiting for confirmation (after AskUserQuestion answer) — show confirm panel
+  if (suspendedStep.value?.suspend_reason === '等待确认') return false
   return suspendedStep.value?.ask_user_question?.questions?.length > 0
 })
 

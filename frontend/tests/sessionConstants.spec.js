@@ -9,13 +9,10 @@ import {
 
 describe('session constants', () => {
   describe('SESSION_INPUT_STATUSES', () => {
-    it('contains RUNNING, STOPPED, SUSPENDED, COMPLETED, FAILED, CANCELLED', () => {
-      expect(SESSION_INPUT_STATUSES).toContain('RUNNING')
-      expect(SESSION_INPUT_STATUSES).toContain('STOPPED')
-      expect(SESSION_INPUT_STATUSES).toContain('SUSPENDED')
-      expect(SESSION_INPUT_STATUSES).toContain('COMPLETED')
-      expect(SESSION_INPUT_STATUSES).toContain('FAILED')
-      expect(SESSION_INPUT_STATUSES).toContain('CANCELLED')
+    it('contains interactive and resumable statuses', () => {
+      expect(SESSION_INPUT_STATUSES).toEqual([
+        'RUNNING', 'STOPPED', 'SUSPENDED', 'COMPLETED', 'FAILED', 'CANCELLED'
+      ])
     })
   })
 
