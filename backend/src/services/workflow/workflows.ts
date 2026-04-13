@@ -285,6 +285,18 @@ export function buildWorkflowFromInstance(
           }
 
           const errorMessage = err instanceof Error ? err.message : String(err);
+          // Write error event to session so frontend can display it in the session panel
+          // This is critical for spawn-level errors (e.g. ENOENT) that never produce stdout/stderr
+          if (sessionId && segmentId) {
+            await options.lifecycle.sessionEventRepo.append({
+              session_id: sessionId,
+              segment_id: segmentId,
+              kind: 'error',
+              role: 'system',
+              content: errorMessage,
+              payload: {},
+            }).catch(() => {});
+          }
           await options.lifecycle.onStepError(options.runId, templateStep.id, errorMessage);
           throw err;
         }
