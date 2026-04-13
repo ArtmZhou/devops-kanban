@@ -1,6 +1,8 @@
 import { WorkflowTemplateRepository } from '../../repositories/workflowTemplateRepository.js';
+import { AgentRepository } from '../../repositories/agentRepository.js';
 import { ValidationError, NotFoundError, ConflictError } from '../../utils/errors.js';
 import type { WorkflowTemplateEntity, WorkflowTemplateStepEntity } from '../../types/entities.js';
+import type { ExportFile, ExportedWorkflowTemplate, ExportedWorkflowStep, ImportPreview, ImportConfirmInput } from '../../types/dto/workflowTemplates.js';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -103,9 +105,11 @@ const BUILTIN_TEMPLATES: Omit<WorkflowTemplateEntity, 'id' | 'created_at' | 'upd
 
 class WorkflowTemplateService {
   workflowTemplateRepo: WorkflowTemplateRepository;
+  agentRepo: AgentRepository;
 
-  constructor({ workflowTemplateRepo }: { workflowTemplateRepo?: WorkflowTemplateRepository } = {}) {
+  constructor({ workflowTemplateRepo, agentRepo }: { workflowTemplateRepo?: WorkflowTemplateRepository; agentRepo?: AgentRepository } = {}) {
     this.workflowTemplateRepo = workflowTemplateRepo || new WorkflowTemplateRepository();
+    this.agentRepo = agentRepo || new AgentRepository();
   }
 
   async getTemplates(): Promise<WorkflowTemplateEntity[]> {
@@ -167,6 +171,150 @@ class WorkflowTemplateService {
       }
     }
     return results;
+  }
+
+  // --- Export/Import ---
+
+  async exportTemplate(templateId: string): Promise<ExportFile> {
+    const template = await this.workflowTemplateRepo.findByTemplateId(templateId);
+    if (!template) {
+      throw new NotFoundError(`未找到工作流模板: ${templateId}`, `Workflow template not found: ${templateId}`, { templateId });
+    }
+    return this.buildExportFile([template]);
+  }
+
+  async exportTemplates(templateIds: string[]): Promise<ExportFile> {
+    const allTemplates = await this.workflowTemplateRepo.findAll();
+    const selected = allTemplates.filter(t => templateIds.includes(t.template_id));
+    if (selected.length === 0) {
+      throw new NotFoundError('未找到指定的工作流模板', 'No matching workflow templates found');
+    }
+    return this.buildExportFile(selected);
+  }
+
+  private async buildExportFile(templates: WorkflowTemplateEntity[]): Promise<ExportFile> {
+    const agents = await this.agentRepo.findAll();
+    const agentNameMap = new Map<number, string>();
+    for (const agent of agents) {
+      agentNameMap.set(agent.id, agent.name);
+    }
+
+    const exportedTemplates: ExportedWorkflowTemplate[] = templates.map(t => ({
+      template_id: t.template_id,
+      name: t.name,
+      steps: t.steps.map((step): ExportedWorkflowStep => ({
+        id: step.id,
+        name: step.name,
+        instructionPrompt: step.instructionPrompt,
+        agentName: agentNameMap.get(step.agentId) || `Agent#${step.agentId}`,
+        requiresConfirmation: step.requiresConfirmation || false,
+      })),
+    }));
+
+    return {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      templates: exportedTemplates,
+    };
+  }
+
+  async previewImport(exportData: ExportFile): Promise<ImportPreview> {
+    const existingTemplates = await this.workflowTemplateRepo.findAll();
+    const existingIds = new Set(existingTemplates.map(t => t.template_id));
+
+    const agents = await this.agentRepo.findAll();
+    const agentNames = new Set(agents.map(a => a.name.toLowerCase()));
+
+    const unmatchedAgentNames = new Set<string>();
+    for (const tpl of exportData.templates) {
+      for (const step of tpl.steps) {
+        if (!agentNames.has(step.agentName.toLowerCase())) {
+          unmatchedAgentNames.add(step.agentName);
+        }
+      }
+    }
+
+    return {
+      templates: exportData.templates,
+      existingTemplateIds: exportData.templates
+        .filter(t => existingIds.has(t.template_id))
+        .map(t => t.template_id),
+      unmatchedAgentNames: [...unmatchedAgentNames],
+    };
+  }
+
+  async confirmImport(input: ImportConfirmInput): Promise<{ imported: WorkflowTemplateEntity[]; skipped: string[] }> {
+    const validStrategies = new Set(['skip', 'overwrite', 'copy']);
+    if (!validStrategies.has(input.strategy)) {
+      throw new ValidationError('无效的导入策略', `Invalid import strategy: ${input.strategy}`);
+    }
+
+    const agents = await this.agentRepo.findAll();
+    const agentNameMap = new Map<string, number>();
+    for (const agent of agents) {
+      agentNameMap.set(agent.name.toLowerCase(), agent.id);
+    }
+
+    const imported: WorkflowTemplateEntity[] = [];
+    const skipped: string[] = [];
+
+    for (const tpl of input.templates) {
+      const existing = await this.workflowTemplateRepo.findByTemplateId(tpl.template_id);
+
+      if (existing && input.strategy === 'skip') {
+        skipped.push(tpl.template_id);
+        continue;
+      }
+
+      // Resolve agent names to IDs, then validate steps via normalizeStep
+      const steps: WorkflowTemplateStepEntity[] = tpl.steps.map(step => {
+        let agentId = agentNameMap.get(step.agentName.toLowerCase());
+        if (agentId === undefined && input.agentMappings[step.agentName] !== undefined) {
+          agentId = input.agentMappings[step.agentName];
+        }
+        if (agentId === undefined) {
+          agentId = 0;
+        }
+        return normalizeStep({
+          id: step.id,
+          name: step.name,
+          instructionPrompt: step.instructionPrompt,
+          agentId,
+          requiresConfirmation: step.requiresConfirmation || false,
+        });
+      });
+
+      // Validate template structure
+      normalizeTemplate({ template_id: tpl.template_id, name: tpl.name, steps });
+
+      let finalTemplateId = tpl.template_id;
+      if (existing && input.strategy === 'copy') {
+        let suffix = 1;
+        let candidate = `${tpl.template_id}-copy`;
+        while (await this.workflowTemplateRepo.findByTemplateId(candidate)) {
+          suffix += 1;
+          candidate = `${tpl.template_id}-copy-${suffix}`;
+        }
+        finalTemplateId = candidate;
+      }
+
+      if (existing && input.strategy === 'overwrite') {
+        const updated = await this.workflowTemplateRepo.update(existing.id, {
+          name: tpl.name,
+          steps,
+        });
+        if (updated) imported.push(updated);
+      } else if (!existing || input.strategy === 'copy') {
+        const created = await this.workflowTemplateRepo.create({
+          template_id: finalTemplateId,
+          name: input.strategy === 'copy' && existing ? `${tpl.name} (副本)` : tpl.name,
+          steps,
+        });
+        imported.push(created);
+      }
+    }
+
+    return { imported, skipped };
   }
 }
 

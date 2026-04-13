@@ -22,3 +22,37 @@ export interface UpdateWorkflowTemplateInput {
 export interface ReorderWorkflowTemplatesInput {
   updates: Array<{ id: number; order: number }>;
 }
+
+// Export/Import types
+
+export interface ExportedWorkflowStep {
+  id: string;
+  name: string;
+  instructionPrompt: string;
+  agentName: string;
+  requiresConfirmation?: boolean;
+}
+
+export interface ExportedWorkflowTemplate {
+  template_id: string;
+  name: string;
+  steps: ExportedWorkflowStep[];
+}
+
+export interface ExportFile {
+  version: string;
+  exportedAt: string;
+  templates: ExportedWorkflowTemplate[];
+}
+
+export interface ImportPreview {
+  templates: ExportedWorkflowTemplate[];
+  existingTemplateIds: string[];
+  unmatchedAgentNames: string[];
+}
+
+export interface ImportConfirmInput {
+  templates: ExportedWorkflowTemplate[];
+  strategy: 'skip' | 'overwrite' | 'copy';
+  agentMappings: Record<string, number>;
+}

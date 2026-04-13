@@ -32,6 +32,14 @@
             >
               {{ $t('workflowTemplate.createTemplate') }}
             </el-button>
+            <div class="toolbar-actions">
+              <el-button plain @click="showImportDialog = true">
+                {{ $t('workflowTemplate.importButton') }}
+              </el-button>
+              <el-button plain :disabled="selectedForExport.length === 0" @click="handleBatchExport">
+                {{ $t('workflowTemplate.exportSelected', { count: selectedForExport.length }) }}
+              </el-button>
+            </div>
           </div>
 
           <div v-if="templates.length === 0" class="state-block">
@@ -55,7 +63,26 @@
                   :class="{ 'is-active': item.template_id === selectedTemplateId }"
                   @click="selectTemplate(item.template_id)"
                 >
+                  <el-checkbox
+                    v-if="!item.isDraft"
+                    :model-value="selectedForExport.includes(item.template_id)"
+                    class="template-list-item__checkbox"
+                    @change="(val) => toggleExportSelect(item.template_id, val)"
+                    @click.stop
+                  />
                   <span class="template-list-item__name">{{ item.name }}</span>
+                  <span
+                    v-if="!item.isDraft"
+                    class="template-list-item__export"
+                    :data-testid="`export-template-${item.template_id}`"
+                    role="button"
+                    tabindex="0"
+                    :aria-label="$t('workflowTemplate.exportTemplate')"
+                    @click.stop="handleExportTemplate(item.template_id)"
+                    @keydown.enter.stop="handleExportTemplate(item.template_id)"
+                  >
+                    <el-icon :size="14"><Download /></el-icon>
+                  </span>
                   <span
                     v-if="!item.isDraft"
                     class="template-list-item__copy"
@@ -296,6 +323,12 @@
         </template>
       </el-card>
     </div>
+
+    <WorkflowTemplateImportDialog
+      v-model="showImportDialog"
+      :agents="agents"
+      @imported="handleImportComplete"
+    />
   </div>
 </template>
 
@@ -303,15 +336,18 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CopyDocument, Delete, Plus } from '@element-plus/icons-vue'
+import { CopyDocument, Delete, Download, Plus } from '@element-plus/icons-vue'
 import draggable from 'vuedraggable'
+import WorkflowTemplateImportDialog from '../components/workflow/WorkflowTemplateImportDialog.vue'
 import {
   createWorkflowTemplate,
   deleteWorkflowTemplate,
   getWorkflowTemplateById,
   getWorkflowTemplates,
   updateWorkflowTemplate,
-  reorderWorkflowTemplates
+  reorderWorkflowTemplates,
+  exportWorkflowTemplate,
+  exportWorkflowTemplates
 } from '../api/workflowTemplate'
 import { getAgents } from '../api/agent'
 import { useSkillStore } from '../stores/skillStore'
@@ -352,6 +388,9 @@ const agentsLoaded = ref(false)
 const agentsLoadFailed = ref(false)
 let templateDetailRequestToken = 0
 let latestTemplateDetailRequestToken = 0
+
+const showImportDialog = ref(false)
+const selectedForExport = ref([])
 
 const canDeleteSelected = computed(() => {
   return Boolean(template.value?.template_id) && template.value.template_id !== DEFAULT_TEMPLATE_ID
@@ -851,6 +890,56 @@ const handleDeleteTemplate = async () => {
   }
 }
 
+// --- Export/Import ---
+
+const toggleExportSelect = (templateId, checked) => {
+  if (checked) {
+    if (!selectedForExport.value.includes(templateId)) {
+      selectedForExport.value = [...selectedForExport.value, templateId]
+    }
+  } else {
+    selectedForExport.value = selectedForExport.value.filter(id => id !== templateId)
+  }
+}
+
+const downloadJson = (data, filename) => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+const handleExportTemplate = async (templateId) => {
+  try {
+    const data = await exportWorkflowTemplate(templateId)
+    downloadJson(data, `${templateId}.json`)
+    ElMessage.success(t('workflowTemplate.exportSuccess'))
+  } catch (error) {
+    ElMessage.error(error?.message || t('workflowTemplate.exportFailed'))
+  }
+}
+
+const handleBatchExport = async () => {
+  if (selectedForExport.value.length === 0) return
+  try {
+    const data = await exportWorkflowTemplates(selectedForExport.value)
+    downloadJson(data, `workflow-templates-${Date.now()}.json`)
+    ElMessage.success(t('workflowTemplate.exportSuccess'))
+    selectedForExport.value = []
+  } catch (error) {
+    ElMessage.error(error?.message || t('workflowTemplate.exportFailed'))
+  }
+}
+
+const handleImportComplete = async () => {
+  showImportDialog.value = false
+  await loadTemplateList(selectedTemplateId.value || DEFAULT_TEMPLATE_ID)
+  ElMessage.success(t('workflowTemplate.importSuccess'))
+}
+
 onMounted(() => {
   loadPage()
 })
@@ -970,13 +1059,38 @@ onMounted(() => {
   transition: opacity 0.2s ease, background-color 0.2s ease;
 }
 
-.template-list-item:hover .template-list-item__copy {
+.template-list-item:hover .template-list-item__copy,
+.template-list-item:hover .template-list-item__export {
   opacity: 1;
 }
 
-.template-list-item__copy:hover {
+.template-list-item__copy:hover,
+.template-list-item__export:hover {
   background: rgba(37, 198, 201, 0.12);
   color: var(--accent-color);
+}
+
+.template-list-item__export {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+.template-list-item__checkbox {
+  flex-shrink: 0;
+  margin-right: 2px;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .editor-header {
