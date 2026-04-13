@@ -398,9 +398,15 @@ watch(() => [props.workflowExpanded, props.task?.workflow_run_id], async ([expan
 }, { immediate: true })
 
 // Stop polling when workflow reaches terminal state
-watch(isWorkflowTerminal, (terminal) => {
+watch(isWorkflowTerminal, (terminal, prevTerminal) => {
   if (terminal) {
     stopPolling()
+    if (!prevTerminal && realWorkflowRun.value?.status === 'FAILED' && workflowData.value) {
+      const failedNode = getCurrentWorkflowNode(realWorkflowRun.value, workflowData.value)
+      if (failedNode) {
+        emit('workflow-action', { action: 'node-click', node: failedNode, task: props.task })
+      }
+    }
   }
 })
 

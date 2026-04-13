@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import CodeEditor from '../src/components/editor/CodeEditor.vue'
 
 vi.mock('../src/api/git', () => ({
@@ -10,6 +11,12 @@ vi.mock('../src/api/git', () => ({
   getDiff: vi.fn(),
   commit: vi.fn(),
 }))
+
+const flushPromises = async () => {
+  await Promise.resolve()
+  await Promise.resolve()
+  await nextTick()
+}
 
 const mountEditor = (props = {}) =>
   mount(CodeEditor, {
@@ -171,14 +178,15 @@ describe('CodeEditor', () => {
     commit.mockResolvedValue({ success: true })
 
     const wrapper = mountEditor()
-    await vi.dynamicImportSettled()
+    await flushPromises()
 
-    // Open commit area
-    await wrapper.find('.commit-header').trigger('click')
-    await wrapper.vm.$nextTick()
+    // The commit area should be visible since changedFiles has entries
+    const commitHeader = wrapper.find('.commit-header')
+    expect(commitHeader.exists()).toBe(true)
 
     // Type commit message and submit
     const input = wrapper.find('.commit-input')
+    expect(input.exists()).toBe(true)
     await input.setValue('fix: update app')
     await wrapper.vm.$nextTick()
 
