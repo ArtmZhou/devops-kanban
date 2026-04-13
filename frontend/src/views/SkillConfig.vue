@@ -19,12 +19,27 @@
       <div class="skill-list-panel">
         <div class="panel-header">
           <h3>{{ $t('skill.skillList') }}</h3>
-          <span class="skill-count">{{ skillStore.skills.length }}</span>
+          <span class="skill-count">{{ filteredSkills.length }}</span>
+        </div>
+        <div class="skill-filter-bar">
+          <select
+            v-model="selectedTemplateId"
+            class="skill-filter-select"
+          >
+            <option value="">{{ $t('skill.filterAllTemplates') }}</option>
+            <option
+              v-for="tpl in workflowTemplates"
+              :key="tpl.template_id"
+              :value="tpl.template_id"
+            >
+              {{ tpl.name }}
+            </option>
+          </select>
         </div>
         <div class="skill-list" v-if="!skillStore.loading">
           <div
             class="skill-list-item"
-            v-for="skill in skillStore.skills"
+            v-for="skill in filteredSkills"
             :key="skill.id"
             :class="{ 'active': selectedSkill?.id === skill.id }"
             @click="selectSkill(skill)"
@@ -36,7 +51,7 @@
               <span class="skill-description-preview">{{ truncateDescription(skill.description) }}</span>
             </div>
           </div>
-          <div v-if="skillStore.skills.length === 0" class="empty-list">
+          <div v-if="filteredSkills.length === 0" class="empty-list">
             {{ $t('skill.noSkills') }}
           </div>
         </div>
@@ -215,13 +230,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSkillStore } from '../stores/skillStore'
+import { useAgentStore } from '../stores/agentStore'
+import { getWorkflowTemplates } from '../api/workflowTemplate'
+import { filterSkillsByTemplate } from '../utils/skillWorkflowFilter'
 import BaseDialog from '../components/BaseDialog.vue'
 
 const { t } = useI18n()
 const skillStore = useSkillStore()
+const agentStore = useAgentStore()
+
+const selectedTemplateId = ref('')
+const workflowTemplates = ref([])
+
+const filteredSkills = computed(() =>
+  filterSkillsByTemplate(
+    skillStore.skills,
+    workflowTemplates.value,
+    agentStore.agents,
+    selectedTemplateId.value
+  )
+)
 
 const saving = ref(false)
 const showForm = ref(false)
@@ -263,6 +294,10 @@ const loadSkills = async () => {
     if (skillStore.skills.length > 0 && !selectedSkill.value) {
       selectSkill(skillStore.skills[0])
     }
+    agentStore.fetchAgents().catch(() => {})
+    getWorkflowTemplates().then(res => {
+      workflowTemplates.value = res?.success ? (res.data || []) : []
+    }).catch(() => {})
   } catch (e) {
     console.error('Failed to load skills:', e)
     showToast(t('skill.loadFailed'), 'error')
@@ -611,6 +646,26 @@ onMounted(loadSkills)
   border-radius: 999px;
   font-size: var(--font-size-xs);
   font-weight: 700;
+}
+
+.skill-filter-bar {
+  padding: 0 12px 8px;
+}
+
+.skill-filter-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--input-bg, #fff);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.skill-filter-select:focus {
+  border-color: var(--accent-color);
 }
 
 .skill-list {

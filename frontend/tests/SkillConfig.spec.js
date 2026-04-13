@@ -27,6 +27,17 @@ vi.mock('../src/stores/skillStore', () => ({
   useSkillStore: () => mockSkillStore
 }))
 
+vi.mock('../src/stores/agentStore', () => ({
+  useAgentStore: () => ({
+    agents: [],
+    fetchAgents: vi.fn().mockResolvedValue(undefined)
+  })
+}))
+
+vi.mock('../src/api/workflowTemplate', () => ({
+  getWorkflowTemplates: vi.fn().mockResolvedValue({ success: true, data: [] })
+}))
+
 const flushPromises = async () => {
   await Promise.resolve()
   await Promise.resolve()
