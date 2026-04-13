@@ -29,11 +29,35 @@
     </div>
     <div v-else class="panel-events-wrapper">
       <div ref="eventsContainer" class="panel-events panel-events--chat">
-        <SessionEventRenderer
-          v-for="event in displayedEvents"
-          :key="event.id ?? event.seq"
-          :event="event"
-        />
+        <template v-for="event in displayedEvents" :key="event.id ?? event.seq">
+          <!-- Interactive AskUserQuestion rendering -->
+          <div v-if="event.kind === 'ask_user'" class="event-ask-user-panel">
+            <div class="event-ask-user-header">AI 提问</div>
+            <div class="event-ask-user-question">
+              <div v-if="event.payload?.ask_user_question?.questions?.[0]?.header" class="event-ask-user-q-header">
+                {{ event.payload.ask_user_question.questions[0].header }}
+              </div>
+              <div class="event-ask-user-q-text">
+                {{ event.payload.ask_user_question.questions[0]?.question || event.content }}
+              </div>
+              <div v-if="event.payload?.ask_user_question?.questions?.[0]?.options?.length" class="event-ask-user-options">
+                <button
+                  v-for="opt in event.payload.ask_user_question.questions[0].options"
+                  :key="opt.label"
+                  class="event-ask-user-option-btn"
+                  @click="fillAnswer(opt.value || opt.label)"
+                >
+                  {{ opt.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- All other events use SessionEventRenderer -->
+          <SessionEventRenderer
+            v-else
+            :event="event"
+          />
+        </template>
       </div>
       <div class="panel-toolbar">
         <label class="auto-scroll-check" @click.prevent="toggleAutoScroll">
@@ -58,6 +82,7 @@
     <div v-if="sessionId && canInput" class="panel-input">
       <div class="panel-input-shell">
         <input
+          ref="messageInput"
           v-model="message"
           @keyup.enter="sendMessage"
           placeholder="继续追问或补充要求..."
@@ -93,6 +118,10 @@ const props = defineProps({
   showHeader: {
     type: Boolean,
     default: true
+  },
+  initialMessage: {
+    type: String,
+    default: ''
   }
 })
 
@@ -103,6 +132,7 @@ const sessionStatus = ref('')
 const eventsContainer = ref(null)
 const autoScrollEnabled = ref(true)
 const hideToolMessages = ref(true)
+const messageInput = ref(null)
 
 const displayedEvents = computed(() => {
   if (!hideToolMessages.value) return events.value
@@ -191,6 +221,13 @@ async function setupSession() {
   startPollingWithStatusCheck()
 }
 
+function fillAnswer(text) {
+  message.value = text
+  nextTick(() => {
+    messageInput.value?.focus()
+  })
+}
+
 watch(events, () => {
   scrollToBottom()
 }, { deep: true })
@@ -219,6 +256,19 @@ watch(
     startStatusPolling()
   },
   { immediate: true }
+)
+
+watch(
+  () => props.initialMessage,
+  (newVal) => {
+    if (newVal) {
+      message.value = newVal
+      nextTick(() => {
+        messageInput.value?.focus()
+      })
+    }
+  },
+  { immediate: false }
 )
 
 onBeforeUnmount(() => {
@@ -468,6 +518,68 @@ onBeforeUnmount(() => {
 
 .check-label {
   line-height: 1;
+}
+
+.event-ask-user-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #93c5fd;
+  background: #eff6ff;
+}
+
+.event-ask-user-header {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+.event-ask-user-question {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.event-ask-user-q-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.event-ask-user-q-text {
+  font-size: 13px;
+  color: #1e40af;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.event-ask-user-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.event-ask-user-option-btn {
+  display: inline-block;
+  padding: 4px 12px;
+  border: 1px solid #93c5fd;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.event-ask-user-option-btn:hover {
+  background: #bfdbfe;
+  border-color: #60a5fa;
 }
 </style>
 
