@@ -78,10 +78,10 @@
               <div v-if="q.options?.length" class="ask-user-options">
                 <button
                   v-for="opt in q.options"
-                  :key="opt.value"
+                  :key="opt.label"
                   class="ask-user-option-btn"
-                  :class="{ selected: askUserAnswer === opt.value }"
-                  @click="askUserAnswer = opt.value"
+                  :class="{ selected: askUserAnswer === (opt.value || opt.label) }"
+                  @click="askUserAnswer = opt.value || opt.label"
                 >
                   {{ opt.label }}
                 </button>

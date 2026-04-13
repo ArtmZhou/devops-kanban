@@ -74,26 +74,20 @@ describe('TaskListItem workflow failure notification', () => {
     vi.spyOn(ElMessageBox, 'alert').mockResolvedValue()
   })
 
-  it('shows ElMessageBox.alert with step error and wide dialog style', async () => {
+  it('does NOT show ElMessageBox.alert when workflow fails', async () => {
     const { getWorkflowRun } = await import('../src/api/workflow.js')
 
     getWorkflowRun.mockResolvedValue({
       success: true,
       data: {
-        id: 10,
-        task_id: 1,
-        status: 'FAILED',
-        steps: [
-          {
-            step_id: 'step-1',
-            name: '开发实现',
-            status: 'FAILED',
-            error: 'Claude Code cannot be launched inside another Claude Code session.',
-            session_id: 1,
-            started_at: '2026-04-13T03:04:49.081Z',
-            completed_at: '2026-04-13T03:04:51.004Z'
-          }
-        ],
+        id: 10, task_id: 1, status: 'FAILED',
+        steps: [{
+          step_id: 'step-1', name: '开发实现', status: 'FAILED',
+          error: 'Claude Code cannot be launched inside another session.',
+          session_id: 1,
+          started_at: '2026-04-13T03:04:49.081Z',
+          completed_at: '2026-04-13T03:04:51.004Z'
+        }],
         context: {}
       }
     })
@@ -101,44 +95,39 @@ describe('TaskListItem workflow failure notification', () => {
     mountItem()
     await flushAll()
 
-    expect(ElMessageBox.alert).toHaveBeenCalledWith(
-      'Claude Code cannot be launched inside another Claude Code session.',
-      '工作流执行失败',
-      {
-        type: 'error',
-        customStyle: { maxWidth: '680px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }
-      }
-    )
+    expect(ElMessageBox.alert).not.toHaveBeenCalled()
   })
 
-  it('shows fallback error message when no step error', async () => {
+  it('emits node-click with failed node when workflow fails', async () => {
     const { getWorkflowRun } = await import('../src/api/workflow.js')
 
     getWorkflowRun.mockResolvedValue({
       success: true,
       data: {
-        id: 10,
-        task_id: 1,
-        status: 'FAILED',
-        steps: [{ step_id: 's1', name: 'test', status: 'FAILED', error: null }],
-        context: { error: 'Something went wrong' }
+        id: 10, task_id: 1, status: 'FAILED',
+        steps: [{
+          step_id: 'step-1', name: '开发实现', status: 'FAILED',
+          error: 'Claude Code error', session_id: 1,
+          started_at: '2026-04-13T03:04:49.081Z',
+          completed_at: '2026-04-13T03:04:51.004Z'
+        }],
+        context: {}
       }
     })
 
-    mountItem()
+    const wrapper = mountItem()
     await flushAll()
 
-    expect(ElMessageBox.alert).toHaveBeenCalledWith(
-      'Something went wrong',
-      '工作流执行失败',
-      {
-        type: 'error',
-        customStyle: { maxWidth: '680px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }
-      }
-    )
+    const nodeClicks = wrapper.emitted('workflow-action')
+      ?.filter(e => e[0]?.action === 'node-click') || []
+
+    expect(nodeClicks.length).toBeGreaterThanOrEqual(1)
+    const emittedNode = nodeClicks[0][0].node
+    expect(emittedNode.status).toBe('FAILED')
+    expect(emittedNode.name).toBe('开发实现')
   })
 
-  it('does not show alert when workflow is RUNNING', async () => {
+  it('does not emit node-click when workflow is RUNNING', async () => {
     const { getWorkflowRun } = await import('../src/api/workflow.js')
 
     getWorkflowRun.mockResolvedValue({
@@ -146,9 +135,13 @@ describe('TaskListItem workflow failure notification', () => {
       data: { id: 10, task_id: 1, status: 'RUNNING', steps: [], context: {} }
     })
 
-    mountItem()
+    const wrapper = mountItem()
     await flushAll()
 
+    const nodeClicks = wrapper.emitted('workflow-action')
+      ?.filter(e => e[0]?.action === 'node-click') || []
+
+    expect(nodeClicks.length).toBe(0)
     expect(ElMessageBox.alert).not.toHaveBeenCalled()
   })
 })

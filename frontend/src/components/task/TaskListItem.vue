@@ -269,7 +269,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Loading, FolderOpened, Folder } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { formatTaskDescription } from '../../utils/taskDescriptionFormatter'
 import { useWorktree } from '../../composables/useWorktree'
 import { useStatusStyle } from '../../composables/useStatusStyle'
@@ -401,13 +401,11 @@ watch(() => [props.workflowExpanded, props.task?.workflow_run_id], async ([expan
 watch(isWorkflowTerminal, (terminal, prevTerminal) => {
   if (terminal) {
     stopPolling()
-    if (!prevTerminal && realWorkflowRun.value?.status === 'FAILED') {
-      const failedStep = (realWorkflowRun.value.steps || []).find(s => s.status === 'FAILED')
-      const errorMsg = failedStep?.error || realWorkflowRun.value.context?.error || '工作流执行失败'
-      ElMessageBox.alert(errorMsg, '工作流执行失败', {
-        type: 'error',
-        customStyle: { maxWidth: '680px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }
-      })
+    if (!prevTerminal && realWorkflowRun.value?.status === 'FAILED' && workflowData.value) {
+      const failedNode = getCurrentWorkflowNode(realWorkflowRun.value, workflowData.value)
+      if (failedNode) {
+        emit('workflow-action', { action: 'node-click', node: failedNode, task: props.task })
+      }
     }
   }
 })
