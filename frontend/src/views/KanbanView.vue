@@ -924,9 +924,15 @@ const startSelectedTaskWithTemplate = async (
 
   if (autoCreateWorktree && selectedTask.value.worktree_status !== 'created') {
     try {
-      await handleWorktree(selectedTask.value)
+      const result = await handleWorktree(selectedTask.value)
+      if (!result) {
+        showWorkflowStartEditorDialog.value = false
+        ElMessageBox.alert('Worktree 创建失败，无法启动任务', '启动失败', { type: 'error' })
+        return
+      }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || 'Worktree 创建失败，无法启动任务'
+      showWorkflowStartEditorDialog.value = false
       ElMessageBox.alert(msg, '启动失败', { type: 'error' })
       return
     }
@@ -954,11 +960,13 @@ const startSelectedTaskWithTemplate = async (
         }
       }
     } else {
+      showWorkflowStartEditorDialog.value = false
       ElMessageBox.alert(response.message || '启动失败', '启动失败', { type: 'error' })
     }
   } catch (error) {
     console.error('启动任务失败:', error)
     const msg = error?.response?.data?.message || error?.message || '启动失败'
+    showWorkflowStartEditorDialog.value = false
     ElMessageBox.alert(msg, '启动失败', { type: 'error' })
   }
 }

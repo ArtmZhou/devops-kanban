@@ -547,8 +547,8 @@ describe('KanbanView workflow start entrypoint', () => {
     expect(ElMessage.error).not.toHaveBeenCalled()
   })
 
-  it('shows ElMessageBox.alert when worktree creation fails during task start', async () => {
-    handleWorktreeMock.mockRejectedValue(new Error('Worktree 创建失败'))
+  it('shows ElMessageBox.alert when worktree creation returns null during task start', async () => {
+    handleWorktreeMock.mockResolvedValue(null)
 
     const wrapper = mountView()
     await flushPromises()
@@ -561,7 +561,7 @@ describe('KanbanView workflow start entrypoint', () => {
     await wrapper.find('.confirm-workflow-edit').trigger('click')
     await flushPromises()
 
-    expect(ElMessageBox.alert).toHaveBeenCalledWith('Worktree 创建失败', '启动失败', { type: 'error' })
+    expect(ElMessageBox.alert).toHaveBeenCalledWith('Worktree 创建失败，无法启动任务', '启动失败', { type: 'error' })
     expect(ElMessage.error).not.toHaveBeenCalled()
     expect(startTask).not.toHaveBeenCalled()
   })
