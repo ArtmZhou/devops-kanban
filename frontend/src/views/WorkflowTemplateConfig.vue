@@ -1098,6 +1098,7 @@ const handlePreviewPrompt = async () => {
 
 .sidebar-bottom-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   padding-top: 12px;
   margin-top: auto;
