@@ -80,12 +80,12 @@
             </draggable>
 
             <div class="sidebar-bottom-actions">
-              <el-button plain @click="showBundleImportDialog = true">
-                {{ $t('bundle.importTitle') }}
-              </el-button>
               <template v-if="exportMode">
                 <el-button type="primary" plain :disabled="selectedForExport.length === 0" @click="handleBatchExport">
                   {{ $t('workflowTemplate.exportConfirm', { count: selectedForExport.length }) }}
+                </el-button>
+                <el-button plain :disabled="selectedForExport.length === 0" @click="handleBundleExportFromMode">
+                  {{ $t('bundle.exportTitle') }}
                 </el-button>
                 <el-button plain @click="cancelExportMode">
                   {{ $t('common.cancel') }}
@@ -95,8 +95,8 @@
                 <el-button plain @click="enterExportMode">
                   {{ $t('workflowTemplate.exportButton') }}
                 </el-button>
-                <el-button plain @click="showBundleExportDialog = true">
-                  {{ $t('bundle.exportTitle') }}
+                <el-button plain @click="showBundleImportDialog = true">
+                  {{ $t('bundle.importTitle') }}
                 </el-button>
               </template>
             </div>
@@ -975,6 +975,13 @@ const handleImportComplete = async () => {
 
 const handleBundleExported = () => {
   showBundleExportDialog.value = false
+  exportMode.value = false
+  selectedForExport.value = []
+}
+
+const handleBundleExportFromMode = () => {
+  // Open bundle export with currently selected templates pre-filled
+  showBundleExportDialog.value = true
 }
 
 const handleBundleImported = async () => {
