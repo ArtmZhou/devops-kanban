@@ -29,11 +29,16 @@ class SchedulerService {
   private taskRepository: TaskRepository;
   private sourceRepository: TaskSourceRepository;
 
-  constructor() {
-    this.taskSourceService = new TaskSourceService();
-    this.taskService = new TaskService();
-    this.taskRepository = new TaskRepository();
-    this.sourceRepository = new TaskSourceRepository();
+  constructor(deps?: {
+    taskSourceService?: TaskSourceService;
+    taskService?: TaskService;
+    taskRepository?: TaskRepository;
+    sourceRepository?: TaskSourceRepository;
+  }) {
+    this.taskSourceService = deps?.taskSourceService || new TaskSourceService();
+    this.taskService = deps?.taskService || new TaskService();
+    this.taskRepository = deps?.taskRepository || new TaskRepository();
+    this.sourceRepository = deps?.sourceRepository || new TaskSourceRepository();
   }
 
   async initialize(): Promise<void> {
@@ -55,7 +60,7 @@ class SchedulerService {
     this.unregisterJob(sourceId);
 
     const task = cron.schedule(cronExpression, () => {
-      this.syncAndTriggerWorkflows(sourceId);
+      this.executeSync(sourceId);
     });
 
     this.jobs.set(sourceId, task);
@@ -120,7 +125,7 @@ class SchedulerService {
     return null;
   }
 
-  private async syncAndTriggerWorkflows(sourceId: number): Promise<SyncResult> {
+  async executeSync(sourceId: number): Promise<SyncResult> {
     const result: SyncResult = {
       totalFetched: 0,
       newlyCreated: 0,
