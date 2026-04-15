@@ -22,6 +22,7 @@ import {
   gitRoutes,
   mcpServerRoutes,
   bundleRoutes,
+  notificationRoutes,
 } from './routes/index.js';
 
 export async function buildApp() {
@@ -98,7 +99,8 @@ export async function buildApp() {
   fastify.register(gitRoutes, { prefix: '/api/git' });
   fastify.register(skillRoutes, { prefix: '/api/skills' });
   fastify.register(mcpServerRoutes, { prefix: '/api/mcp-servers' });
-  fastify.register(bundleRoutes, { prefix: '/api/bundle' });
+  fastify.register(bundleRoutes, { prefix: '/api/bundle', storagePath: config.STORAGE_PATH });
+  fastify.register(notificationRoutes, { prefix: '/api/notifications' });
 
   return fastify;
 }
