@@ -1522,7 +1522,7 @@ const openWorktreeDirectory = () => {
 }
 
 /* Loading animation */
-.is-loading {
+.el-icon.is-loading {
   animation: spin 1s linear infinite;
 }
 
