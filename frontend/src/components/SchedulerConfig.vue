@@ -49,8 +49,9 @@
 </template>
 
 <script setup>
-import { ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
+import { ref, nextTick, onMounted, onBeforeUnmount, h } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ElNotification } from 'element-plus'
 import { getSettings, updateSettings, getSchedulerStatus, triggerDispatch } from '../api/settings.js'
 
 const props = defineProps({
@@ -140,8 +141,54 @@ async function saveSchedulerConfig() {
 async function handleTriggerDispatch() {
   triggerLoading.value = true
   try {
-    await triggerDispatch()
+    const res = await triggerDispatch()
     await refreshStatus()
+    if (res.success && res.data) {
+      const { dispatched, skipped, eligibleTasks, errors } = res.data
+      const hasErrors = errors && errors.length > 0
+
+      if (eligibleTasks === 0) {
+        ElNotification({
+          type: 'info',
+          title: t('notification.scheduler.dispatchResult'),
+          message: t('notification.scheduler.noEligibleTasks'),
+          duration: 4000,
+        })
+      } else if (hasErrors) {
+        ElNotification({
+          type: 'warning',
+          title: t('notification.scheduler.dispatchResult'),
+          message: h('div', [
+            h('p', { style: 'margin: 0 0 6px' }, t('notification.scheduler.dispatchSummary', { dispatched, skipped })),
+            h('ul', { style: 'margin: 0; padding-left: 18px; color: #E6A23C' },
+              errors.map(e => h('li', e))
+            ),
+          ]),
+          duration: 6000,
+        })
+      } else {
+        ElNotification({
+          type: 'success',
+          title: t('notification.scheduler.dispatchResult'),
+          message: t('notification.scheduler.dispatchSummary', { dispatched, skipped }),
+          duration: 4000,
+        })
+      }
+    } else {
+      ElNotification({
+        type: 'warning',
+        title: t('notification.scheduler.dispatchResult'),
+        message: res.message || t('notification.scheduler.dispatchFailed'),
+        duration: 5000,
+      })
+    }
+  } catch (err) {
+    ElNotification({
+      type: 'error',
+      title: t('notification.scheduler.dispatchResult'),
+      message: err.message || t('notification.scheduler.dispatchFailed'),
+      duration: 5000,
+    })
   } finally {
     triggerLoading.value = false
   }

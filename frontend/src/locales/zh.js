@@ -773,6 +773,10 @@ export default {
       custom: '自定义',
       customPlaceholder: '输入 cron 表达式',
       saved: '调度配置已保存',
+      dispatchResult: '调度结果',
+      dispatchSummary: '已调度 {dispatched} 个任务，跳过 {skipped} 个',
+      noEligibleTasks: '没有符合自动执行条件的任务',
+      dispatchFailed: '调度触发失败',
     },
   },
   autoExecute: {
