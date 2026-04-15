@@ -629,6 +629,16 @@ const editSource = (source) => {
     }
   }
 
+  // Detect if schedule is a custom (non-preset) cron expression
+  const presetCrons = ['*/5 * * * *', '*/15 * * * *', '*/30 * * * *', '0 * * * *', '0 */6 * * *', '0 0 * * *']
+  let scheduleValue = source.sync_schedule || null
+  let customCron = ''
+
+  if (scheduleValue && !presetCrons.includes(scheduleValue)) {
+    customCron = scheduleValue
+    scheduleValue = '__custom__'
+  }
+
   formData.value = {
     id: source.id,
     name: source.name,
@@ -636,10 +646,10 @@ const editSource = (source) => {
     project_id: source.project_id,
     config,
     enabled: source.enabled,
-    sync_schedule: source.sync_schedule || null,
+    sync_schedule: scheduleValue,
     auto_workflow_rules: rules,
   }
-  customCronExpression.value = ''
+  customCronExpression.value = customCron
   dialogVisible.value = true
   loadWorkflowTemplates()
 }

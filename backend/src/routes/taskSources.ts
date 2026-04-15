@@ -1,4 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
+import cron from 'node-cron';
 
 import { TaskSourceService } from '../services/taskSourceService.js';
 import type {
@@ -64,6 +65,12 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Body: CreateTaskSourceInput }>('/', async (request, reply) => {
     try {
+      // Validate cron expression before persisting
+      if (request.body.sync_schedule && !cron.validate(request.body.sync_schedule)) {
+        reply.code(400);
+        return errorResponse('Invalid cron expression for sync_schedule');
+      }
+
       const source = await getService().create(request.body);
       // Register scheduler job if schedule is configured
       if (source.sync_schedule && request.server.schedulerService) {
@@ -78,6 +85,12 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.put<{ Params: IdParams; Body: UpdateTaskSourceInput }>('/:id', async (request, reply) => {
     try {
+      // Validate cron expression before persisting
+      if (request.body.sync_schedule && !cron.validate(request.body.sync_schedule)) {
+        reply.code(400);
+        return errorResponse('Invalid cron expression for sync_schedule');
+      }
+
       const source = await getService().update(request.params.id, request.body);
       if (!source) {
         reply.code(404);

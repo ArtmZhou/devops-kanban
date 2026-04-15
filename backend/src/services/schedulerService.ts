@@ -148,15 +148,17 @@ class SchedulerService {
         try {
           rules = JSON.parse(source.auto_workflow_rules);
         } catch {
-          console.warn(`[Scheduler] Invalid auto_workflow_rules for source ${sourceId}`);
+          const msg = `Invalid auto_workflow_rules JSON for source ${sourceId}`;
+          result.errors.push(msg);
+          console.warn(`[Scheduler] ${msg}`);
         }
       }
 
       // Snapshot existing task external_ids for this source
-      const allTasks = await this.taskRepository.findAll();
+      const projectTasks = await this.taskRepository.findByProject(source.project_id);
       const existingExternalIds = new Set(
-        allTasks
-          .filter((t) => t.source === source.type && t.project_id === source.project_id)
+        projectTasks
+          .filter((t) => t.source === source.type)
           .map((t) => t.external_id)
           .filter((id): id is string => id != null)
       );
@@ -197,9 +199,10 @@ class SchedulerService {
       }
 
       // Update last_scheduled_sync_at
-      await this.sourceRepository.update(sourceId, {
+      const updateData: any = {
         last_scheduled_sync_at: new Date().toISOString(),
-      } as unknown as Partial<import('../types/entities.js').TaskSourceEntity>);
+      };
+      await this.sourceRepository.update(sourceId, updateData);
 
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

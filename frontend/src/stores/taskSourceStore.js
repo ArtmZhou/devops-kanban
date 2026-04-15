@@ -345,9 +345,9 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
   }
 
   async function fetchAllScheduleStatuses() {
-    const promises = crud.items.value.map(source =>
-      fetchScheduleStatus(source.id).catch(() => null)
-    )
+    const promises = crud.items.value
+      .filter(source => source.sync_schedule)
+      .map(source => fetchScheduleStatus(source.id).catch(() => null))
     await Promise.all(promises)
   }
 
