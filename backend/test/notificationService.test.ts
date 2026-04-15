@@ -1,5 +1,6 @@
 import * as test from 'node:test';
 import * as assert from 'node:assert/strict';
+import * as fs from 'node:fs/promises';
 
 import { NotificationService } from '../src/services/notificationService.js';
 
@@ -18,7 +19,8 @@ test.test('NotificationService returns null config when file missing', async () 
 });
 
 test.test('NotificationService saves config to JSON file', async () => {
-  const service = new NotificationService({ filePath: 'test/fixtures/notification-config-test.json' });
+  const filePath = 'test/fixtures/notification-config-test.json';
+  const service = new NotificationService({ filePath });
   await service.saveConfig({
     url: 'https://new.example.com/api/send',
     receiver: 'new-user',
@@ -28,6 +30,7 @@ test.test('NotificationService saves config to JSON file', async () => {
   assert.equal(config!.url, 'https://new.example.com/api/send');
   assert.equal(config!.receiver, 'new-user');
   assert.equal(config!.auth, 'new-token');
+  await fs.rm(filePath, { force: true });
 });
 
 test.test('NotificationService sends HTTP POST with correct payload', async () => {

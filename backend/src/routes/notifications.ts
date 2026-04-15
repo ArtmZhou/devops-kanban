@@ -27,6 +27,12 @@ export async function notificationRoutes(fastify: FastifyInstance) {
         reply.code(400);
         return errorResponse('url is required');
       }
+      try {
+        new URL(url);
+      } catch {
+        reply.code(400);
+        return errorResponse('url must be a valid HTTP/HTTPS URL');
+      }
       await service.saveConfig({ url, receiver: receiver || '', auth: auth || '' });
       return successResponse(null, 'Notification config saved');
     } catch (error) {

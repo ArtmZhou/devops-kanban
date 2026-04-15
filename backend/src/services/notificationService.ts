@@ -66,6 +66,10 @@ class NotificationService {
       });
 
       req.on('error', reject);
+      req.setTimeout(10000, () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
       req.write(bodyStr);
       req.end();
     });
