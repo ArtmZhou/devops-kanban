@@ -221,7 +221,7 @@ test.test('executeSync skips when source is disabled', async () => {
 
     assert.equal(result.totalFetched, 0);
     assert.equal(result.newlyCreated, 0);
-    assert.equal(result.workflowsTriggered, 0);
+    assert.equal(result.tasksTagged, 0);
 
     scheduler.shutdown();
   });
@@ -234,7 +234,7 @@ test.test('executeSync skips when source not found', async () => {
 
     assert.equal(result.totalFetched, 0);
     assert.equal(result.newlyCreated, 0);
-    assert.equal(result.workflowsTriggered, 0);
+    assert.equal(result.tasksTagged, 0);
 
     scheduler.shutdown();
   });
