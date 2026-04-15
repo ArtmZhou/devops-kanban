@@ -755,6 +755,28 @@ export default {
     completedBody: '工作流执行已完成',
     workflowFailed: '工作流失败',
     failedTitle: '工作流执行失败',
-    failedBody: '工作流执行失败，请查看详情'
-  }
+    failedBody: '工作流执行失败，请查看详情',
+    scheduler: {
+      title: '调度配置',
+      currentRunning: '当前运行工作流',
+      refresh: '刷新',
+      dispatchCron: '工作流调度频率',
+      maxConcurrent: '最大并发数',
+      maxTasksPerExecution: '每次最多执行',
+      triggerNow: '立即触发',
+      triggering: '触发中...',
+      minute1: '每 1 分钟',
+      minute5: '每 5 分钟',
+      minute15: '每 15 分钟',
+      minute30: '每 30 分钟',
+      hour1: '每 1 小时',
+      custom: '自定义',
+      customPlaceholder: '输入 cron 表达式',
+      saved: '调度配置已保存',
+    },
+  },
+  autoExecute: {
+    label: '自动执行',
+    templatePlaceholder: '选择工作流模板',
+  },
 }
