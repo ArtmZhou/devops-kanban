@@ -15,6 +15,7 @@ import { prepareExecutionMcp } from './executorMcpPreparation.js';
 import { cleanupMcpJson } from '../../utils/mcpSync.js';
 import { logger } from '../../utils/logger.js';
 import { resolve } from 'node:path';
+import { WorkflowNotificationEvent } from '../notificationEvents.js';
 
 class WorkflowLifecycle {
   workflowRunRepo: WorkflowRunRepository;
@@ -25,6 +26,7 @@ class WorkflowLifecycle {
   sessionEventRepo: SessionEventRepository;
   instanceRepo: WorkflowInstanceRepository;
   _stepAttemptSegmentIds: Map<string, number | null>;
+  private onWorkflowNotification?: (event: WorkflowNotificationEvent) => void;
 
   constructor({
     workflowRunRepo,
@@ -34,6 +36,7 @@ class WorkflowLifecycle {
     sessionSegmentRepo,
     sessionEventRepo,
     instanceRepo,
+    onWorkflowNotification,
   }: {
     workflowRunRepo?: WorkflowRunRepository;
     taskRepo?: TaskRepository;
@@ -42,6 +45,7 @@ class WorkflowLifecycle {
     sessionSegmentRepo?: SessionSegmentRepository;
     sessionEventRepo?: SessionEventRepository;
     instanceRepo?: WorkflowInstanceRepository;
+    onWorkflowNotification?: (event: WorkflowNotificationEvent) => void;
   } = {}) {
     this.workflowRunRepo = workflowRunRepo || new WorkflowRunRepository();
     this.taskRepo = taskRepo || new TaskRepository();
@@ -51,6 +55,22 @@ class WorkflowLifecycle {
     this.sessionEventRepo = sessionEventRepo || new SessionEventRepository();
     this.instanceRepo = instanceRepo || new WorkflowInstanceRepository();
     this._stepAttemptSegmentIds = new Map();
+    this.onWorkflowNotification = onWorkflowNotification;
+  }
+
+  private async _emitNotification(type: WorkflowNotificationEvent['type'], runId: number, taskId: number) {
+    if (!this.onWorkflowNotification) return;
+    try {
+      const task = await this.taskRepo.findById(taskId);
+      this.onWorkflowNotification({
+        type,
+        runId,
+        taskId,
+        taskTitle: task?.title || `Task #${taskId}`,
+      });
+    } catch (error) {
+      logger.warn('WorkflowLifecycle', `Notification hook failed: ${(error as Error).message}`);
+    }
   }
 
   private _getStepAttemptSegmentKey(runId: number, stepId: string) {
@@ -496,6 +516,12 @@ class WorkflowLifecycle {
     }
 
     this._clearStepAttemptSegmentId(runId, stepId);
+
+    // Emit notification hook
+    const { run: suspendRun } = await this._getRunStep(runId, stepId);
+    if (suspendRun?.task_id) {
+      await this._emitNotification('SUSPENDED', runId, suspendRun.task_id);
+    }
   }
 
   async onStepResume(
@@ -579,6 +605,11 @@ class WorkflowLifecycle {
     if (run.task_id) {
       await this.taskRepo.update(run.task_id, { status: 'DONE' });
     }
+
+    // Emit notification hook
+    if (run.task_id) {
+      await this._emitNotification('COMPLETED', runId, run.task_id);
+    }
   }
 
   async onWorkflowError(runId: number, errorMessage: string) {
@@ -598,6 +629,11 @@ class WorkflowLifecycle {
 
     if (run.task_id) {
       await this.taskRepo.update(run.task_id, { status: 'TODO' });
+    }
+
+    // Emit notification hook
+    if (run.task_id) {
+      await this._emitNotification('FAILED', runId, run.task_id);
     }
   }
 
