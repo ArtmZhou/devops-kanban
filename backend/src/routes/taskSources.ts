@@ -65,6 +65,10 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: CreateTaskSourceInput }>('/', async (request, reply) => {
     try {
       const source = await getService().create(request.body);
+      // Register scheduler job if schedule is configured
+      if (source.sync_schedule && request.server.schedulerService) {
+        request.server.schedulerService.registerJob(Number(source.id), source.sync_schedule);
+      }
       return successResponse(source, 'Task source created successfully');
     } catch (error) {
       logError(error, request);
@@ -79,6 +83,10 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
         reply.code(404);
         return errorResponse('Task source not found');
       }
+      // Reload scheduler job if schedule-related fields changed
+      if (request.server.schedulerService) {
+        await request.server.schedulerService.reloadSource(request.params.id);
+      }
       return successResponse(source, 'Task source updated successfully');
     } catch (error) {
       logError(error, request);
@@ -92,6 +100,10 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
       if (!deleted) {
         reply.code(404);
         return errorResponse('Task source not found');
+      }
+      // Unregister scheduler job
+      if (request.server.schedulerService) {
+        request.server.schedulerService.unregisterJob(parseInt(request.params.id, 10));
       }
       return successResponse(null, 'Task source deleted successfully');
     } catch (error) {
@@ -147,6 +159,29 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (error) {
       logError(error, request);
       return handleTaskSourceError(reply, error, 'Failed to test task source connection');
+    }
+  });
+
+  fastify.get<{ Params: IdParams }>('/:id/schedule-status', async (request, reply) => {
+    try {
+      const source = await getService().getById(request.params.id);
+      if (!source) {
+        reply.code(404);
+        return errorResponse('Task source not found');
+      }
+
+      const numericId = parseInt(request.params.id, 10);
+      const jobStatus = request.server.schedulerService?.getJobStatus(numericId);
+
+      return successResponse({
+        sync_schedule: source.sync_schedule || null,
+        auto_workflow_rules: source.auto_workflow_rules || null,
+        last_scheduled_sync_at: source.last_scheduled_sync_at || null,
+        job_active: jobStatus?.running ?? false,
+      });
+    } catch (error) {
+      logError(error, request);
+      return handleTaskSourceError(reply, error, 'Failed to get schedule status');
     }
   });
 };

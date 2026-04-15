@@ -37,6 +37,7 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
   const syncPreviewTasks = ref([])
   const selectedSyncTasks = ref(new Set())
   const syncError = ref(null)
+  const scheduleStatuses = ref({})
 
   const enabledSources = computed(() =>
     crud.items.value.filter(s => s.enabled)
@@ -331,6 +332,25 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     error.value = null
   }
 
+  async function fetchScheduleStatus(sourceId) {
+    try {
+      const response = await taskSourceApi.getTaskSourceScheduleStatus(sourceId)
+      const data = unwrap(response, 'Failed to fetch schedule status')
+      scheduleStatuses.value[sourceId] = data
+      return data
+    } catch (e) {
+      error.value = e.message
+      return null
+    }
+  }
+
+  async function fetchAllScheduleStatuses() {
+    const promises = crud.items.value.map(source =>
+      fetchScheduleStatus(source.id).catch(() => null)
+    )
+    await Promise.all(promises)
+  }
+
   return {
     taskSources: crud.items,
     currentTaskSource: crud.currentItem,
@@ -366,6 +386,9 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     closePreviewDialog,
     fetchTaskSource: crud.fetchById,
     clearTaskSources,
-    clearError
+    clearError,
+    scheduleStatuses,
+    fetchScheduleStatus,
+    fetchAllScheduleStatuses
   }
 })
