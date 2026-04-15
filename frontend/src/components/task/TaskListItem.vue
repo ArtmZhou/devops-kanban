@@ -51,6 +51,24 @@
             </el-tag>
           </a>
         </div>
+        <!-- Auto-execute controls -->
+        <div v-if="task.status === 'TODO'" class="auto-execute-row">
+          <label class="toggle" :title="$t('autoExecute.label')">
+            <input type="checkbox" :checked="task.auto_execute === 1" @change="toggleAutoExecute($event)" />
+            <span class="slider"></span>
+          </label>
+          <span class="auto-execute-label">{{ $t('autoExecute.label') }}</span>
+          <select
+            v-if="task.auto_execute === 1"
+            class="auto-execute-template"
+            :value="task.auto_execute_template_id || ''"
+            @change="updateTemplate($event)"
+            @focus="loadTemplates"
+          >
+            <option value="" disabled>{{ $t('autoExecute.templatePlaceholder') }}</option>
+            <option v-for="tmpl in workflowTemplates" :key="tmpl.template_id" :value="tmpl.template_id">{{ tmpl.name }}</option>
+          </select>
+        </div>
         <div class="task-actions">
           <button
             class="worktree-btn"
@@ -344,13 +362,38 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['click', 'edit', 'delete', 'worktree-update', 'toggle-workflow', 'workflow-action', 'node-click', 'quick-edit'])
+const emit = defineEmits(['click', 'edit', 'delete', 'worktree-update', 'toggle-workflow', 'workflow-action', 'node-click', 'quick-edit', 'update-task'])
 
 const { t } = useI18n()
 
 // Use composables
 const { isWorktreeLoading, getWorktreeClass, getWorktreeTooltip, getWorktreeStatusText, createWorktree, deleteWorktree } = useWorktree()
 const { getStatusClass } = useStatusStyle()
+
+// Auto-execute controls
+import { getWorkflowTemplates } from '../../api/workflowTemplate.js'
+const workflowTemplates = ref([])
+const templatesLoaded = ref(false)
+
+async function loadTemplates() {
+  if (templatesLoaded.value) return
+  try {
+    const res = await getWorkflowTemplates()
+    if (res.success && res.data) {
+      workflowTemplates.value = res.data
+    }
+    templatesLoaded.value = true
+  } catch { /* silently fail */ }
+}
+
+async function toggleAutoExecute(event) {
+  const checked = event.target.checked
+  emit('update-task', { id: props.task.id, auto_execute: checked ? 1 : 0 })
+}
+
+async function updateTemplate(event) {
+  emit('update-task', { id: props.task.id, auto_execute_template_id: event.target.value })
+}
 
 // Real workflow run data from API
 const realWorkflowRun = ref(null)
@@ -667,6 +710,71 @@ const openWorktreeDirectory = () => {
 </script>
 
 <style scoped>
+.auto-execute-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  padding: 2px 0;
+}
+
+.auto-execute-row .toggle {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 16px;
+}
+
+.auto-execute-row .toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.auto-execute-row .slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: var(--border-color);
+  transition: 0.2s;
+  border-radius: 16px;
+}
+
+.auto-execute-row .slider::before {
+  content: '';
+  position: absolute;
+  height: 12px;
+  width: 12px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: 0.2s;
+  border-radius: 50%;
+}
+
+.auto-execute-row .toggle input:checked + .slider {
+  background-color: var(--accent-color);
+}
+
+.auto-execute-row .toggle input:checked + .slider::before {
+  transform: translateX(12px);
+}
+
+.auto-execute-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.auto-execute-template {
+  font-size: 12px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--input-text);
+  max-width: 160px;
+}
+
 .task-item {
   display: flex;
   align-items: flex-start;

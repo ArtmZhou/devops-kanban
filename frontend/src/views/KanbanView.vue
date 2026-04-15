@@ -191,6 +191,7 @@
           @toggle-workflow="handleToggleWorkflow"
           @workflow-action="handleWorkflowAction"
           @quick-edit="handleQuickEdit"
+          @update-task="handleUpdateTask"
         />
       </div>
 
@@ -673,7 +674,7 @@ import { useTaskTimer } from '../composables/kanban/useTaskTimer'
 import { useWorkflowManager } from '../composables/kanban/useWorkflowManager'
 import { useKanbanSelection } from '../composables/kanban/useKanbanSelection'
 import { analyzeTaskCategory, getRecommendedWorkflowTemplateId } from '../mock/workflowAssignment'
-import { reorderTasks, startTask, deleteTask } from '../api/task.js'
+import { reorderTasks, startTask, deleteTask, updateTask } from '../api/task.js'
 import { getWorkflowTemplateById } from '../api/workflowTemplate.js'
 import { normalizeWorkflowTemplate } from '../components/workflow/templateEditorShared.js'
 import { formatTaskDescription } from '../utils/taskDescriptionFormatter'
@@ -1106,6 +1107,15 @@ const handleQuickEdit = (task) => {
     taskTitle: task.title,
   }
   showCodeEditor.value = true
+}
+
+const handleUpdateTask = async ({ id, ...data }) => {
+  try {
+    await updateTask(id, data)
+    await taskStore.fetchTasks(currentProject.value?.id)
+  } catch (error) {
+    console.error('Failed to update task:', error)
+  }
 }
 
 const tasks = computed(() => taskStore.tasks)
