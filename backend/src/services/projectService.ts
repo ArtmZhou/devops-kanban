@@ -2,6 +2,7 @@ import { ProjectRepository } from '../repositories/projectRepository.js';
 import { TaskRepository } from '../repositories/taskRepository.js';
 import { IterationRepository } from '../repositories/iterationRepository.js';
 import { TaskSourceRepository } from '../repositories/taskSourceRepository.js';
+import { ValidationError } from '../utils/errors.js';
 
 import type { CreateProjectInput, UpdateProjectInput } from '../types/dto/projects.js';
 

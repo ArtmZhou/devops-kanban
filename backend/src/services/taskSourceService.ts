@@ -6,7 +6,7 @@ import { AgentRepository } from '../repositories/agentRepository.js';
 import { loadAdapterTypes } from '../config/taskSources.js';
 import { getAdapter, getAdapterMetadata, getAvailableTypes } from '../sources/index.js';
 import { LocalDirectoryAdapter } from '../sources/localDirectoryAdapter.js';
-import { NotFoundError, BusinessError } from '../utils/errors.js';
+import { NotFoundError, BusinessError, ValidationError } from '../utils/errors.js';
 import type { TaskSourceLike, FetchOptions } from '../sources/base.js';
 import type {
   CreateTaskSourceInput,

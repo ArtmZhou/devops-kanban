@@ -30,6 +30,31 @@ class SessionRepository extends BaseRepository<SessionEntity> {
     });
     return result.rows.map(row => this.parseRow(row as Record<string, unknown>));
   }
+
+  async countByWorktreePath(worktreePath: string): Promise<number> {
+    const result = await this.client.execute({
+      sql: 'SELECT COUNT(*) as count FROM sessions WHERE worktree_path = ?',
+      args: [worktreePath],
+    });
+    return Number(result.rows[0]?.count ?? 0);
+  }
+
+  async getByWorktreePathPaginated(worktreePath: string, options: { offset: number; limit: number }): Promise<{ rows: SessionEntity[]; total: number }> {
+    const [countResult, sessionsResult] = await Promise.all([
+      this.client.execute({
+        sql: 'SELECT COUNT(*) as count FROM sessions WHERE worktree_path = ?',
+        args: [worktreePath],
+      }),
+      this.client.execute({
+        sql: 'SELECT * FROM sessions WHERE worktree_path = ? ORDER BY started_at DESC LIMIT ? OFFSET ?',
+        args: [worktreePath, options.limit, options.offset],
+      }),
+    ]);
+    return {
+      rows: sessionsResult.rows.map(row => this.parseRow(row as Record<string, unknown>)),
+      total: Number(countResult.rows[0]?.count ?? 0),
+    };
+  }
 }
 
 export { SessionRepository };

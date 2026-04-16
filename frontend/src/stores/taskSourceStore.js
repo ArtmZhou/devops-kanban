@@ -42,6 +42,7 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
   const syncPanelVisible = ref(false)
   const syncHistory = ref([])
   const syncHistoryLoading = ref(false)
+  const syncHistoryPagination = ref({ page: 1, pageSize: 10, total: 0 })
 
   const enabledSources = computed(() =>
     crud.items.value.filter(s => s.enabled)
@@ -355,12 +356,19 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     syncSessionId.value = null
   }
 
-  async function fetchSyncHistory(sourceId) {
+  async function fetchSyncHistory(sourceId, page) {
     syncHistoryLoading.value = true
     error.value = null
+    const currentPage = page ?? syncHistoryPagination.value.page
+    syncHistoryPagination.value.page = currentPage
     try {
-      const response = await taskSourceApi.getSyncHistory(sourceId)
-      syncHistory.value = unwrap(response, 'Failed to fetch sync history') || []
+      const response = await taskSourceApi.getSyncHistory(sourceId, {
+        page: currentPage,
+        pageSize: syncHistoryPagination.value.pageSize,
+      })
+      const data = unwrap(response, 'Failed to fetch sync history')
+      syncHistory.value = data?.history || []
+      syncHistoryPagination.value.total = data?.total || 0
       return syncHistory.value
     } catch (e) {
       error.value = e.message
@@ -438,6 +446,7 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     closeSyncPanel,
     syncHistory,
     syncHistoryLoading,
+    syncHistoryPagination,
     fetchSyncHistory,
     viewSyncAnalysis
   }

@@ -53,6 +53,7 @@ vi.mock('../src/stores/taskSourceStore', () => ({
     syncError: null,
     syncHistory: [],
     syncHistoryLoading: false,
+    syncHistoryPagination: { page: 1, pageSize: 10, total: 0 },
     fetchSyncHistory: vi.fn(() => Promise.resolve()),
     viewSyncAnalysis: vi.fn(),
     syncPanelVisible: false,

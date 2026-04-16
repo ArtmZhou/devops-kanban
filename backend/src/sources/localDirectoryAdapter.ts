@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { TaskSourceAdapter, type TaskSourceLike } from './base.js';
 import type { ImportedTask, SourceDefinition } from '../types/sources.ts';
+import { BusinessError } from '../utils/errors.js';
 import { SessionEventRepository } from '../repositories/sessionEventRepository.js';
 import { SessionSegmentRepository } from '../repositories/sessionSegmentRepository.js';
 import { AgentRepository } from '../repositories/agentRepository.js';
@@ -86,7 +87,13 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
 
   async _scanFiles(): Promise<FileInfo[]> {
     if (!this.directoryPath) {
-      throw new Error('directoryPath is not configured');
+      throw new BusinessError('目录路径未配置', 'directoryPath is not configured');
+    }
+
+    try {
+      await fs.access(this.directoryPath, fs.constants.R_OK);
+    } catch {
+      throw new BusinessError(`目录不存在或无读取权限: ${this.directoryPath}`, `Directory not accessible: ${this.directoryPath}`);
     }
 
     const entries = await fs.readdir(this.directoryPath, { withFileTypes: true });
@@ -237,12 +244,18 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
       }
     }
 
-    const prompt = `分析以下文件内容，为每个文件生成任务标题和描述。格式：
-=== 文件1: <文件名> ===
+    const prompt = `分析以下文件内容，为每个文件生成任务标题和描述。
+
+请严格按以下格式回复，每个文件一段：
+文件1
 标题: <生成的标题>
 描述: <生成的描述>
 
-文件内容:
+文件2
+标题: <生成的标题>
+描述: <生成的描述>
+
+---以下是文件内容---
 ${fileContents}`;
 
     try {
@@ -261,7 +274,7 @@ ${fileContents}`;
         },
       });
 
-      const output = result.stdout || result.stderr || '';
+      const output = result.parsedResult?.summary || '';
       const results = this._parseMultiFileAiOutput(output, filelist);
 
       await segmentRepo.update(segment.id, { status: 'COMPLETED' });
@@ -303,36 +316,14 @@ ${fileContents}`;
       }));
     }
 
-    // Split by file section markers
-    const sections = output.split(/=== 文件\d+: (.+?) ===/).filter(Boolean);
+    // Split by "---" separator (separates prompt area from AI response)
+    const parts = output.split(/^-{3,}/m);
+    const aiResponse = parts.length > 1 ? parts.slice(1).join('\n') : output;
 
-    const results: ImportedTask[] = [];
-    // sections alternate: [filename1, content1, filename2, content2, ...]
-    for (let i = 0; i < sections.length - 1; i += 2) {
-      const filename = sections[i]!.trim();
-      const content = sections[i + 1]!;
+    // Match file blocks: "文件1\n标题: ...\n描述: ..." or "文件1 标题: ...\n描述: ..."
+    const fileBlocks = aiResponse.match(/文件\d+[\s\S]*?(?=文件\d+|$)/g) || [];
 
-      const fallback = fallbackFiles.find((f) => f.filename === filename) || fallbackFiles[results.length] || {
-        filename,
-        filepath: `/tmp/${filename}`,
-        size: 0,
-        modified: new Date().toISOString(),
-      };
-
-      const titleMatch = content!.match(/标题[：:]\s*(.+)/);
-      const descMatch = content!.match(/描述[：:]\s*([\s\S]*?)(?:\n\n|$)/);
-
-      results.push({
-        external_id: filename,
-        title: titleMatch?.[1]?.trim() || filename,
-        description: descMatch?.[1]?.trim() || this._substituteTemplate(this.descriptionTemplate, fallback),
-        external_url: `file://${fallback.filepath}`,
-        labels: [],
-      });
-    }
-
-    // If parsing produced no results, fall back for all files
-    if (results.length === 0) {
+    if (fileBlocks.length === 0) {
       return fallbackFiles.map((file) => ({
         external_id: file.filename,
         title: file.filename,
@@ -340,6 +331,22 @@ ${fileContents}`;
         external_url: `file://${file.filepath}`,
         labels: [],
       }));
+    }
+
+    const results: ImportedTask[] = [];
+    for (let i = 0; i < Math.min(fileBlocks.length, fallbackFiles.length); i++) {
+      const block = fileBlocks[i]!;
+      const file = fallbackFiles[i]!;
+      const titleMatch = block.match(/标题[：:]\s*(.+)/);
+      const descMatch = block.match(/描述[：:]\s*([\s\S]*?)(?=\n\n|\n文件\d+|$)/);
+
+      results.push({
+        external_id: file.filename,
+        title: titleMatch?.[1]?.trim() || file.filename,
+        description: descMatch?.[1]?.trim() || this._substituteTemplate(this.descriptionTemplate, file),
+        external_url: `file://${file.filepath}`,
+        labels: [],
+      });
     }
 
     return results;

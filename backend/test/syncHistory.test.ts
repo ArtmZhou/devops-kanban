@@ -58,8 +58,8 @@ test.test('getSyncHistory returns empty array when no sessions exist', async () 
     enabled: true,
   });
 
-  const history = await service.getSyncHistory(String(source.id));
-  assert.equal(history.length, 0);
+  const result = await service.getSyncHistory(String(source.id));
+  assert.equal(result.history.length, 0);
 });
 
 test.test('getSyncHistory returns sessions matching source directoryPath', async () => {
@@ -98,9 +98,9 @@ test.test('getSyncHistory returns sessions matching source directoryPath', async
     completed_at: new Date().toISOString(),
   });
 
-  const history = await service.getSyncHistory(String(source.id));
-  assert.equal(history.length, 1);
-  assert.equal(history[0]!.status, 'COMPLETED');
+  const result = await service.getSyncHistory(String(source.id));
+  assert.equal(result.history.length, 1);
+  assert.equal(result.history[0]!.status, 'COMPLETED');
 });
 
 test.test('getSyncHistory detects AI mode from session segments', async () => {
@@ -148,10 +148,10 @@ test.test('getSyncHistory detects AI mode from session segments', async () => {
     completed_at: earlier.toISOString(),
   });
 
-  const history = await service.getSyncHistory(String(source.id));
-  assert.equal(history.length, 2);
-  const aiEntry = history.find((h) => h.mode === 'ai');
-  const fixedEntry = history.find((h) => h.mode === 'fixed');
+  const result = await service.getSyncHistory(String(source.id));
+  assert.equal(result.history.length, 2);
+  const aiEntry = result.history.find((h) => h.mode === 'ai');
+  const fixedEntry = result.history.find((h) => h.mode === 'fixed');
   assert.ok(aiEntry, 'Should have an AI mode entry');
   assert.ok(fixedEntry, 'Should have a fixed mode entry');
 });
@@ -203,8 +203,8 @@ test.test('getSyncHistory counts tasks for each session', async () => {
     source: 'TEST_SYNC_HISTORY',
   });
 
-  const history = await service.getSyncHistory(String(source.id));
-  assert.equal(history.length, 1);
-  assert.equal(history[0]!.fileCount, 2);
-  assert.equal(history[0]!.sessionId, session.id);
+  const result = await service.getSyncHistory(String(source.id));
+  assert.equal(result.history.length, 1);
+  assert.equal(result.history[0]!.fileCount, 2);
+  assert.equal(result.history[0]!.sessionId, session.id);
 });

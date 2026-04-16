@@ -165,3 +165,99 @@ test.test('readSkillFile returns 404 for non-existent file', async () => {
     );
   });
 });
+
+// ─── Length validation ──────────────────────────────────
+
+test.test('createSkill rejects name exceeding 200 characters', async () => {
+  await withIsolatedStorage(async (tempRoot) => {
+    const service = new SkillService({ storagePath: tempRoot });
+    const longName = 'a'.repeat(201);
+
+    await assert.rejects(
+      async () => service.createSkill(longName),
+      /Skill name exceeds maximum length of 200 characters/
+    );
+  });
+});
+
+test.test('createSkill accepts name at exactly 200 characters', async () => {
+  await withIsolatedStorage(async (tempRoot) => {
+    const service = new SkillService({ storagePath: tempRoot });
+    const exactName = 'a'.repeat(200);
+
+    const skill = await service.createSkill(exactName);
+    assert.equal(skill.name, exactName);
+  });
+});
+
+test.test('createSkill rejects description exceeding 5000 characters', async () => {
+  await withIsolatedStorage(async (tempRoot) => {
+    const service = new SkillService({ storagePath: tempRoot });
+    const longDesc = 'b'.repeat(5001);
+
+    await assert.rejects(
+      async () => service.createSkill('valid-name', longDesc),
+      /Skill description exceeds maximum length of 5000 characters/
+    );
+  });
+});
+
+test.test('createSkill accepts description at exactly 5000 characters', async () => {
+  await withIsolatedStorage(async (tempRoot) => {
+    const service = new SkillService({ storagePath: tempRoot });
+    const exactDesc = 'b'.repeat(5000);
+
+    const skill = await service.createSkill('valid-name', exactDesc);
+    assert.equal(skill.description, exactDesc);
+  });
+});
+
+test.test('updateSkill rejects name exceeding 200 characters', async () => {
+  await withIsolatedStorage(async (tempRoot) => {
+    const service = new SkillService({ storagePath: tempRoot });
+    const created = await service.createSkill('original-name');
+    const longName = 'a'.repeat(201);
+
+    await assert.rejects(
+      async () => service.updateSkill(created.id, { name: longName }),
+      /Skill name exceeds maximum length of 200 characters/
+    );
+  });
+});
+
+test.test('updateSkill rejects description exceeding 5000 characters', async () => {
+  await withIsolatedStorage(async (tempRoot) => {
+    const service = new SkillService({ storagePath: tempRoot });
+    const created = await service.createSkill('original-name');
+    const longDesc = 'b'.repeat(5001);
+
+    await assert.rejects(
+      async () => service.updateSkill(created.id, { description: longDesc }),
+      /Skill description exceeds maximum length of 5000 characters/
+    );
+  });
+});
+
+test.test('updateSkill accepts name at exactly 200 characters', async () => {
+  await withIsolatedStorage(async (tempRoot) => {
+    const service = new SkillService({ storagePath: tempRoot });
+    const created = await service.createSkill('original-name');
+    const exactName = 'a'.repeat(200);
+
+    const updated = await service.updateSkill(created.id, { name: exactName });
+    assert.ok(updated);
+    assert.equal(updated!.name, exactName);
+  });
+});
+
+test.test('updateSkill accepts description at exactly 5000 characters', async () => {
+  await withIsolatedStorage(async (tempRoot) => {
+    const service = new SkillService({ storagePath: tempRoot });
+    const created = await service.createSkill('original-name');
+    const exactDesc = 'b'.repeat(5000);
+
+    const updated = await service.updateSkill(created.id, { description: exactDesc });
+    assert.ok(updated);
+    assert.equal(updated!.description, exactDesc);
+  });
+});

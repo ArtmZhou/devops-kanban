@@ -171,10 +171,12 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  fastify.get<{ Params: IdParams }>('/:id/sync-history', async (request, reply) => {
+  fastify.get<{ Params: IdParams; Querystring: { page?: string; pageSize?: string } }>('/:id/sync-history', async (request, reply) => {
     try {
-      const history = await getService().getSyncHistory(request.params.id);
-      return successResponse(history);
+      const page = request.query.page ? parseInt(request.query.page, 10) : 1;
+      const pageSize = request.query.pageSize ? parseInt(request.query.pageSize, 10) : 20;
+      const result = await getService().getSyncHistory(request.params.id, { page, pageSize });
+      return successResponse(result);
     } catch (error) {
       logError(error, request);
       return handleTaskSourceError(reply, error, 'Failed to get sync history');
