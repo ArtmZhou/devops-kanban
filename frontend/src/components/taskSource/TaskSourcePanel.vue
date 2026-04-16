@@ -845,6 +845,15 @@ const openSyncHistory = async (source) => {
   await taskSourceStore.fetchSyncHistory(source.id)
 }
 
+const testSource = async (source) => {
+  try {
+    const result = await taskSourceStore.testTaskSource(source.id)
+    toast.success(result?.data?.message || '连接测试成功')
+  } catch (err) {
+    toast.error('连接测试失败: ' + (err.message || '未知错误'))
+  }
+}
+
 const viewAnalysis = (sessionId) => {
   syncHistoryDialogVisible.value = false
   taskSourceStore.viewSyncAnalysis(sessionId)

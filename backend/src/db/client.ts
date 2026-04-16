@@ -1,6 +1,5 @@
 import { createClient, type Client } from '@libsql/client';
 import * as path from 'node:path';
-import * as url from 'node:url';
 import { fileURLToPath } from 'node:url';
 
 const FILE_DIR = path.dirname(fileURLToPath(import.meta.url));

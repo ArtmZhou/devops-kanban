@@ -6,6 +6,8 @@ import { SessionEventRepository } from '../repositories/sessionEventRepository.j
 import { SessionSegmentRepository } from '../repositories/sessionSegmentRepository.js';
 import { AgentRepository } from '../repositories/agentRepository.js';
 import { ClaudeStepRunner } from '../services/workflow/executors/claudeStepRunner.js';
+import { OpenCodeStepRunner } from '../services/workflow/executors/openCodeStepRunner.js';
+import { ExecutorType } from '../types/executors.js';
 import { logger } from '../utils/logger.js';
 
 type FileInfo = {
@@ -215,12 +217,14 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
       trigger_type: 'START',
     });
 
-    const runner = new ClaudeStepRunner();
+    const runner = agent.executorType === ExecutorType.OPEN_CODE
+      ? new OpenCodeStepRunner()
+      : new ClaudeStepRunner();
 
     // Build single prompt for all files
     let fileContents = '';
     for (let i = 0; i < filelist.length; i++) {
-      const file = filelist[i];
+      const file = filelist[i]!;
       const content = this.isTextFile(file.filename)
         ? await this.readFileContent(file.filepath)
         : null;
@@ -305,8 +309,8 @@ ${fileContents}`;
     const results: ImportedTask[] = [];
     // sections alternate: [filename1, content1, filename2, content2, ...]
     for (let i = 0; i < sections.length - 1; i += 2) {
-      const filename = sections[i].trim();
-      const content = sections[i + 1];
+      const filename = sections[i]!.trim();
+      const content = sections[i + 1]!;
 
       const fallback = fallbackFiles.find((f) => f.filename === filename) || fallbackFiles[results.length] || {
         filename,
@@ -315,8 +319,8 @@ ${fileContents}`;
         modified: new Date().toISOString(),
       };
 
-      const titleMatch = content.match(/标题[：:]\s*(.+)/);
-      const descMatch = content.match(/描述[：:]\s*([\s\S]*?)(?:\n\n|$)/);
+      const titleMatch = content!.match(/标题[：:]\s*(.+)/);
+      const descMatch = content!.match(/描述[：:]\s*([\s\S]*?)(?:\n\n|$)/);
 
       results.push({
         external_id: filename,

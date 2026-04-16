@@ -27,6 +27,7 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
   }
   const currentProjectId = ref(null)
   const syncing = ref(false)
+  const testing = ref(false)
 
   // Preview state
   const previewItems = ref([])
@@ -172,6 +173,21 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
       throw e
     } finally {
       syncing.value = false
+    }
+  }
+
+  async function testTaskSource(id) {
+    testing.value = true
+    error.value = null
+    try {
+      const response = await taskSourceApi.testTaskSource(id)
+      unwrap(response, 'Failed to test task source')
+      return response
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      testing.value = false
     }
   }
 
@@ -388,6 +404,7 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     enabledSources,
     sourcesByType,
     syncing,
+    testing,
     previewItems,
     showPreviewDialog,
     previewLoading,
@@ -400,6 +417,7 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     updateTaskSource,
     deleteTaskSource,
     syncTaskSource,
+    testTaskSource,
     previewSync,
     openSyncPreviewForSource,
     openSyncPreviewForProject,

@@ -302,7 +302,28 @@
           </span>
         </div>
 
-        <div v-if="!selectedTask && !isChatCollapsed" class="chat-welcome">
+        <!-- Sync analysis view (highest priority in chat container) -->
+        <div v-if="taskSourceStore.syncPanelVisible && !isChatCollapsed" class="chat-content sync-analysis-mode">
+          <div class="step-chat-header">
+            <div class="step-header-copy">
+              <span class="step-header-label">{{ $t('taskSource.syncAnalysisTitle', 'Agent 分析') }}</span>
+              <span v-if="taskSourceStore.syncSessionId" class="step-session-id" :title="'Session #' + taskSourceStore.syncSessionId">
+                #{{ taskSourceStore.syncSessionId }}
+              </span>
+            </div>
+            <el-button class="sync-analysis-close" size="small" text @click="taskSourceStore.closeSyncPanel()">
+              ✕
+            </el-button>
+          </div>
+          <div class="step-chat-body">
+            <StepSessionPanel
+              :session-id="taskSourceStore.syncSessionId"
+              :show-header="false"
+            />
+          </div>
+        </div>
+
+        <div v-if="!selectedTask && !taskSourceStore.syncPanelVisible && !isChatCollapsed" class="chat-welcome">
           <div class="welcome-logo">
             <span class="logo-devops">DevOps</span>
             <span class="logo-kanban">Kanban</span>
@@ -310,7 +331,7 @@
           <h2>点击任务查看 Workflow</h2>
         </div>
 
-        <div v-if="selectedTask && !isChatCollapsed && currentViewingNodeId" class="chat-content step-chat-mode">
+        <div v-if="selectedTask && !taskSourceStore.syncPanelVisible && !isChatCollapsed && currentViewingNodeId" class="chat-content step-chat-mode">
           <div class="step-chat-header">
             <div class="step-header-copy">
               <span class="step-header-label">Workflow 对话</span>
@@ -350,7 +371,7 @@
           </div>
         </div>
 
-        <div v-if="selectedTask && !isChatCollapsed && !currentViewingNodeId" class="chat-content task-chat-placeholder">
+        <div v-if="selectedTask && !taskSourceStore.syncPanelVisible && !isChatCollapsed && !currentViewingNodeId" class="chat-content task-chat-placeholder">
           <div class="task-placeholder-content">
             <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -622,11 +643,6 @@
       </template>
     </BaseDialog>
 
-    <TaskSourceSyncPanel
-      :visible="taskSourceStore.syncPanelVisible"
-      :session-id="taskSourceStore.syncSessionId"
-      @close="taskSourceStore.closeSyncPanel()"
-    />
     </div>
 
   <BaseDialog
@@ -678,7 +694,6 @@ import IterationSelect from '../components/iteration/IterationSelect.vue'
 import IterationList from '../components/iteration/IterationList.vue'
 import IterationForm from '../components/iteration/IterationForm.vue'
 import TaskSourcePanel from '../components/taskSource/TaskSourcePanel.vue'
-import TaskSourceSyncPanel from '../components/taskSource/TaskSourceSyncPanel.vue'
 import KanbanColumn from '../components/kanban/TaskColumn.vue'
 import KanbanListView from '../components/kanban/KanbanListView.vue'
 import CodeEditor from '../components/editor/CodeEditor.vue'
@@ -823,6 +838,13 @@ watch(() => selectedTask.value?.status, (newStatus) => {
   if (newStatus === 'DONE' && currentViewingNodeId.value) {
     currentViewingNodeId.value = null
     currentViewingNode.value = null
+  }
+})
+
+// Auto-expand chat when sync analysis opens
+watch(() => taskSourceStore.syncPanelVisible, (visible) => {
+  if (visible) {
+    isChatCollapsed.value = false
   }
 })
 
@@ -2937,7 +2959,8 @@ onUnmounted(() => {
   color: var(--el-color-danger);
 }
 
-.step-chat-mode {
+.step-chat-mode,
+.sync-analysis-mode {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -2948,10 +2971,20 @@ onUnmounted(() => {
 .step-chat-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--border-color);
   background: var(--panel-bg);
   flex-shrink: 0;
+}
+
+.sync-analysis-close {
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.sync-analysis-close:hover {
+  opacity: 1;
 }
 
 .step-chat-header,

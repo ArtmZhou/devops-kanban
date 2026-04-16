@@ -63,6 +63,7 @@ watch(() => props.visible, (vis) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex-shrink: 0;
 }
 .sync-panel-header {
   display: flex;

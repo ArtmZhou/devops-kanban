@@ -10,6 +10,7 @@ import { SessionSegmentRepository } from '../src/repositories/sessionSegmentRepo
 import { registerAdapter } from '../src/sources/index.js';
 import { TaskSourceAdapter } from '../src/sources/base.js';
 import type { ImportedTask } from '../src/types/sources.ts';
+import { ExecutorType } from '../src/types/executors.js';
 
 class TestSyncAdapter extends TaskSourceAdapter {
   static override type = 'TEST_SYNC_HISTORY';
@@ -79,7 +80,7 @@ test.test('getSyncHistory returns sessions matching source directoryPath', async
   // Create sessions matching the source's directoryPath
   await sessionRepo.create({
     task_id: 0,
-    executor_type: 'CLAUDE_CODE',
+    executor_type: ExecutorType.CLAUDE_CODE,
     status: 'COMPLETED',
     worktree_path: dir,
     started_at: new Date().toISOString(),
@@ -90,7 +91,7 @@ test.test('getSyncHistory returns sessions matching source directoryPath', async
   const otherDir = uniquePath();
   await sessionRepo.create({
     task_id: 0,
-    executor_type: 'CLAUDE_CODE',
+    executor_type: ExecutorType.CLAUDE_CODE,
     status: 'COMPLETED',
     worktree_path: otherDir,
     started_at: new Date().toISOString(),
@@ -99,7 +100,7 @@ test.test('getSyncHistory returns sessions matching source directoryPath', async
 
   const history = await service.getSyncHistory(String(source.id));
   assert.equal(history.length, 1);
-  assert.equal(history[0].status, 'COMPLETED');
+  assert.equal(history[0]!.status, 'COMPLETED');
 });
 
 test.test('getSyncHistory detects AI mode from session segments', async () => {
@@ -121,7 +122,7 @@ test.test('getSyncHistory detects AI mode from session segments', async () => {
   // Create AI session (has segment with agent)
   const aiSession = await sessionRepo.create({
     task_id: 0,
-    executor_type: 'CLAUDE_CODE',
+    executor_type: ExecutorType.CLAUDE_CODE,
     status: 'COMPLETED',
     worktree_path: dir,
     started_at: new Date().toISOString(),
@@ -131,7 +132,7 @@ test.test('getSyncHistory detects AI mode from session segments', async () => {
   await segmentRepo.create({
     session_id: aiSession.id,
     status: 'COMPLETED',
-    executor_type: 'CLAUDE_CODE',
+    executor_type: ExecutorType.CLAUDE_CODE,
     agent_id: 1,
     trigger_type: 'START',
   });
@@ -140,7 +141,7 @@ test.test('getSyncHistory detects AI mode from session segments', async () => {
   const earlier = new Date(Date.now() - 1000);
   await sessionRepo.create({
     task_id: 0,
-    executor_type: 'CLAUDE_CODE',
+    executor_type: ExecutorType.CLAUDE_CODE,
     status: 'COMPLETED',
     worktree_path: dir,
     started_at: earlier.toISOString(),
@@ -174,7 +175,7 @@ test.test('getSyncHistory counts tasks for each session', async () => {
   const now = new Date();
   const session = await sessionRepo.create({
     task_id: 0,
-    executor_type: 'CLAUDE_CODE',
+    executor_type: ExecutorType.CLAUDE_CODE,
     status: 'COMPLETED',
     worktree_path: dir,
     started_at: now.toISOString(),
@@ -204,6 +205,6 @@ test.test('getSyncHistory counts tasks for each session', async () => {
 
   const history = await service.getSyncHistory(String(source.id));
   assert.equal(history.length, 1);
-  assert.equal(history[0].fileCount, 2);
-  assert.equal(history[0].sessionId, session.id);
+  assert.equal(history[0]!.fileCount, 2);
+  assert.equal(history[0]!.sessionId, session.id);
 });

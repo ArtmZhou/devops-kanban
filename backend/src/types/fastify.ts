@@ -33,6 +33,7 @@ export interface TaskSourceServiceContract {
   previewSync(sourceId: string): Promise<PreviewImportedTask[]>;
   importIssues(sourceId: string, items: ImportedTask[], projectId: number, iterationId?: number | null): Promise<TaskSourceImportResult>;
   testConnection(sourceId: string): Promise<boolean>;
+  getSyncHistory(sourceId: string): Promise<Array<{ sessionId: number; status: string; mode: string; startedAt: string | null; completedAt: string | null; fileCount: number }>>;
 }
 
 declare module 'fastify' {

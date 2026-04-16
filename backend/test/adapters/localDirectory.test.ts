@@ -44,11 +44,11 @@ test.test('LocalDirectoryAdapter scans files from directory (fixed mode)', async
 
     const tasks = await adapter.fetch();
     assert.equal(tasks.length, 3);
-    assert.equal(tasks[0].title, 'task1.txt');
-    assert.equal(tasks[0].external_id, 'task1.txt');
-    assert.equal(tasks[1].title, 'task2.md');
-    assert.equal(tasks[2].title, 'task3.json');
-    assert.ok(tasks[0].description.includes('task1.txt'));
+    assert.equal(tasks[0]!.title, 'task1.txt');
+    assert.equal(tasks[0]!.external_id, 'task1.txt');
+    assert.equal(tasks[1]!.title, 'task2.md');
+    assert.equal(tasks[2]!.title, 'task3.json');
+    assert.ok(tasks[0]!.description!.includes('task1.txt'));
   } finally {
     await fs.rm(dir, { recursive: true });
   }
@@ -73,8 +73,8 @@ test.test('LocalDirectoryAdapter filters by file extensions', async () => {
 
     const tasks = await adapter.fetch();
     assert.equal(tasks.length, 2);
-    assert.equal(tasks[0].external_id, 'data.json');
-    assert.equal(tasks[1].external_id, 'doc.txt');
+    assert.equal(tasks[0]!.external_id, 'data.json');
+    assert.equal(tasks[1]!.external_id, 'doc.txt');
   } finally {
     await fs.rm(dir, { recursive: true });
   }
@@ -95,7 +95,7 @@ test.test('LocalDirectoryAdapter skips hidden files', async () => {
 
     const tasks = await adapter.fetch();
     assert.equal(tasks.length, 1);
-    assert.equal(tasks[0].external_id, 'visible.txt');
+    assert.equal(tasks[0]!.external_id, 'visible.txt');
   } finally {
     await fs.rm(dir, { recursive: true });
   }
@@ -115,7 +115,7 @@ test.test('LocalDirectoryAdapter skips subdirectories', async () => {
 
     const tasks = await adapter.fetch();
     assert.equal(tasks.length, 1);
-    assert.equal(tasks[0].external_id, 'file.txt');
+    assert.equal(tasks[0]!.external_id, 'file.txt');
   } finally {
     await fs.rm(dir, { recursive: true });
   }
@@ -136,9 +136,9 @@ test.test('LocalDirectoryAdapter substitutes template variables', async () => {
 
     const tasks = await adapter.fetch();
     assert.equal(tasks.length, 1);
-    assert.ok(tasks[0].description.includes('report.txt'));
-    assert.ok(tasks[0].description.includes('Size:'));
-    assert.ok(tasks[0].description.includes('Path:'));
+    assert.ok(tasks[0]!.description!.includes('report.txt'));
+    assert.ok(tasks[0]!.description!.includes('Size:'));
+    assert.ok(tasks[0]!.description!.includes('Path:'));
   } finally {
     await fs.rm(dir, { recursive: true });
   }
@@ -212,6 +212,7 @@ test.test('LocalDirectoryAdapter readFileContent truncates at maxBytes', async (
     });
 
     const content = await adapter.readFileContent(path.join(dir, 'big.txt'), 100);
+    assert.ok(content !== null);
     assert.equal(content.length, 100);
   } finally {
     await fs.rm(dir, { recursive: true });
@@ -288,7 +289,7 @@ test.test('LocalDirectoryAdapter _parseAiOutput falls back on parse failure', ()
   });
 
   assert.equal(result.title, 'file.txt');
-  assert.ok(result.description.includes('file.txt'));
+  assert.ok(result.description!.includes('file.txt'));
 });
 
 test.test('LocalDirectoryAdapter convertToTask handles unknown items', () => {
@@ -326,8 +327,8 @@ test.test('LocalDirectoryAdapter generates file:// external_url', async () => {
     });
 
     const tasks = await adapter.fetch();
-    assert.ok(tasks[0].external_url.startsWith('file://'));
-    assert.ok(tasks[0].external_url.includes('file.txt'));
+    assert.ok(tasks[0]!.external_url!.startsWith('file://'));
+    assert.ok(tasks[0]!.external_url!.includes('file.txt'));
   } finally {
     await fs.rm(dir, { recursive: true });
   }
@@ -348,9 +349,9 @@ test.test('LocalDirectoryAdapter sorts files alphabetically', async () => {
     });
 
     const tasks = await adapter.fetch();
-    assert.equal(tasks[0].external_id, 'a-task.txt');
-    assert.equal(tasks[1].external_id, 'b-task.txt');
-    assert.equal(tasks[2].external_id, 'c-task.txt');
+    assert.equal(tasks[0]!.external_id, 'a-task.txt');
+    assert.equal(tasks[1]!.external_id, 'b-task.txt');
+    assert.equal(tasks[2]!.external_id, 'c-task.txt');
   } finally {
     await fs.rm(dir, { recursive: true });
   }
@@ -377,12 +378,12 @@ test.test('LocalDirectoryAdapter _parseMultiFileAiOutput parses multi-file outpu
 
   const results = adapter._parseMultiFileAiOutput(output, files);
   assert.equal(results.length, 2);
-  assert.equal(results[0].external_id, 'task1.txt');
-  assert.equal(results[0].title, '实现登录功能');
-  assert.equal(results[0].description, '需要实现用户登录模块，支持JWT认证');
-  assert.equal(results[1].external_id, 'task2.txt');
-  assert.equal(results[1].title, '实现注册功能');
-  assert.equal(results[1].description, '需要实现用户注册模块，支持邮箱验证');
+  assert.equal(results[0]!.external_id, 'task1.txt');
+  assert.equal(results[0]!.title, '实现登录功能');
+  assert.equal(results[0]!.description, '需要实现用户登录模块，支持JWT认证');
+  assert.equal(results[1]!.external_id, 'task2.txt');
+  assert.equal(results[1]!.title, '实现注册功能');
+  assert.equal(results[1]!.description, '需要实现用户注册模块，支持邮箱验证');
 });
 
 test.test('LocalDirectoryAdapter _parseMultiFileAiOutput handles partial parse failures', () => {
@@ -405,10 +406,10 @@ some unstructured output without title or description`;
 
   const results = adapter._parseMultiFileAiOutput(output, files);
   assert.equal(results.length, 2);
-  assert.equal(results[0].title, '实现登录功能');
+  assert.equal(results[0]!.title, '实现登录功能');
   // Second file falls back to filename as title
-  assert.equal(results[1].title, 'task2.txt');
-  assert.ok(results[1].description.includes('task2.txt'));
+  assert.equal(results[1]!.title, 'task2.txt');
+  assert.ok(results[1]!.description!.includes('task2.txt'));
 });
 
 test.test('LocalDirectoryAdapter _parseMultiFileAiOutput handles empty output', () => {
@@ -424,10 +425,10 @@ test.test('LocalDirectoryAdapter _parseMultiFileAiOutput handles empty output', 
 
   const results = adapter._parseMultiFileAiOutput('', files);
   assert.equal(results.length, 2);
-  assert.equal(results[0].title, 'task1.txt');
-  assert.equal(results[1].title, 'task2.txt');
-  assert.ok(results[0].description.includes('task1.txt'));
-  assert.ok(results[1].description.includes('task2.txt'));
+  assert.equal(results[0]!.title, 'task1.txt');
+  assert.equal(results[1]!.title, 'task2.txt');
+  assert.ok(results[0]!.description!.includes('task1.txt'));
+  assert.ok(results[1]!.description!.includes('task2.txt'));
 });
 
 test.test('LocalDirectoryAdapter _parseMultiFileAiOutput handles single file output', () => {
@@ -446,7 +447,7 @@ test.test('LocalDirectoryAdapter _parseMultiFileAiOutput handles single file out
 
   const results = adapter._parseMultiFileAiOutput(output, files);
   assert.equal(results.length, 1);
-  assert.equal(results[0].external_id, 'auth.md');
-  assert.equal(results[0].title, '认证模块重构');
-  assert.equal(results[0].description, '重构现有认证模块，添加OAuth2支持');
+  assert.equal(results[0]!.external_id, 'auth.md');
+  assert.equal(results[0]!.title, '认证模块重构');
+  assert.equal(results[0]!.description, '重构现有认证模块，添加OAuth2支持');
 });

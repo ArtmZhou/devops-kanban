@@ -2,6 +2,7 @@ import { TaskSourceRepository } from '../repositories/taskSourceRepository.js';
 import { TaskRepository } from '../repositories/taskRepository.js';
 import { SessionRepository } from '../repositories/sessionRepository.js';
 import { SessionSegmentRepository } from '../repositories/sessionSegmentRepository.js';
+import { AgentRepository } from '../repositories/agentRepository.js';
 import { loadAdapterTypes } from '../config/taskSources.js';
 import { getAdapter, getAdapterMetadata, getAvailableTypes } from '../sources/index.js';
 import { LocalDirectoryAdapter } from '../sources/localDirectoryAdapter.js';
@@ -195,9 +196,24 @@ class TaskSourceService {
         return { sessionId: null, tasks: [] };
       }
 
+      const agentRepo = new AgentRepository();
+      let sessionExecutorType = ExecutorType.CLAUDE_CODE;
+      let sessionAgentId: number | null = null;
+
+      if (adapter.agentId) {
+        const agent = await agentRepo.findById(adapter.agentId);
+        if (agent) {
+          sessionExecutorType = agent.executorType;
+          sessionAgentId = agent.id;
+        } else {
+          logger.warn('TaskSourceService', `Agent ${adapter.agentId} not found, falling back to CLAUDE_CODE`);
+        }
+      }
+
       const session = await sessionRepo.create({
         task_id: 0,
-        executor_type: ExecutorType.CLAUDE_CODE,
+        executor_type: sessionExecutorType,
+        agent_id: sessionAgentId,
         status: 'RUNNING',
         worktree_path: adapter.directoryPath,
       });
