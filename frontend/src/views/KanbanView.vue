@@ -395,6 +395,8 @@
             v-model="taskForm.title"
             :placeholder="$t('task.taskTitlePlaceholder')"
             class="task-title-input"
+            maxlength="200"
+            show-word-limit
           />
         </el-form-item>
         <el-form-item :label="$t('task.taskDescription')">
@@ -404,6 +406,8 @@
             :rows="12"
             :placeholder="$t('task.taskDescriptionPlaceholder')"
             class="task-description-input"
+            maxlength="5000"
+            show-word-limit
           />
         </el-form-item>
         <div class="form-row">
