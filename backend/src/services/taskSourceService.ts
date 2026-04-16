@@ -419,7 +419,7 @@ class TaskSourceService {
     }
 
     if (newFiles.length === 0) {
-      return { sessionId: null, results: [] };
+      return { sessionId: null, status: 'no_files' };
     }
 
     const agentRepo = new AgentRepository();
@@ -443,35 +443,48 @@ class TaskSourceService {
       task_id: 0,
       executor_type: sessionExecutorType,
       agent_id: sessionAgentId,
-      status: 'PENDING_REVIEW',
+      status: 'RUNNING',
       worktree_path: adapter.directoryPath,
       started_at: new Date().toISOString(),
       metadata: {},
     });
 
-    const tasks = await adapter.fetchWithAiDescriptions(session.id, newFiles);
+    // Fire-and-forget: run AI in background, store results in session metadata when done
+    adapter.fetchWithAiDescriptions(session.id, newFiles).then(async (tasks) => {
+      const allFallback = tasks.every(t => t.title === t.external_id);
+      if (allFallback) {
+        await sessionRepo.update(session.id, {
+          status: 'FAILED',
+          completed_at: new Date().toISOString(),
+        });
+        return;
+      }
 
-    // Detect if all results are fallbacks (AI analysis failed or no agent configured)
-    const allFallback = tasks.every(t => t.title === t.external_id);
+      const results = tasks.map(t => ({
+        externalId: t.external_id,
+        title: t.title,
+        description: t.description ?? '',
+        external_url: t.external_url,
+      }));
 
-    if (allFallback) {
       await sessionRepo.update(session.id, {
-        status: 'FAILED',
+        status: 'PENDING_REVIEW',
         completed_at: new Date().toISOString(),
+        metadata: { aiResults: results },
       });
-      throw new BusinessError('AI 分析未生成有效结果，请检查 Agent 配置', 'AI analysis produced only fallback results. Check Agent configuration.');
-    }
+    }).catch(async (err) => {
+      logger.error('TaskSourceService', `AI preview failed: ${err}`);
+      try {
+        await sessionRepo.update(session.id, {
+          status: 'FAILED',
+          completed_at: new Date().toISOString(),
+        });
+      } catch {
+        // DB may be closed.
+      }
+    });
 
-    const results = tasks.map(t => ({
-      externalId: t.external_id,
-      title: t.title,
-      description: t.description ?? '',
-      external_url: t.external_url,
-    }));
-
-    await sessionRepo.update(session.id, { metadata: { aiResults: results } });
-
-    return { sessionId: session.id, results };
+    return { sessionId: session.id, status: 'processing' };
   }
 
   async confirmSync(sourceId: string, sessionId: number, items: ConfirmSyncItem[]) {

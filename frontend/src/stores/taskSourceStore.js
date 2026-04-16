@@ -422,13 +422,29 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     aiPreviewSelected.value = new Set()
     try {
       const response = await taskSourceApi.previewResults(aiPreviewSourceId.value)
-      const data = unwrap(response, 'AI analysis failed')
+      const data = unwrap(response, 'Failed to start AI preview')
       aiPreviewSessionId.value = data.sessionId
-      aiPreviewResults.value = (data.results || []).map(r => ({
-        ...r,
-        selected: true,
-      }))
-      aiPreviewSelected.value = new Set(aiPreviewResults.value.map(r => r.externalId))
+
+      // Poll session status until PENDING_REVIEW or FAILED
+      const api = (await import('../api/index.js')).default
+      const maxAttempts = 600 // 5 minutes at 500ms interval
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 500))
+        const sessionResp = await api.get(`/sessions/${data.sessionId}`)
+        const session = sessionResp.data?.data || sessionResp.data
+        if (!session) continue
+
+        if (session.status === 'PENDING_REVIEW') {
+          const results = session.metadata?.aiResults || []
+          aiPreviewResults.value = results.map(r => ({ ...r, selected: true }))
+          aiPreviewSelected.value = new Set(results.map(r => r.externalId))
+          return
+        }
+        if (session.status === 'FAILED') {
+          throw new Error('AI 分析失败，请检查 Agent 配置')
+        }
+      }
+      throw new Error('AI 分析超时（5分钟）')
     } catch (e) {
       error.value = e.message
       throw e
