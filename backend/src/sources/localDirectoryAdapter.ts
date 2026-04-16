@@ -173,6 +173,38 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
     }
   }
 
+  async buildAiPrompt(files?: FileInfo[]): Promise<string> {
+    const filelist = files ?? await this._scanFiles();
+    let fileContents = '';
+    for (let i = 0; i < filelist.length; i++) {
+      const file = filelist[i]!;
+      const content = this.isTextFile(file.filename)
+        ? await this.readFileContent(file.filepath)
+        : null;
+
+      fileContents += `\n=== 文件${i + 1}: ${file.filename} ===\n`;
+      if (content !== null) {
+        fileContents += `${content}\n`;
+      } else {
+        fileContents += `(二进制文件，请使用工具读取: ${file.filepath})\n`;
+      }
+    }
+
+    return `分析以下文件内容，为每个文件生成任务标题和描述。
+
+请严格按以下格式回复，每个文件一段：
+文件1
+标题: <生成的标题>
+描述: <生成的描述>
+
+文件2
+标题: <生成的标题>
+描述: <生成的描述>
+
+---以下是文件内容---
+${fileContents}`;
+  }
+
   async fetchWithAiDescriptions(
     sessionId: number,
     files?: FileInfo[],
@@ -221,29 +253,7 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
       ? new OpenCodeStepRunner()
       : new ClaudeStepRunner();
 
-    // Build single prompt for all files
-    let fileContents = '';
-    for (let i = 0; i < filelist.length; i++) {
-      const file = filelist[i]!;
-      const content = this.isTextFile(file.filename)
-        ? await this.readFileContent(file.filepath)
-        : null;
-
-      fileContents += `\n=== 文件${i + 1}: ${file.filename} ===\n`;
-      if (content !== null) {
-        fileContents += `${content}\n`;
-      } else {
-        fileContents += `(二进制文件，请使用工具读取: ${file.filepath})\n`;
-      }
-    }
-
-    const prompt = `分析以下文件内容，为每个文件生成任务标题和描述。格式：
-=== 文件1: <文件名> ===
-标题: <生成的标题>
-描述: <生成的描述>
-
-文件内容:
-${fileContents}`;
+    const prompt = await this.buildAiPrompt(filelist);
 
     try {
       const result = await runner.runStep({
