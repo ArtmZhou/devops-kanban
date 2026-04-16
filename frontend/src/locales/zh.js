@@ -295,7 +295,15 @@ export default {
     syncHistoryViewAnalysis: '查看分析',
     syncHistoryModeFixed: '固定',
     syncHistoryModeAi: 'AI',
-    noNewFiles: '没有新文件'
+    noNewFiles: '没有新文件',
+    // AI Preview
+    aiPreviewPromptTitle: '同步预览 - Prompt',
+    aiPreviewResultsTitle: '同步预览 - AI 结果',
+    aiFilesToAnalyze: '个文件将被分析',
+    aiTaskTitle: '任务标题',
+    aiTaskDesc: '任务描述',
+    aiConfirmExecute: '确认执行',
+    aiConfirmImport: '确认导入'
   },
   workflowTemplate: {
     title: '工作流模板',
