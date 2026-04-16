@@ -44,6 +44,17 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
   const syncHistoryLoading = ref(false)
   const syncHistoryPagination = ref({ page: 1, pageSize: 10, total: 0 })
 
+  // AI preview state
+  const aiPreviewDialog = ref(false)
+  const aiPreviewStep = ref('prompt')
+  const aiPreviewPrompt = ref('')
+  const aiPreviewFiles = ref([])
+  const aiPreviewResults = ref([])
+  const aiPreviewSessionId = ref(null)
+  const aiPreviewSelected = ref(new Set())
+  const aiPreviewLoading = ref(false)
+  const aiPreviewSourceId = ref(null)
+
   const enabledSources = computed(() =>
     crud.items.value.filter(s => s.enabled)
   )
@@ -383,6 +394,92 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     syncPanelVisible.value = true
   }
 
+  async function openAiPreview(sourceId) {
+    aiPreviewSourceId.value = sourceId
+    aiPreviewStep.value = 'prompt'
+    aiPreviewLoading.value = true
+    try {
+      const response = await taskSourceApi.previewPrompt(sourceId)
+      const data = unwrap(response, 'Failed to preview prompt')
+      if (data.fileCount === 0) {
+        return false
+      }
+      aiPreviewPrompt.value = data.prompt
+      aiPreviewFiles.value = data.files
+      aiPreviewDialog.value = true
+      return true
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      aiPreviewLoading.value = false
+    }
+  }
+
+  async function executeAiPreview() {
+    aiPreviewStep.value = 'results'
+    aiPreviewLoading.value = true
+    aiPreviewSelected.value = new Set()
+    try {
+      const response = await taskSourceApi.previewResults(aiPreviewSourceId.value)
+      const data = unwrap(response, 'AI analysis failed')
+      aiPreviewSessionId.value = data.sessionId
+      aiPreviewResults.value = (data.results || []).map(r => ({
+        ...r,
+        selected: true,
+      }))
+      aiPreviewSelected.value = new Set(aiPreviewResults.value.map(r => r.externalId))
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      aiPreviewLoading.value = false
+    }
+  }
+
+  async function confirmAiPreviewImport(projectId) {
+    aiPreviewLoading.value = true
+    try {
+      const items = aiPreviewResults.value
+        .filter(r => aiPreviewSelected.value.has(r.externalId))
+        .map(r => ({ externalId: r.externalId, title: r.title, description: r.description, external_url: r.external_url }))
+      const response = await taskSourceApi.confirmSync(aiPreviewSourceId.value, {
+        sessionId: aiPreviewSessionId.value,
+        items,
+      })
+      const data = unwrap(response, 'Failed to confirm sync')
+      closeAiPreviewDialog()
+      return data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      aiPreviewLoading.value = false
+    }
+  }
+
+  function closeAiPreviewDialog() {
+    aiPreviewDialog.value = false
+    aiPreviewStep.value = 'prompt'
+    aiPreviewPrompt.value = ''
+    aiPreviewFiles.value = []
+    aiPreviewResults.value = []
+    aiPreviewSessionId.value = null
+    aiPreviewSelected.value = new Set()
+    aiPreviewLoading.value = false
+    aiPreviewSourceId.value = null
+  }
+
+  function toggleAiPreviewItem(externalId) {
+    const next = new Set(aiPreviewSelected.value)
+    if (next.has(externalId)) {
+      next.delete(externalId)
+    } else {
+      next.add(externalId)
+    }
+    aiPreviewSelected.value = next
+  }
+
   async function fetchScheduleStatus(sourceId) {
     try {
       const response = await taskSourceApi.getTaskSourceScheduleStatus(sourceId)
@@ -448,6 +545,19 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     syncHistoryLoading,
     syncHistoryPagination,
     fetchSyncHistory,
-    viewSyncAnalysis
+    viewSyncAnalysis,
+    aiPreviewDialog,
+    aiPreviewStep,
+    aiPreviewPrompt,
+    aiPreviewFiles,
+    aiPreviewResults,
+    aiPreviewSessionId,
+    aiPreviewSelected,
+    aiPreviewLoading,
+    openAiPreview,
+    executeAiPreview,
+    confirmAiPreviewImport,
+    closeAiPreviewDialog,
+    toggleAiPreviewItem
   }
 })

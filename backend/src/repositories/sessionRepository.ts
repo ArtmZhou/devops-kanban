@@ -6,6 +6,27 @@ class SessionRepository extends BaseRepository<SessionEntity> {
     super('sessions');
   }
 
+  protected override parseRow(row: Record<string, unknown>): SessionEntity {
+    if (typeof row.metadata === 'string') {
+      try {
+        return { ...row, metadata: JSON.parse(row.metadata) } as unknown as SessionEntity;
+      } catch {
+        return { ...row, metadata: {} } as unknown as SessionEntity;
+      }
+    }
+    return row as unknown as SessionEntity;
+  }
+
+  protected override serializeRow(entity: Partial<SessionEntity>): Record<string, unknown> {
+    const data = { ...entity } as Record<string, unknown>;
+    if (data.metadata !== undefined && data.metadata !== null) {
+      data.metadata = typeof data.metadata === 'string'
+        ? data.metadata
+        : JSON.stringify(data.metadata);
+    }
+    return data;
+  }
+
   async getByTask(taskId: number): Promise<SessionEntity[]> {
     const result = await this.client.execute({
       sql: 'SELECT * FROM sessions WHERE task_id = ?',

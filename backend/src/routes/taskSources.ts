@@ -6,6 +6,7 @@ import type {
   CreateTaskSourceInput,
   TaskSourceImportBody,
   TaskSourcePreviewBody,
+  ConfirmSyncBody,
   UpdateTaskSourceInput,
 } from '../types/dto/taskSources.js';
 import type { IdParams } from '../types/http/params.js';
@@ -203,6 +204,41 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (error) {
       logError(error, request);
       return handleTaskSourceError(reply, error, 'Failed to get schedule status');
+    }
+  });
+
+  fastify.post<{ Params: IdParams }>('/:id/sync/preview-prompt', async (request, reply) => {
+    try {
+      const data = await getService().previewSyncPrompt(request.params.id);
+      return successResponse(data);
+    } catch (error) {
+      logError(error, request);
+      return handleTaskSourceError(reply, error, 'Failed to preview prompt');
+    }
+  });
+
+  fastify.post<{ Params: IdParams }>('/:id/sync/preview-results', async (request, reply) => {
+    try {
+      const data = await getService().previewSyncResults(request.params.id);
+      return successResponse(data);
+    } catch (error) {
+      logError(error, request);
+      return handleTaskSourceError(reply, error, 'Failed to preview results');
+    }
+  });
+
+  fastify.post<{ Params: IdParams; Body: ConfirmSyncBody }>('/:id/sync/confirm', async (request, reply) => {
+    try {
+      const { sessionId, items } = request.body;
+      if (sessionId == null || !items || !Array.isArray(items)) {
+        reply.code(400);
+        return errorResponse('sessionId and items are required');
+      }
+      const data = await getService().confirmSync(request.params.id, sessionId, items);
+      return successResponse(data, 'Tasks created successfully');
+    } catch (error) {
+      logError(error, request);
+      return handleTaskSourceError(reply, error, 'Failed to confirm sync');
     }
   });
 };
