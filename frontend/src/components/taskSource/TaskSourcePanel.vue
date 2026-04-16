@@ -472,8 +472,7 @@ const loadWorkflowTemplates = async () => {
 
 const getTypeLabel = (type) => {
   const translated = t(`taskSource.types.${type}`)
-  const localizedLabel = translated === `taskSource.types.${type}` ? type : translated
-  return localizedLabel === type ? type : `${type} · ${localizedLabel}`
+  return translated === `taskSource.types.${type}` ? type : translated
 }
 
 const getTypeIcon = (_type) => {
