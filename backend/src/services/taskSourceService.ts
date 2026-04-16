@@ -438,6 +438,10 @@ class TaskSourceService {
       throw new NotFoundError('未找到会话', 'Session not found', { sessionId });
     }
 
+    if (session.status !== 'PENDING_REVIEW') {
+      throw new BusinessError('会话未处于待确认状态', 'Session is not in PENDING_REVIEW status', { sessionId });
+    }
+
     const projectId = source.project_id;
     let created = 0;
     let skipped = 0;
