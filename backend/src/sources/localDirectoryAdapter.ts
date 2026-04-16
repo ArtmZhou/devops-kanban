@@ -173,12 +173,16 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
 
   async fetchWithAiDescriptions(
     sessionId: number,
+    files?: FileInfo[],
   ): Promise<ImportedTask[]> {
-    const files = await this._scanFiles();
-    const results: ImportedTask[] = [];
+    const filelist = files ?? await this._scanFiles();
+
+    if (filelist.length === 0) {
+      return [];
+    }
 
     if (!this.agentId) {
-      return files.map((file) => ({
+      return filelist.map((file) => ({
         external_id: file.filename,
         title: file.filename,
         description: this._substituteTemplate(this.descriptionTemplate, file),
@@ -191,7 +195,7 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
     const agent = await agentRepo.findById(this.agentId);
     if (!agent) {
       logger.error('LocalDirectoryAdapter', `Agent ${this.agentId} not found, falling back to fixed mode`);
-      return files.map((file) => ({
+      return filelist.map((file) => ({
         external_id: file.filename,
         title: file.filename,
         description: this._substituteTemplate(this.descriptionTemplate, file),
@@ -213,59 +217,62 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
 
     const runner = new ClaudeStepRunner();
 
-    for (const file of files) {
-      let prompt: string;
-      if (this.isTextFile(file.filename)) {
-        const content = await this.readFileContent(file.filepath);
-        prompt = `分析以下文件内容，生成一个简洁的任务标题和描述。请用以下格式回复：
-标题: <生成的标题>
-描述: <生成的描述>
+    // Build single prompt for all files
+    let fileContents = '';
+    for (let i = 0; i < filelist.length; i++) {
+      const file = filelist[i];
+      const content = this.isTextFile(file.filename)
+        ? await this.readFileContent(file.filepath)
+        : null;
 
-文件: ${file.filename}
-内容:
-${content || '(无法读取文件内容)'}`;
+      fileContents += `\n=== 文件${i + 1}: ${file.filename} ===\n`;
+      if (content !== null) {
+        fileContents += `${content}\n`;
       } else {
-        prompt = `读取并分析文件 ${file.filepath} 的内容，生成一个简洁的任务标题和描述。请用以下格式回复：
-标题: <生成的标题>
-描述: <生成的描述>
-
-直接使用工具读取文件内容。`;
-      }
-
-      try {
-        const result = await runner.runStep({
-          prompt,
-          worktreePath: this.directoryPath,
-          onEvent: async (event) => {
-            await eventRepo.create({
-              session_id: sessionId,
-              segment_id: segment.id,
-              kind: event.kind,
-              role: event.role,
-              content: event.content,
-              payload: event.payload ?? {},
-            });
-          },
-        });
-
-        const output = result.stdout || result.stderr || '';
-        const parsed = this._parseAiOutput(output, file);
-        results.push(parsed);
-      } catch (err) {
-        logger.error('LocalDirectoryAdapter', `AI analysis failed for ${file.filename}: ${err}`);
-        results.push({
-          external_id: file.filename,
-          title: file.filename,
-          description: this._substituteTemplate(this.descriptionTemplate, file),
-          external_url: `file://${file.filepath}`,
-          labels: [],
-        });
+        fileContents += `(二进制文件，请使用工具读取: ${file.filepath})\n`;
       }
     }
 
-    await segmentRepo.update(segment.id, { status: 'COMPLETED' });
+    const prompt = `分析以下文件内容，为每个文件生成任务标题和描述。格式：
+=== 文件1: <文件名> ===
+标题: <生成的标题>
+描述: <生成的描述>
 
-    return results;
+文件内容:
+${fileContents}`;
+
+    try {
+      const result = await runner.runStep({
+        prompt,
+        worktreePath: this.directoryPath,
+        onEvent: async (event) => {
+          await eventRepo.create({
+            session_id: sessionId,
+            segment_id: segment.id,
+            kind: event.kind,
+            role: event.role,
+            content: event.content,
+            payload: event.payload ?? {},
+          });
+        },
+      });
+
+      const output = result.stdout || result.stderr || '';
+      const results = this._parseMultiFileAiOutput(output, filelist);
+
+      await segmentRepo.update(segment.id, { status: 'COMPLETED' });
+      return results;
+    } catch (err) {
+      logger.error('LocalDirectoryAdapter', `AI batch analysis failed: ${err}`);
+      await segmentRepo.update(segment.id, { status: 'FAILED' });
+      return filelist.map((file) => ({
+        external_id: file.filename,
+        title: file.filename,
+        description: this._substituteTemplate(this.descriptionTemplate, file),
+        external_url: `file://${file.filepath}`,
+        labels: [],
+      }));
+    }
   }
 
   _parseAiOutput(output: string, fallbackFile: FileInfo): ImportedTask {
@@ -279,6 +286,59 @@ ${content || '(无法读取文件内容)'}`;
       external_url: `file://${fallbackFile.filepath}`,
       labels: [],
     };
+  }
+
+  _parseMultiFileAiOutput(output: string, fallbackFiles: FileInfo[]): ImportedTask[] {
+    if (!output || !output.trim()) {
+      return fallbackFiles.map((file) => ({
+        external_id: file.filename,
+        title: file.filename,
+        description: this._substituteTemplate(this.descriptionTemplate, file),
+        external_url: `file://${file.filepath}`,
+        labels: [],
+      }));
+    }
+
+    // Split by file section markers
+    const sections = output.split(/=== 文件\d+: (.+?) ===/).filter(Boolean);
+
+    const results: ImportedTask[] = [];
+    // sections alternate: [filename1, content1, filename2, content2, ...]
+    for (let i = 0; i < sections.length - 1; i += 2) {
+      const filename = sections[i].trim();
+      const content = sections[i + 1];
+
+      const fallback = fallbackFiles.find((f) => f.filename === filename) || fallbackFiles[results.length] || {
+        filename,
+        filepath: `/tmp/${filename}`,
+        size: 0,
+        modified: new Date().toISOString(),
+      };
+
+      const titleMatch = content.match(/标题[：:]\s*(.+)/);
+      const descMatch = content.match(/描述[：:]\s*([\s\S]*?)(?:\n\n|$)/);
+
+      results.push({
+        external_id: filename,
+        title: titleMatch?.[1]?.trim() || filename,
+        description: descMatch?.[1]?.trim() || this._substituteTemplate(this.descriptionTemplate, fallback),
+        external_url: `file://${fallback.filepath}`,
+        labels: [],
+      });
+    }
+
+    // If parsing produced no results, fall back for all files
+    if (results.length === 0) {
+      return fallbackFiles.map((file) => ({
+        external_id: file.filename,
+        title: file.filename,
+        description: this._substituteTemplate(this.descriptionTemplate, file),
+        external_url: `file://${file.filepath}`,
+        labels: [],
+      }));
+    }
+
+    return results;
   }
 }
 

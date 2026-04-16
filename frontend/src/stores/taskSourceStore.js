@@ -40,6 +40,8 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
   const scheduleStatuses = ref({})
   const syncSessionId = ref(null)
   const syncPanelVisible = ref(false)
+  const syncHistory = ref([])
+  const syncHistoryLoading = ref(false)
 
   const enabledSources = computed(() =>
     crud.items.value.filter(s => s.enabled)
@@ -353,6 +355,26 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     syncSessionId.value = null
   }
 
+  async function fetchSyncHistory(sourceId) {
+    syncHistoryLoading.value = true
+    error.value = null
+    try {
+      const response = await taskSourceApi.getSyncHistory(sourceId)
+      syncHistory.value = unwrap(response, 'Failed to fetch sync history') || []
+      return syncHistory.value
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      syncHistoryLoading.value = false
+    }
+  }
+
+  function viewSyncAnalysis(sessionId) {
+    syncSessionId.value = sessionId
+    syncPanelVisible.value = true
+  }
+
   async function fetchScheduleStatus(sourceId) {
     try {
       const response = await taskSourceApi.getTaskSourceScheduleStatus(sourceId)
@@ -413,6 +435,10 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
     fetchAllScheduleStatuses,
     syncSessionId,
     syncPanelVisible,
-    closeSyncPanel
+    closeSyncPanel,
+    syncHistory,
+    syncHistoryLoading,
+    fetchSyncHistory,
+    viewSyncAnalysis
   }
 })

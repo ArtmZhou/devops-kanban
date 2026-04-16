@@ -54,6 +54,9 @@
           <el-button size="small" @click="testSource(source)" :disabled="taskSourceStore.testing">
             {{ taskSourceStore.testing ? '测试中...' : $t('taskSource.test', '测试') }}
           </el-button>
+          <el-button size="small" @click="openSyncHistory(source)">
+            {{ $t('taskSource.syncHistory', '同步历史') }}
+          </el-button>
           <el-button size="small" @click="editSource(source)">
             {{ $t('taskSource.edit', '编辑') }}
           </el-button>
@@ -336,6 +339,53 @@
         <el-button @click="testDialogVisible = false">{{ $t('common.close', '关闭') }}</el-button>
       </template>
     </BaseDialog>
+
+    <!-- Sync History Dialog -->
+    <BaseDialog
+      v-model="syncHistoryDialogVisible"
+      :title="$t('taskSource.syncHistoryTitle', '同步历史')"
+      width="600px"
+      append-to-body
+    >
+      <div v-if="taskSourceStore.syncHistoryLoading" class="sync-history-loading">
+        {{ $t('taskSource.syncHistoryLoading', '加载中...') }}
+      </div>
+      <div v-else-if="taskSourceStore.syncHistory.length === 0" class="sync-history-empty">
+        {{ $t('taskSource.syncHistoryEmpty', '暂无同步记录') }}
+      </div>
+      <el-table v-else :data="taskSourceStore.syncHistory" size="small" stripe>
+        <el-table-column :label="$t('taskSource.syncHistoryTime', '时间')" prop="startedAt" width="180">
+          <template #default="{ row }">
+            {{ row.startedAt ? new Date(row.startedAt).toLocaleString() : '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('taskSource.syncHistoryMode', '模式')" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.mode === 'ai' ? 'success' : 'info'" size="small">
+              {{ row.mode === 'ai' ? $t('taskSource.syncHistoryModeAi', 'AI') : $t('taskSource.syncHistoryModeFixed', '固定') }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('taskSource.syncHistoryFiles', '文件数')" prop="fileCount" width="80" />
+        <el-table-column :label="$t('taskSource.syncHistoryStatus', '状态')" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'COMPLETED' ? 'success' : row.status === 'FAILED' ? 'danger' : 'warning'" size="small">
+              {{ row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column :label="$t('taskSource.syncHistoryViewAnalysis', '查看分析')" width="100">
+          <template #default="{ row }">
+            <el-button v-if="row.mode === 'ai'" link type="primary" size="small" @click="viewAnalysis(row.sessionId)">
+              {{ $t('taskSource.syncHistoryViewAnalysis', '查看分析') }}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="syncHistoryDialogVisible = false">{{ $t('common.close', '关闭') }}</el-button>
+      </template>
+    </BaseDialog>
   </div>
 </template>
 
@@ -378,6 +428,7 @@ const formRef = ref(null)
 
 const testDialogVisible = ref(false)
 const testResult = ref(null)
+const syncHistoryDialogVisible = ref(false)
 
 const expandedPreviewDescriptions = ref(new Set())
 const descriptionOverflowState = ref({})
@@ -752,7 +803,10 @@ const handleSync = async (source) => {
   const isLocalAiMode = source.type === 'LOCAL_DIRECTORY' && source.config?.descriptionMode === 'ai'
   if (isLocalAiMode) {
     try {
-      await taskSourceStore.syncTaskSource(source.id)
+      const response = await taskSourceStore.syncTaskSource(source.id)
+      if (response?.success && !response.data?.sessionId) {
+        toast.info(t('taskSource.noNewFiles', '没有新文件'))
+      }
     } catch (err) {
       console.error('Failed to sync task source:', err)
       toast.error('同步失败: ' + (err.message || '未知错误'))
@@ -823,6 +877,16 @@ const testSource = async (source) => {
   } catch (e) {
     testResult.value = false
   }
+}
+
+const openSyncHistory = async (source) => {
+  syncHistoryDialogVisible.value = true
+  await taskSourceStore.fetchSyncHistory(source.id)
+}
+
+const viewAnalysis = (sessionId) => {
+  syncHistoryDialogVisible.value = false
+  taskSourceStore.viewSyncAnalysis(sessionId)
 }
 
 // --- Description expand/collapse ---

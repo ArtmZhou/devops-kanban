@@ -131,6 +131,9 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
       if (result.sessionId) {
         return successResponse({ sessionId: result.sessionId, status: 'processing' }, 'AI sync started');
       }
+      if (result.tasks.length === 0) {
+        return successResponse(result.tasks, 'No new files to sync');
+      }
       return successResponse(result.tasks, 'Task source synced successfully');
     } catch (error) {
       logError(error, request);
@@ -175,6 +178,16 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (error) {
       logError(error, request);
       return handleTaskSourceError(reply, error, 'Failed to test task source connection');
+    }
+  });
+
+  fastify.get<{ Params: IdParams }>('/:id/sync-history', async (request, reply) => {
+    try {
+      const history = await getService().getSyncHistory(request.params.id);
+      return successResponse(history);
+    } catch (error) {
+      logError(error, request);
+      return handleTaskSourceError(reply, error, 'Failed to get sync history');
     }
   });
 

@@ -355,3 +355,98 @@ test.test('LocalDirectoryAdapter sorts files alphabetically', async () => {
     await fs.rm(dir, { recursive: true });
   }
 });
+
+test.test('LocalDirectoryAdapter _parseMultiFileAiOutput parses multi-file output', () => {
+  const adapter = new LocalDirectoryAdapter({
+    type: 'LOCAL_DIRECTORY',
+    config: { directoryPath: '/tmp' },
+  });
+
+  const output = `=== 文件1: task1.txt ===
+标题: 实现登录功能
+描述: 需要实现用户登录模块，支持JWT认证
+
+=== 文件2: task2.txt ===
+标题: 实现注册功能
+描述: 需要实现用户注册模块，支持邮箱验证`;
+
+  const files = [
+    { filename: 'task1.txt', filepath: '/tmp/task1.txt', size: 100, modified: '2026-01-01T00:00:00.000Z' },
+    { filename: 'task2.txt', filepath: '/tmp/task2.txt', size: 200, modified: '2026-01-01T00:00:00.000Z' },
+  ];
+
+  const results = adapter._parseMultiFileAiOutput(output, files);
+  assert.equal(results.length, 2);
+  assert.equal(results[0].external_id, 'task1.txt');
+  assert.equal(results[0].title, '实现登录功能');
+  assert.equal(results[0].description, '需要实现用户登录模块，支持JWT认证');
+  assert.equal(results[1].external_id, 'task2.txt');
+  assert.equal(results[1].title, '实现注册功能');
+  assert.equal(results[1].description, '需要实现用户注册模块，支持邮箱验证');
+});
+
+test.test('LocalDirectoryAdapter _parseMultiFileAiOutput handles partial parse failures', () => {
+  const adapter = new LocalDirectoryAdapter({
+    type: 'LOCAL_DIRECTORY',
+    config: { directoryPath: '/tmp' },
+  });
+
+  const output = `=== 文件1: task1.txt ===
+标题: 实现登录功能
+描述: 需要实现用户登录模块
+
+=== 文件2: task2.txt ===
+some unstructured output without title or description`;
+
+  const files = [
+    { filename: 'task1.txt', filepath: '/tmp/task1.txt', size: 100, modified: '2026-01-01T00:00:00.000Z' },
+    { filename: 'task2.txt', filepath: '/tmp/task2.txt', size: 200, modified: '2026-01-01T00:00:00.000Z' },
+  ];
+
+  const results = adapter._parseMultiFileAiOutput(output, files);
+  assert.equal(results.length, 2);
+  assert.equal(results[0].title, '实现登录功能');
+  // Second file falls back to filename as title
+  assert.equal(results[1].title, 'task2.txt');
+  assert.ok(results[1].description.includes('task2.txt'));
+});
+
+test.test('LocalDirectoryAdapter _parseMultiFileAiOutput handles empty output', () => {
+  const adapter = new LocalDirectoryAdapter({
+    type: 'LOCAL_DIRECTORY',
+    config: { directoryPath: '/tmp' },
+  });
+
+  const files = [
+    { filename: 'task1.txt', filepath: '/tmp/task1.txt', size: 100, modified: '2026-01-01T00:00:00.000Z' },
+    { filename: 'task2.txt', filepath: '/tmp/task2.txt', size: 200, modified: '2026-01-01T00:00:00.000Z' },
+  ];
+
+  const results = adapter._parseMultiFileAiOutput('', files);
+  assert.equal(results.length, 2);
+  assert.equal(results[0].title, 'task1.txt');
+  assert.equal(results[1].title, 'task2.txt');
+  assert.ok(results[0].description.includes('task1.txt'));
+  assert.ok(results[1].description.includes('task2.txt'));
+});
+
+test.test('LocalDirectoryAdapter _parseMultiFileAiOutput handles single file output', () => {
+  const adapter = new LocalDirectoryAdapter({
+    type: 'LOCAL_DIRECTORY',
+    config: { directoryPath: '/tmp' },
+  });
+
+  const output = `=== 文件1: auth.md ===
+标题: 认证模块重构
+描述: 重构现有认证模块，添加OAuth2支持`;
+
+  const files = [
+    { filename: 'auth.md', filepath: '/tmp/auth.md', size: 150, modified: '2026-01-01T00:00:00.000Z' },
+  ];
+
+  const results = adapter._parseMultiFileAiOutput(output, files);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].external_id, 'auth.md');
+  assert.equal(results[0].title, '认证模块重构');
+  assert.equal(results[0].description, '重构现有认证模块，添加OAuth2支持');
+});

@@ -283,7 +283,19 @@ export default {
     syncAnalysisTitle: 'Agent 分析',
     syncAnalysisRunning: '正在分析...',
     syncAnalysisComplete: '分析完成',
-    syncAnalysisError: '分析失败'
+    syncAnalysisError: '分析失败',
+    syncHistory: '同步历史',
+    syncHistoryTitle: '同步历史',
+    syncHistoryLoading: '加载中...',
+    syncHistoryEmpty: '暂无同步记录',
+    syncHistoryTime: '时间',
+    syncHistoryFiles: '文件数',
+    syncHistoryMode: '模式',
+    syncHistoryStatus: '状态',
+    syncHistoryViewAnalysis: '查看分析',
+    syncHistoryModeFixed: '固定',
+    syncHistoryModeAi: 'AI',
+    noNewFiles: '没有新文件'
   },
   workflowTemplate: {
     title: '工作流模板',

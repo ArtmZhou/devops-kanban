@@ -22,6 +22,14 @@ class SessionRepository extends BaseRepository<SessionEntity> {
     if (result.rows.length === 0) return null;
     return this.parseRow(result.rows[0] as Record<string, unknown>);
   }
+
+  async getByWorktreePath(worktreePath: string): Promise<SessionEntity[]> {
+    const result = await this.client.execute({
+      sql: 'SELECT * FROM sessions WHERE worktree_path = ? ORDER BY started_at DESC',
+      args: [worktreePath],
+    });
+    return result.rows.map(row => this.parseRow(row as Record<string, unknown>));
+  }
 }
 
 export { SessionRepository };

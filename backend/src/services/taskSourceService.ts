@@ -1,6 +1,7 @@
 import { TaskSourceRepository } from '../repositories/taskSourceRepository.js';
 import { TaskRepository } from '../repositories/taskRepository.js';
 import { SessionRepository } from '../repositories/sessionRepository.js';
+import { SessionSegmentRepository } from '../repositories/sessionSegmentRepository.js';
 import { loadAdapterTypes } from '../config/taskSources.js';
 import { getAdapter, getAdapterMetadata, getAvailableTypes } from '../sources/index.js';
 import { LocalDirectoryAdapter } from '../sources/localDirectoryAdapter.js';
@@ -177,6 +178,23 @@ class TaskSourceService {
 
     if (source.type === 'LOCAL_DIRECTORY' && adapter instanceof LocalDirectoryAdapter && adapter.descriptionMode === 'ai') {
       const sessionRepo = new SessionRepository();
+      const projectId = source.project_id;
+
+      // Scan files and deduplicate against existing tasks
+      const allFiles = await adapter._scanFiles();
+      const newFiles = [];
+      for (const file of allFiles) {
+        const existing = await this.taskRepository.findByExternalIdAndProject(file.filename, projectId);
+        if (!existing) {
+          newFiles.push(file);
+        }
+      }
+
+      // No new files — skip session creation
+      if (newFiles.length === 0) {
+        return { sessionId: null, tasks: [] };
+      }
+
       const session = await sessionRepo.create({
         task_id: 0,
         executor_type: ExecutorType.CLAUDE_CODE,
@@ -185,9 +203,8 @@ class TaskSourceService {
       });
 
       const sessionId = session.id;
-      const projectId = source.project_id;
 
-      adapter.fetchWithAiDescriptions(sessionId).then(async (fetchedTasks) => {
+      adapter.fetchWithAiDescriptions(sessionId, newFiles).then(async (fetchedTasks) => {
         for (const taskData of fetchedTasks) {
           const existing = await this.taskRepository.findByExternalIdAndProject(taskData.external_id, projectId);
           if (existing) {
@@ -236,6 +253,45 @@ class TaskSourceService {
 
     const adapter = getAdapter(source.type, source as TaskSourceLike);
     return await adapter.testConnection();
+  }
+
+  async getSyncHistory(sourceId: string) {
+    const source = await this.getById(sourceId);
+    if (!source) {
+      throw new NotFoundError('未找到任务源', 'Task source not found', { sourceId });
+    }
+
+    const config = source.config as Record<string, unknown>;
+    const directoryPath = typeof config.directoryPath === 'string' ? config.directoryPath : '';
+    if (!directoryPath) return [];
+
+    const sessionRepo = new SessionRepository();
+    const segmentRepo = new SessionSegmentRepository();
+    const sessions = await sessionRepo.getByWorktreePath(directoryPath);
+
+    // Count tasks for this source once (total across all syncs)
+    const allSourceTasks = await this.taskRepository.findByProject(source.project_id);
+    const totalSourceTaskCount = allSourceTasks.filter(
+      (t) => t.source === source.type,
+    ).length;
+
+    const history = [];
+    for (const session of sessions) {
+      // Detect mode: if session has segments with agent → "ai", otherwise "fixed"
+      const segments = await segmentRepo.findBySessionId(session.id);
+      const mode = segments.length > 0 ? 'ai' : 'fixed';
+
+      history.push({
+        sessionId: session.id,
+        status: session.status || 'UNKNOWN',
+        mode,
+        startedAt: session.started_at,
+        completedAt: session.completed_at,
+        fileCount: totalSourceTaskCount,
+      });
+    }
+
+    return history;
   }
 
   getAdapterConfigFields(type: string) {
