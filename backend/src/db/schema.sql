@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS task_sources (
   enabled INTEGER NOT NULL DEFAULT 1,
   last_sync_at TEXT,
   sync_schedule TEXT,
-  auto_workflow_rules TEXT,
+  default_workflow_template_id TEXT,
   last_scheduled_sync_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))

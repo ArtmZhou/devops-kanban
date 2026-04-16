@@ -80,10 +80,20 @@ export const useTaskSourceStore = defineStore('taskSource', () => {
       return []
     }
 
-    return Object.entries(types).map(([key, metadata]) => ({
+    const items = Object.entries(types).map(([key, metadata]) => ({
       key: metadata?.key || key,
       ...(metadata || {})
     }))
+
+    // Put CloudDevOps types first (CLOUDDEVOPS_* and INTERNAL_API which is CloudDevOps Story)
+    const cloudDevOpsKeys = new Set(['CLOUDDEVOPS_BUG', 'CLOUDDEVOPS_RR', 'INTERNAL_API'])
+    items.sort((a, b) => {
+      const aPriority = cloudDevOpsKeys.has(a.key) ? 0 : 1
+      const bPriority = cloudDevOpsKeys.has(b.key) ? 0 : 1
+      return aPriority - bPriority
+    })
+
+    return items
   }
 
   async function loadAvailableTypes() {

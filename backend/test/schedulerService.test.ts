@@ -89,68 +89,6 @@ test.test('shutdown stops all jobs', async () => {
   });
 });
 
-test.test('matchRule finds matching label in rules', async () => {
-  await withIsolatedStorage(async () => {
-    const scheduler = new SchedulerService();
-    const rules = [
-      { label: 'bug', template_id: 'bug-fix-flow' },
-      { label: 'feature', template_id: 'feature-dev-flow' },
-    ];
-
-    const matched = scheduler.matchRule(['bug', 'priority:high'], rules);
-    assert.ok(matched);
-    assert.equal(matched.template_id, 'bug-fix-flow');
-
-    const unmatched = scheduler.matchRule(['docs'], rules);
-    assert.equal(unmatched, null);
-
-    scheduler.shutdown();
-  });
-});
-
-test.test('matchRule returns first match when multiple labels match', async () => {
-  await withIsolatedStorage(async () => {
-    const scheduler = new SchedulerService();
-    const rules = [
-      { label: 'bug', template_id: 'bug-flow' },
-      { label: 'feature', template_id: 'feature-flow' },
-    ];
-
-    // 'feature' appears first in labels, but 'bug' rule is first in rules
-    // matchRule iterates labels, so 'feature' matches first
-    const matched = scheduler.matchRule(['feature', 'bug'], rules);
-    assert.ok(matched);
-    assert.equal(matched.template_id, 'feature-flow');
-
-    scheduler.shutdown();
-  });
-});
-
-test.test('matchRule with empty labels returns null', async () => {
-  await withIsolatedStorage(async () => {
-    const scheduler = new SchedulerService();
-    const rules = [
-      { label: 'bug', template_id: 'bug-flow' },
-    ];
-
-    const matched = scheduler.matchRule([], rules);
-    assert.equal(matched, null);
-
-    scheduler.shutdown();
-  });
-});
-
-test.test('matchRule with empty rules returns null', async () => {
-  await withIsolatedStorage(async () => {
-    const scheduler = new SchedulerService();
-
-    const matched = scheduler.matchRule(['bug'], []);
-    assert.equal(matched, null);
-
-    scheduler.shutdown();
-  });
-});
-
 test.test('reloadSource updates job configuration', async () => {
   await withIsolatedStorage(async () => {
     const scheduler = new SchedulerService();

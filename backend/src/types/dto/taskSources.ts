@@ -7,7 +7,7 @@ export interface CreateTaskSourceInput {
   config: Record<string, unknown>;
   enabled: boolean;
   sync_schedule?: string | null;
-  auto_workflow_rules?: string | null;
+  default_workflow_template_id?: string | null;
   readonly __readOnlyCreateFields__?: never;
 }
 
@@ -19,7 +19,7 @@ export interface UpdateTaskSourceInput {
   enabled?: boolean;
   last_sync_at?: string;
   sync_schedule?: string | null;
-  auto_workflow_rules?: string | null;
+  default_workflow_template_id?: string | null;
 }
 
 export interface TaskSourceImportBody {

@@ -39,6 +39,10 @@
       <div class="task-title-row">
         <div class="task-title-left">
           <div class="task-title">{{ task.title || $t('task.untitled') }}</div>
+          <span v-if="task.auto_execute === 1 && task.auto_execute_template_id" class="auto-execute-template-name">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            {{ getTemplateName(task.auto_execute_template_id) }}
+          </span>
           <a
             v-if="task.external_url"
             :href="task.external_url"
@@ -52,22 +56,12 @@
           </a>
         </div>
         <!-- Auto-execute controls -->
-        <div v-if="task.status === 'TODO'" class="auto-execute-row">
+        <div class="auto-execute-row">
           <label class="toggle" :title="$t('autoExecute.label')">
             <input type="checkbox" :checked="task.auto_execute === 1" @change="toggleAutoExecute($event)" />
             <span class="slider"></span>
           </label>
           <span class="auto-execute-label">{{ $t('autoExecute.label') }}</span>
-          <select
-            v-if="task.auto_execute === 1"
-            class="auto-execute-template"
-            :value="task.auto_execute_template_id || ''"
-            @change="updateTemplate($event)"
-            @focus="loadTemplates"
-          >
-            <option value="" disabled>{{ $t('autoExecute.templatePlaceholder') }}</option>
-            <option v-for="tmpl in workflowTemplates" :key="tmpl.template_id" :value="tmpl.template_id">{{ tmpl.name }}</option>
-          </select>
         </div>
         <div class="task-actions">
           <button
@@ -168,6 +162,16 @@
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
             启动
+          </button>
+          <button
+            class="quick-action-btn"
+            @click.stop="emit('workflow-action', { action: 'configure', task: props.task })"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            模板
           </button>
           <button
             class="quick-action-btn"
@@ -373,26 +377,30 @@ const { getStatusClass } = useStatusStyle()
 // Auto-execute controls
 import { getWorkflowTemplates } from '../../api/workflowTemplate.js'
 const workflowTemplates = ref([])
-const templatesLoaded = ref(false)
 
 async function loadTemplates() {
-  if (templatesLoaded.value) return
+  if (workflowTemplates.value.length > 0) return
   try {
     const res = await getWorkflowTemplates()
     if (res.success && res.data) {
       workflowTemplates.value = res.data
     }
-    templatesLoaded.value = true
   } catch { /* silently fail */ }
 }
+
+function getTemplateName(templateId) {
+  const tmpl = workflowTemplates.value.find(t => t.template_id === templateId)
+  return tmpl ? tmpl.name : templateId
+}
+
+// Load templates when task has auto_execute_template_id
+watch(() => props.task.auto_execute_template_id, (id) => {
+  if (id) loadTemplates()
+}, { immediate: true })
 
 async function toggleAutoExecute(event) {
   const checked = event.target.checked
   emit('update-task', { id: props.task.id, auto_execute: checked ? 1 : 0 })
-}
-
-async function updateTemplate(event) {
-  emit('update-task', { id: props.task.id, auto_execute_template_id: event.target.value })
 }
 
 // Real workflow run data from API
@@ -714,7 +722,6 @@ const openWorktreeDirectory = () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
   padding: 2px 0;
 }
 
@@ -765,14 +772,23 @@ const openWorktreeDirectory = () => {
   color: var(--text-secondary);
 }
 
-.auto-execute-template {
+.auto-execute-template-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
-  padding: 2px 6px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--input-bg);
-  color: var(--input-text);
-  max-width: 160px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--text-secondary);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auto-execute-template-name svg {
+  flex-shrink: 0;
 }
 
 .task-item {
@@ -902,8 +918,7 @@ const openWorktreeDirectory = () => {
 
 .task-title-row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 10px;
   margin-bottom: 6px;
 }
@@ -914,6 +929,7 @@ const openWorktreeDirectory = () => {
   align-items: center;
   gap: 6px;
   min-width: 0;
+  flex: 1;
   flex-wrap: wrap;
 }
 

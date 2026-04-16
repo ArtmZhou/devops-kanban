@@ -159,7 +159,7 @@ export interface TaskSourceEntity {
   enabled: boolean;
   last_sync_at?: string | null;
   sync_schedule?: string | null;
-  auto_workflow_rules?: string | null;
+  default_workflow_template_id?: string | null;
   last_scheduled_sync_at?: string | null;
   created_at: string;
   updated_at: string;

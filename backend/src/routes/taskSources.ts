@@ -188,7 +188,7 @@ export const taskSourceRoutes: FastifyPluginAsync = async (fastify) => {
 
       return successResponse({
         sync_schedule: source.sync_schedule || null,
-        auto_workflow_rules: source.auto_workflow_rules || null,
+        auto_workflow_rules: source.default_workflow_template_id || null,
         last_scheduled_sync_at: source.last_scheduled_sync_at || null,
         job_active: jobStatus?.running ?? false,
       });

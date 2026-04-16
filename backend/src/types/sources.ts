@@ -29,7 +29,7 @@ export interface SourceRecord {
   enabled?: boolean;
   last_sync_at?: string | null;
   sync_schedule?: string | null;
-  auto_workflow_rules?: Record<string, unknown> | null;
+  default_workflow_template_id?: string | null;
   last_scheduled_sync_at?: string | null;
 }
 

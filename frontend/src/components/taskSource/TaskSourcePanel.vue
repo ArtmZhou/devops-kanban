@@ -74,7 +74,7 @@
       append-to-body
     >
       <div class="dialog-content">
-        <el-form ref="formRef" :model="formData" :rules="formRules" label-position="top">
+        <el-form ref="formRef" :model="formData" :rules="formRules" label-position="top" size="small">
           <div class="form-section">
             <div class="section-title">基本信息</div>
             <el-form-item :label="$t('taskSource.name', '名称')" prop="name">
@@ -173,8 +173,6 @@
           </div>
 
           <div class="form-section">
-            <div class="section-title">⏱ {{ $t('taskSource.scheduleConfig', '定时同步配置') }}</div>
-
             <el-form-item :label="$t('taskSource.syncFrequency', '同步频率')">
               <el-select v-model="formData.sync_schedule" clearable :placeholder="$t('taskSource.scheduleDisabled', '不启用')">
                 <el-option :label="$t('taskSource.scheduleDisabled', '不启用')" :value="null" />
@@ -194,33 +192,16 @@
               />
             </el-form-item>
 
-            <div v-if="formData.sync_schedule && formData.sync_schedule !== '__custom__'" style="margin-bottom: 14px;">
-              <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
-                {{ $t('taskSource.autoWorkflowRules', '自动工作流规则') }}
-              </div>
-              <div style="font-size: 11px; color: #909399; margin-bottom: 8px;">
-                {{ $t('taskSource.autoWorkflowRulesHint', '根据任务标签自动匹配工作流模板') }}
-              </div>
-
-              <div v-for="(rule, index) in formData.auto_workflow_rules" :key="index"
-                style="display: flex; gap: 8px; align-items: center; margin-bottom: 8px;">
-                <el-input v-model="rule.label" placeholder="标签" style="width: 140px;" size="small" />
-                <span style="color: #909399;">→</span>
-                <el-select v-model="rule.template_id" placeholder="工作流模板" style="flex: 1;" size="small">
-                  <el-option
-                    v-for="tpl in workflowTemplates"
-                    :key="tpl.template_id"
-                    :label="tpl.name"
-                    :value="tpl.template_id"
-                  />
-                </el-select>
-                <el-button size="small" type="danger" link @click="formData.auto_workflow_rules.splice(index, 1)">✕</el-button>
-              </div>
-
-              <el-button size="small" @click="formData.auto_workflow_rules.push({ label: '', template_id: '' })">
-                + {{ $t('taskSource.autoWorkflowAddRule', '添加规则') }}
-              </el-button>
-            </div>
+            <el-form-item v-if="formData.sync_schedule && formData.sync_schedule !== '__custom__'" :label="$t('taskSource.defaultWorkflowTemplate', '默认工作流模板')">
+              <el-select v-model="formData.default_workflow_template_id" :placeholder="$t('taskSource.autoWorkflowNone', '不自动触发')" clearable style="width: 100%;">
+                <el-option
+                  v-for="tpl in workflowTemplates"
+                  :key="tpl.template_id"
+                  :label="tpl.name"
+                  :value="tpl.template_id"
+                />
+              </el-select>
+            </el-form-item>
           </div>
         </el-form>
       </div>
@@ -401,7 +382,7 @@ const formData = ref({
   config: {},
   enabled: true,
   sync_schedule: null,
-  auto_workflow_rules: [],
+  default_workflow_template_id: null,
 })
 
 const formRules = {
@@ -468,8 +449,8 @@ const formatScheduleLabel = (cronExpr) => {
 const loadWorkflowTemplates = async () => {
   try {
     const response = await api.get('/workflow-template')
-    if (response.data?.success) {
-      workflowTemplates.value = response.data.data || []
+    if (response?.success) {
+      workflowTemplates.value = response.data || []
     }
   } catch (e) {
     console.warn('Failed to load workflow templates:', e)
@@ -603,7 +584,7 @@ const showAddDialog = () => {
     config: defaultConfig,
     enabled: true,
     sync_schedule: null,
-    auto_workflow_rules: [],
+    default_workflow_template_id: null,
   }
   customCronExpression.value = ''
   dialogVisible.value = true
@@ -616,15 +597,6 @@ const editSource = (source) => {
 
   if (typeof config.token === 'string' && config.token) {
     config.token = '****'
-  }
-
-  let rules = []
-  if (source.auto_workflow_rules) {
-    try {
-      rules = JSON.parse(source.auto_workflow_rules)
-    } catch {
-      rules = []
-    }
   }
 
   // Detect if schedule is a custom (non-preset) cron expression
@@ -645,7 +617,7 @@ const editSource = (source) => {
     config,
     enabled: source.enabled,
     sync_schedule: scheduleValue,
-    auto_workflow_rules: rules,
+    default_workflow_template_id: source.default_workflow_template_id || null,
   }
   customCronExpression.value = customCron
   dialogVisible.value = true
@@ -691,15 +663,6 @@ const submitForm = async () => {
     // Handle custom cron expression
     if (payload.sync_schedule === '__custom__') {
       payload.sync_schedule = customCronExpression.value || null
-    }
-
-    // Serialize auto_workflow_rules
-    if (payload.auto_workflow_rules && payload.auto_workflow_rules.length > 0) {
-      payload.auto_workflow_rules = JSON.stringify(
-        payload.auto_workflow_rules.filter(r => r.label && r.template_id)
-      )
-    } else {
-      payload.auto_workflow_rules = null
     }
 
     if (isEditMode.value) {

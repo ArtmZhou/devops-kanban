@@ -6,11 +6,6 @@ import { TaskSourceRepository } from '../repositories/taskSourceRepository.js';
 import { WorkflowRunRepository } from '../repositories/workflowRunRepository.js';
 import { SettingsService } from './settingsService.js';
 
-interface AutoWorkflowRule {
-  label: string;
-  template_id: string;
-}
-
 interface SyncResult {
   totalFetched: number;
   newlyCreated: number;
@@ -178,16 +173,6 @@ class SchedulerService {
 
   // --- Sync Execution ---
 
-  matchRule(labels: string[], rules: AutoWorkflowRule[]): AutoWorkflowRule | null {
-    for (const label of labels) {
-      const matched = rules.find((rule) => rule.label === label);
-      if (matched) {
-        return matched;
-      }
-    }
-    return null;
-  }
-
   async executeSync(sourceId: number): Promise<SyncResult> {
     const result: SyncResult = {
       totalFetched: 0,
@@ -209,17 +194,7 @@ class SchedulerService {
         return result;
       }
 
-      // Parse rules
-      let rules: AutoWorkflowRule[] = [];
-      if (source.auto_workflow_rules) {
-        try {
-          rules = JSON.parse(source.auto_workflow_rules);
-        } catch {
-          const msg = `Invalid auto_workflow_rules JSON for source ${sourceId}`;
-          result.errors.push(msg);
-          console.warn(`[Scheduler] ${msg}`);
-        }
-      }
+      const defaultTemplateId = source.default_workflow_template_id || null;
 
       // Snapshot existing external_ids
       const projectTasks = await this.taskRepository.findByProject(source.project_id);
@@ -240,31 +215,25 @@ class SchedulerService {
       );
       result.newlyCreated = newTasks.length;
 
-      // Tag matching new tasks with auto_execute + template_id (no workflow start)
-      if (newTasks.length > 0 && rules.length > 0) {
-        console.log(`[Scheduler] Source ${sourceId}: ${newTasks.length} new tasks, matching against ${rules.length} rules`);
+      // Tag new tasks with default workflow template
+      if (newTasks.length > 0 && defaultTemplateId) {
+        console.log(`[Scheduler] Source ${sourceId}: ${newTasks.length} new tasks, tagging with default template '${defaultTemplateId}'`);
 
         for (const task of newTasks) {
-          const taskLabels = task.labels || [];
-          const matchedRule = this.matchRule(taskLabels, rules);
-
-          if (matchedRule) {
-            try {
-              await this.taskRepository.update(task.id, {
-                auto_execute: 1,
-                auto_execute_template_id: matchedRule.template_id,
-              } as any);
-              result.tasksTagged++;
-              console.log(`[Scheduler] Tagged task ${task.id} with auto_execute=1, template='${matchedRule.template_id}' (label: ${matchedRule.label})`);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : String(error);
-              result.errors.push(`Task ${task.id}: ${message}`);
-              console.warn(`[Scheduler] Failed to tag task ${task.id}: ${message}`);
-            }
+          try {
+            await this.taskRepository.update(task.id, {
+              auto_execute: 1,
+              auto_execute_template_id: defaultTemplateId,
+            } as any);
+            result.tasksTagged++;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            result.errors.push(`Task ${task.id}: ${message}`);
+            console.warn(`[Scheduler] Failed to tag task ${task.id}: ${message}`);
           }
         }
       } else {
-        console.log(`[Scheduler] Source ${sourceId}: ${syncedTasks.length} fetched, ${newTasks.length} new, ${rules.length} rules`);
+        console.log(`[Scheduler] Source ${sourceId}: ${syncedTasks.length} fetched, ${newTasks.length} new, template: ${defaultTemplateId || 'none'}`);
       }
 
       // Update last_scheduled_sync_at
@@ -375,4 +344,4 @@ class SchedulerService {
 }
 
 export { SchedulerService };
-export type { AutoWorkflowRule, SyncResult, DispatchResult, JobStatus };
+export type { SyncResult, DispatchResult, JobStatus };
