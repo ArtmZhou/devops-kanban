@@ -11,6 +11,7 @@ import type { TaskSourceLike, FetchOptions } from '../sources/base.js';
 import type {
   CreateTaskSourceInput,
   UpdateTaskSourceInput,
+  ConfirmSyncItem,
 } from '../types/dto/taskSources.js';
 import type {
   ImportedTask,
@@ -348,6 +349,130 @@ class TaskSourceService {
       ...issue,
       imported: importedExternalIds.has(issue.external_id),
     }));
+  }
+
+  async previewSyncPrompt(sourceId: string) {
+    const source = await this.getById(sourceId);
+    if (!source) {
+      throw new NotFoundError('未找到任务源', 'Task source not found', { sourceId });
+    }
+
+    const adapter = getAdapter(source.type, source as TaskSourceLike);
+    if (source.type !== 'LOCAL_DIRECTORY' || !(adapter instanceof LocalDirectoryAdapter) || adapter.descriptionMode !== 'ai') {
+      throw new BusinessError('仅支持 LOCAL_DIRECTORY AI 模式', 'Only LOCAL_DIRECTORY AI mode is supported');
+    }
+
+    const allFiles = await adapter._scanFiles();
+    const projectId = source.project_id;
+    const newFiles = [];
+    for (const file of allFiles) {
+      const existing = await this.taskRepository.findByExternalIdAndProject(file.filename, projectId);
+      if (!existing) {
+        newFiles.push(file);
+      }
+    }
+
+    const prompt = await adapter.buildAiPrompt(newFiles);
+    return { prompt, files: newFiles, fileCount: newFiles.length };
+  }
+
+  async previewSyncResults(sourceId: string) {
+    const source = await this.getById(sourceId);
+    if (!source) {
+      throw new NotFoundError('未找到任务源', 'Task source not found', { sourceId });
+    }
+
+    const adapter = getAdapter(source.type, source as TaskSourceLike);
+    if (source.type !== 'LOCAL_DIRECTORY' || !(adapter instanceof LocalDirectoryAdapter) || adapter.descriptionMode !== 'ai') {
+      throw new BusinessError('仅支持 LOCAL_DIRECTORY AI 模式', 'Only LOCAL_DIRECTORY AI mode is supported');
+    }
+
+    const allFiles = await adapter._scanFiles();
+    const projectId = source.project_id;
+    const newFiles = [];
+    for (const file of allFiles) {
+      const existing = await this.taskRepository.findByExternalIdAndProject(file.filename, projectId);
+      if (!existing) {
+        newFiles.push(file);
+      }
+    }
+
+    if (newFiles.length === 0) {
+      return { sessionId: null, results: [] };
+    }
+
+    const sessionRepo = new SessionRepository();
+    const session = await sessionRepo.create({
+      task_id: 0,
+      executor_type: ExecutorType.CLAUDE_CODE,
+      agent_id: adapter.agentId ?? null,
+      status: 'PENDING_REVIEW',
+      worktree_path: adapter.directoryPath,
+      started_at: new Date().toISOString(),
+      metadata: {},
+    });
+
+    const tasks = await adapter.fetchWithAiDescriptions(session.id, newFiles);
+
+    const results = tasks.map(t => ({
+      externalId: t.external_id,
+      title: t.title,
+      description: t.description ?? '',
+      external_url: t.external_url,
+    }));
+
+    await sessionRepo.update(session.id, { metadata: { aiResults: results } });
+
+    return { sessionId: session.id, results };
+  }
+
+  async confirmSync(sourceId: string, sessionId: number, items: ConfirmSyncItem[]) {
+    const source = await this.getById(sourceId);
+    if (!source) {
+      throw new NotFoundError('未找到任务源', 'Task source not found', { sourceId });
+    }
+
+    const sessionRepo = new SessionRepository();
+    const session = await sessionRepo.findById(sessionId);
+    if (!session) {
+      throw new NotFoundError('未找到会话', 'Session not found', { sessionId });
+    }
+
+    const projectId = source.project_id;
+    let created = 0;
+    let skipped = 0;
+
+    for (const item of items) {
+      const existing = await this.taskRepository.findByExternalIdAndProject(item.externalId, projectId);
+      if (existing) {
+        await this.taskRepository.update(existing.id, {
+          project_id: projectId,
+          title: item.title,
+          description: item.description ?? '',
+          source: source.type,
+        });
+        skipped++;
+      } else {
+        await this.taskRepository.create({
+          external_id: item.externalId,
+          title: item.title,
+          description: item.description ?? '',
+          project_id: projectId,
+          status: 'TODO',
+          priority: 'MEDIUM',
+          source: source.type,
+          external_url: item.external_url ?? '',
+        });
+        created++;
+      }
+    }
+
+    await sessionRepo.update(sessionId, {
+      status: 'COMPLETED',
+      completed_at: new Date().toISOString(),
+    });
+
+    return { created, skipped, total: items.length };
   }
 
   async importIssues(sourceId: string, selectedItems: ImportedTask[], projectId: number | string, iterationId: number | null = null) {
