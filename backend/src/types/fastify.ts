@@ -3,6 +3,7 @@ import 'fastify';
 import type {
   CreateTaskSourceInput,
   UpdateTaskSourceInput,
+  ConfirmSyncItem,
 } from './dto/taskSources.js';
 import type {
   ImportedTask,
@@ -34,6 +35,9 @@ export interface TaskSourceServiceContract {
   importIssues(sourceId: string, items: ImportedTask[], projectId: number, iterationId?: number | null): Promise<TaskSourceImportResult>;
   testConnection(sourceId: string): Promise<boolean>;
   getSyncHistory(sourceId: string): Promise<Array<{ sessionId: number; status: string; mode: string; startedAt: string | null; completedAt: string | null; fileCount: number }>>;
+  previewSyncPrompt(sourceId: string): Promise<{ prompt: string; files: unknown[]; fileCount: number }>;
+  previewSyncResults(sourceId: string): Promise<{ sessionId: number | null; results: unknown[] }>;
+  confirmSync(sourceId: string, sessionId: number, items: ConfirmSyncItem[]): Promise<{ created: number; skipped: number; total: number }>;
 }
 
 declare module 'fastify' {
