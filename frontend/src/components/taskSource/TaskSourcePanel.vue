@@ -291,8 +291,16 @@
               <div class="item-meta">
                 <span class="item-id">#{{ task.external_id }}</span>
                 <span class="item-source">{{ task.sourceName }}</span>
+                <template v-if="task.external_url && task.external_url.startsWith('file://')">
+                  <span
+                    class="external-link local-path"
+                    :title="formatExternalUrl(task.external_url)"
+                  >
+                    {{ formatExternalUrl(task.external_url) }}
+                  </span>
+                </template>
                 <a
-                  v-if="task.external_url"
+                  v-else-if="task.external_url"
                   :href="task.external_url"
                   target="_blank"
                   class="external-link"
@@ -1068,6 +1076,11 @@ const formatFileSize = (bytes) => {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+const formatExternalUrl = (url) => {
+  if (url.startsWith('file://')) return url.replace('file://', '')
+  return url
+}
+
 const executeAiPreviewAndSync = async () => {
   try {
     await taskSourceStore.startAiPreview()
@@ -1490,6 +1503,17 @@ const deselectAllAiResults = () => {
 
 .external-link:hover {
   text-decoration: underline;
+}
+
+.external-link.local-path {
+  color: #909399;
+  cursor: default;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.external-link.local-path:hover {
+  text-decoration: none;
 }
 
 .sync-preview-empty {
