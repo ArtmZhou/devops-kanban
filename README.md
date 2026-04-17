@@ -6,14 +6,14 @@
 
 <p align="center">
   单个 Agent 跑一次 demo 很惊艳，但到了生产——<br>
-  多 Agent 协调、中断恢复、结果验证，全靠自己拼。<br>
+  多 Agent 协调、中断恢复、结果验证，全靠人工衔接。<br>
   DevOps Kanban 为 AI Agent 构建工程纪律——上下文架构、Agent 专业化、<br>
   持久化记忆、结构化执行——让每一次交付都稳定、可观测、可恢复。
 </p>
 
 ---
 
-## AI First + Harness Engineering
+## 为什么 AI First 需要 Harness
 
 大多数公司说"AI First"，实际做的是在旧有流程里嵌入 AI 工具——效率可能提升 10-20%，但**瓶颈和结构未变**。
 
