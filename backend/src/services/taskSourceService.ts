@@ -476,7 +476,7 @@ class TaskSourceService {
       const allFallback = tasks.every(t => t.title === t.external_id);
 
       await sessionRepo.update(session.id, {
-        status: allFallback ? 'COMPLETED' : 'PENDING_REVIEW',
+        status: 'PENDING_REVIEW',
         completed_at: new Date().toISOString(),
         metadata: { aiResults: results, allFallback },
       });
