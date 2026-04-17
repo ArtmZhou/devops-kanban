@@ -403,8 +403,7 @@ class TaskSourceService {
       ? `可用场景标签（选一个最匹配的）：\n${availableTags.join(', ')}\n\n`
       : '无可用场景标签\n\n';
     const prompt = adapter.buildAiPromptTemplate()
-      .replace('{scenarioTags}', tagsSection)
-      .replace('{fileList}', '');
+      .replace('{scenarioTags}', tagsSection);
     return { prompt, files: newFiles, fileCount: newFiles.length };
   }
 

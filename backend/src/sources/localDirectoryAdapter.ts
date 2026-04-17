@@ -265,9 +265,15 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
       : '无可用场景标签\n\n';
     let prompt: string;
     if (customPrompt) {
-      prompt = customPrompt
-        .replace('{fileList}', fileList)
-        .replace('{scenarioTags}', tagsSection);
+      prompt = customPrompt.includes('{scenarioTags}')
+        ? customPrompt.replace('{scenarioTags}', tagsSection)
+        : customPrompt;
+      // Always ensure file list is injected — replace placeholder or append
+      if (prompt.includes('{fileList}')) {
+        prompt = prompt.replace('{fileList}', fileList);
+      } else {
+        prompt = prompt.trimEnd() + '\n\n---以下是文件路径列表---\n' + fileList;
+      }
     } else {
       prompt = this.buildAiPromptTemplate()
         .replace('{scenarioTags}', tagsSection)
