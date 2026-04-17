@@ -527,6 +527,11 @@ class TaskSourceService {
     let created = 0;
     let skipped = 0;
 
+    // Load templates once for tag matching (avoid N+1 queries in the loop)
+    const { WorkflowTemplateService } = await import('./workflow/workflowTemplateService.js');
+    const wfService = new WorkflowTemplateService();
+    const templates = await wfService.getTemplates();
+
     for (const item of items) {
       const existing = await this.taskRepository.findByExternalIdAndProject(item.externalId, projectId);
       if (existing) {
@@ -550,9 +555,6 @@ class TaskSourceService {
         });
         created++;
         // Match template by AI scenario tag, fallback to source default
-        const { WorkflowTemplateService } = await import('./workflow/workflowTemplateService.js');
-        const wfService = new WorkflowTemplateService();
-        const templates = await wfService.getTemplates();
         const scenarioTag = (item as any).scenarioTag;
         let templateId = defaultTemplateId;
         if (scenarioTag) {
