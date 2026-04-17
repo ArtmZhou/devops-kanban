@@ -234,6 +234,7 @@ class TaskSourceService {
         status: 'RUNNING',
         worktree_path: adapter.directoryPath,
         started_at: new Date().toISOString(),
+        metadata: { fileCount: newFiles.length },
       });
 
       const sessionId = session.id;
@@ -315,17 +316,12 @@ class TaskSourceService {
     const segmentRepo = new SessionSegmentRepository();
     const { rows: sessions, total } = await sessionRepo.getByWorktreePathPaginated(directoryPath, { offset, limit: pageSize });
 
-    // Count tasks for this source once (total across all syncs)
-    const allSourceTasks = await this.taskRepository.findByProject(source.project_id);
-    const totalSourceTaskCount = allSourceTasks.filter(
-      (t) => t.source === source.type,
-    ).length;
-
     const history = [];
     for (const session of sessions) {
-      // Detect mode: if session has segments with agent → "ai", otherwise "fixed"
       const segments = await segmentRepo.findBySessionId(session.id);
       const mode = segments.length > 0 ? 'ai' : 'fixed';
+      const meta = (session as Record<string, unknown>).metadata as Record<string, unknown> | undefined;
+      const fileCount = typeof meta?.fileCount === 'number' ? meta.fileCount : 0;
 
       history.push({
         sessionId: session.id,
@@ -333,7 +329,7 @@ class TaskSourceService {
         mode,
         startedAt: session.started_at,
         completedAt: session.completed_at,
-        fileCount: totalSourceTaskCount,
+        fileCount,
       });
     }
 
@@ -393,11 +389,23 @@ class TaskSourceService {
       }
     }
 
-    const prompt = await adapter.buildAiPrompt(newFiles);
+    // Aggregate tags from all templates and inject into prompt
+    const { WorkflowTemplateService } = await import('./workflow/workflowTemplateService.js');
+    const wfService = new WorkflowTemplateService();
+    const templates = await wfService.getTemplates();
+    const availableTags = [...new Set(templates.flatMap(t => t.tags || []))];
+
+    const tagsSection = availableTags.length > 0
+      ? `可用场景标签（选一个最匹配的）：\n${availableTags.join(', ')}\n\n`
+      : '无可用场景标签\n\n';
+    const fileList = adapter.buildAiFileList(newFiles);
+    const prompt = adapter.buildAiPromptTemplate()
+      .replace('{scenarioTags}', tagsSection)
+      .replace('{fileList}', fileList);
     return { prompt, files: newFiles, fileCount: newFiles.length };
   }
 
-  async previewSyncResults(sourceId: string) {
+  async previewSyncResults(sourceId: string, customPrompt?: string) {
     const source = await this.getById(sourceId);
     if (!source) {
       throw new NotFoundError('未找到任务源', 'Task source not found', { sourceId });
@@ -446,31 +454,31 @@ class TaskSourceService {
       status: 'RUNNING',
       worktree_path: adapter.directoryPath,
       started_at: new Date().toISOString(),
-      metadata: {},
+      metadata: { fileCount: newFiles.length },
     });
 
     // Fire-and-forget: run AI in background, store results in session metadata when done
-    adapter.fetchWithAiDescriptions(session.id, newFiles).then(async (tasks) => {
-      const allFallback = tasks.every(t => t.title === t.external_id);
-      if (allFallback) {
-        await sessionRepo.update(session.id, {
-          status: 'FAILED',
-          completed_at: new Date().toISOString(),
-        });
-        return;
-      }
+    const { WorkflowTemplateService } = await import('./workflow/workflowTemplateService.js');
+    const wfService = new WorkflowTemplateService();
+    const templates = await wfService.getTemplates();
+    const availableTags = [...new Set(templates.flatMap(t => t.tags || []))];
 
+    adapter.fetchWithAiDescriptions(session.id, newFiles, customPrompt, availableTags).then(async (tasks) => {
       const results = tasks.map(t => ({
         externalId: t.external_id,
         title: t.title,
         description: t.description ?? '',
         external_url: t.external_url,
+        scenarioTag: (t as any)._scenarioTag || null,
       }));
+
+      // Even if all tasks are fallback, still show results to user (they can edit before importing)
+      const allFallback = tasks.every(t => t.title === t.external_id);
 
       await sessionRepo.update(session.id, {
         status: 'PENDING_REVIEW',
         completed_at: new Date().toISOString(),
-        metadata: { aiResults: results },
+        metadata: { aiResults: results, allFallback },
       });
     }).catch(async (err) => {
       logger.error('TaskSourceService', `AI preview failed: ${err}`);
@@ -478,6 +486,7 @@ class TaskSourceService {
         await sessionRepo.update(session.id, {
           status: 'FAILED',
           completed_at: new Date().toISOString(),
+          metadata: { error: err instanceof Error ? err.message : String(err) },
         });
       } catch {
         // DB may be closed.
@@ -503,9 +512,17 @@ class TaskSourceService {
       throw new BusinessError('会话未处于待确认状态', 'Session is not in PENDING_REVIEW status', { sessionId });
     }
 
+    const sourceEntity = await this.repository.findById(parseInt(sourceId, 10));
+    const defaultTemplateId = (sourceEntity as any)?.default_workflow_template_id || null;
+
     const projectId = source.project_id;
     let created = 0;
     let skipped = 0;
+
+    // Load templates once for tag matching (avoid N+1 queries in the loop)
+    const { WorkflowTemplateService } = await import('./workflow/workflowTemplateService.js');
+    const wfService = new WorkflowTemplateService();
+    const templates = await wfService.getTemplates();
 
     for (const item of items) {
       const existing = await this.taskRepository.findByExternalIdAndProject(item.externalId, projectId);
@@ -518,7 +535,7 @@ class TaskSourceService {
         });
         skipped++;
       } else {
-        await this.taskRepository.create({
+        const newTask = await this.taskRepository.create({
           external_id: item.externalId,
           title: item.title,
           description: item.description ?? '',
@@ -529,6 +546,19 @@ class TaskSourceService {
           external_url: item.external_url ?? '',
         });
         created++;
+        // Match template by AI scenario tag, fallback to source default
+        const scenarioTag = (item as any).scenarioTag;
+        let templateId = defaultTemplateId;
+        if (scenarioTag) {
+          const matched = templates.find(t => (t.tags || []).includes(scenarioTag));
+          if (matched) templateId = matched.template_id;
+        }
+        if (templateId) {
+          await this.taskRepository.update(newTask.id, {
+            auto_execute: 1,
+            auto_execute_template_id: templateId,
+          } as any);
+        }
       }
     }
 

@@ -180,41 +180,40 @@ class LocalDirectoryAdapter extends TaskSourceAdapter {
     }
   }
 
-  async buildAiPrompt(files?: FileInfo[]): Promise<string> {
-    const filelist = files ?? await this._scanFiles();
-    let fileContents = '';
-    for (let i = 0; i < filelist.length; i++) {
-      const file = filelist[i]!;
-      const content = this.isTextFile(file.filename)
-        ? await this.readFileContent(file.filepath)
-        : null;
-
-      fileContents += `\n=== 文件${i + 1}: ${file.filename} ===\n`;
-      if (content !== null) {
-        fileContents += `${content}\n`;
-      } else {
-        fileContents += `(二进制文件，请使用工具读取: ${file.filepath})\n`;
-      }
-    }
-
-    return `分析以下文件内容，为每个文件生成任务标题和描述。
+  buildAiPromptTemplate(): string {
+    return `分析以下文件路径列表，为每个文件生成任务标题和描述。
+你可以使用文件系统工具或 skill 读取文件内容。
 
 请严格按以下格式回复，每个文件一段：
 文件1
 标题: <生成的标题>
 描述: <生成的描述>
+场景标签: <标签 或 无>
 
 文件2
 标题: <生成的标题>
 描述: <生成的描述>
+场景标签: <标签 或 无>
 
----以下是文件内容---
-${fileContents}`;
+---以下是文件路径列表---
+{fileList}`;
+  }
+
+  buildAiFileList(files: FileInfo[]): string {
+    return files.map((f, i) => `文件${i + 1}: ${f.filename} (${f.filepath})`).join('\n');
+  }
+
+  async buildAiPrompt(files?: FileInfo[]): Promise<string> {
+    const filelist = files ?? await this._scanFiles();
+    const fileList = this.buildAiFileList(filelist);
+    return this.buildAiPromptTemplate().replace('{fileList}', fileList);
   }
 
   async fetchWithAiDescriptions(
     sessionId: number,
     files?: FileInfo[],
+    customPrompt?: string,
+    scenarioTags?: string[],
   ): Promise<ImportedTask[]> {
     const filelist = files ?? await this._scanFiles();
 
@@ -260,7 +259,38 @@ ${fileContents}`;
       ? new OpenCodeStepRunner()
       : new ClaudeStepRunner();
 
-    const prompt = await this.buildAiPrompt(filelist);
+    const fileList = this.buildAiFileList(filelist);
+    const tagsSection = scenarioTags && scenarioTags.length > 0
+      ? `可用场景标签（选一个最匹配的）：\n${scenarioTags.join(', ')}\n\n`
+      : '无可用场景标签\n\n';
+    let prompt: string;
+    if (customPrompt) {
+      prompt = customPrompt.includes('{scenarioTags}')
+        ? customPrompt.replace('{scenarioTags}', tagsSection)
+        : customPrompt;
+      // Always ensure file list is injected — replace placeholder or append
+      if (prompt.includes('{fileList}')) {
+        prompt = prompt.replace('{fileList}', fileList);
+      } else {
+        prompt = prompt.trimEnd() + '\n\n---以下是文件路径列表---\n' + fileList;
+      }
+    } else {
+      prompt = this.buildAiPromptTemplate()
+        .replace('{scenarioTags}', tagsSection)
+        .replace('{fileList}', fileList);
+    }
+
+    // Inject agent skills into execution path (non-blocking)
+    try {
+      const { resolveAgentSkills } = await import('../services/workflow/workflowSkillSync.js');
+      const { prepareExecutionSkills } = await import('../services/workflow/executorSkillPreparation.js');
+      const { skillNames, executorType } = await resolveAgentSkills(this.agentId!);
+      if (skillNames.length > 0) {
+        await prepareExecutionSkills({ executorType, skillNames, executionPath: this.directoryPath });
+      }
+    } catch (err) {
+      logger.warn('LocalDirectoryAdapter', `Failed to prepare skills: ${err}`);
+    }
 
     try {
       const result = await runner.runStep({
@@ -299,6 +329,8 @@ ${fileContents}`;
   _parseAiOutput(output: string, fallbackFile: FileInfo): ImportedTask {
     const titleMatch = output.match(/标题[：:]\s*(.+)/);
     const descMatch = output.match(/描述[：:]\s*([\s\S]*?)(?:\n\n|$)/);
+    const tagMatch = output.match(/场景标签[：:]\s*(.+)/);
+    const tag = tagMatch?.[1]?.trim();
 
     return {
       external_id: fallbackFile.filename,
@@ -306,7 +338,8 @@ ${fileContents}`;
       description: descMatch?.[1]?.trim() || this._substituteTemplate(this.descriptionTemplate, fallbackFile),
       external_url: `file://${fallbackFile.filepath}`,
       labels: [],
-    };
+      _scenarioTag: tag && tag !== '无' ? tag : null,
+    } as ImportedTask & { _scenarioTag: string | null };
   }
 
   _parseMultiFileAiOutput(output: string, fallbackFiles: FileInfo[]): ImportedTask[] {
@@ -343,13 +376,16 @@ ${fileContents}`;
       const file = fallbackFiles[i]!;
       const titleMatch = block.match(/标题[：:]\s*(.+)/);
       const descMatch = block.match(/描述[：:]\s*([\s\S]*?)(?=\n\n|\n文件\d+|$)/);
+      const tagMatch = block.match(/场景标签[：:]\s*(.+)/);
+      const tag = tagMatch?.[1]?.trim();
 
-      results.push({
+      (results as (ImportedTask & { _scenarioTag: string | null })[]).push({
         external_id: file.filename,
         title: titleMatch?.[1]?.trim() || file.filename,
         description: descMatch?.[1]?.trim() || this._substituteTemplate(this.descriptionTemplate, file),
         external_url: `file://${file.filepath}`,
         labels: [],
+        _scenarioTag: tag && tag !== '无' ? tag : null,
       });
     }
 

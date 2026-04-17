@@ -291,8 +291,16 @@
               <div class="item-meta">
                 <span class="item-id">#{{ task.external_id }}</span>
                 <span class="item-source">{{ task.sourceName }}</span>
+                <template v-if="task.external_url && task.external_url.startsWith('file://')">
+                  <span
+                    class="external-link local-path"
+                    :title="formatExternalUrl(task.external_url)"
+                  >
+                    {{ formatExternalUrl(task.external_url) }}
+                  </span>
+                </template>
                 <a
-                  v-if="task.external_url"
+                  v-else-if="task.external_url"
                   :href="task.external_url"
                   target="_blank"
                   class="external-link"
@@ -334,7 +342,12 @@
           <span class="prompt-file-count">{{ taskSourceStore.aiPreviewFiles.length }} {{ $t('taskSource.aiFilesToAnalyze', '个文件将被分析') }}</span>
         </div>
         <div class="ai-prompt-content">
-          <pre class="ai-prompt-text">{{ taskSourceStore.aiPreviewPrompt }}</pre>
+          <el-input
+            v-model="taskSourceStore.aiPreviewPrompt"
+            type="textarea"
+            :rows="10"
+            class="ai-prompt-editor"
+          />
         </div>
         <div class="ai-prompt-files">
           <div v-for="file in taskSourceStore.aiPreviewFiles" :key="file.filename" class="ai-prompt-file-item">
@@ -354,12 +367,17 @@
         </div>
 
         <!-- Error -->
-        <div v-else-if="taskSourceStore.aiPreviewError" class="ai-error">
+        <div v-if="taskSourceStore.aiPreviewError" class="ai-error">
           <el-alert type="error" :title="taskSourceStore.aiPreviewError" :closable="false" />
         </div>
 
+        <!-- Fallback warning -->
+        <div v-if="taskSourceStore.aiPreviewAllFallback" class="ai-fallback-warning">
+          <el-alert type="warning" title="AI 未能生成描述，已使用文件名作为标题。您可以手动编辑后确认导入。" :closable="false" />
+        </div>
+
         <!-- Results -->
-        <template v-else>
+        <template v-if="!taskSourceStore.aiPreviewError && taskSourceStore.aiPreviewResults.length > 0">
           <div class="ai-results-controls">
             <el-button size="small" @click="selectAllAiResults">{{ $t('taskSource.selectAll', '全选') }}</el-button>
             <el-button size="small" @click="deselectAllAiResults">{{ $t('taskSource.deselectAll', '取消全选') }}</el-button>
@@ -390,6 +408,23 @@
                   :placeholder="$t('taskSource.aiTaskDesc', '任务描述')"
                   class="result-desc-input"
                 />
+                <div class="result-tag-row">
+                  <span v-if="item.scenarioTag" class="result-scenario-tag">{{ item.scenarioTag }}</span>
+                  <el-select
+                    v-model="item.recommendedWorkflowTemplateId"
+                    size="small"
+                    clearable
+                    :placeholder="$t('taskSource.aiWorkflowTemplate', '推荐工作流')"
+                    class="result-workflow-input"
+                  >
+                    <el-option
+                      v-for="tpl in workflowTemplates"
+                      :key="tpl.template_id"
+                      :label="tpl.name"
+                      :value="tpl.template_id"
+                    />
+                  </el-select>
+                </div>
               </div>
             </div>
           </div>
@@ -577,6 +612,19 @@ watch(() => props.projectId, async (newVal) => {
     await loadData()
   }
 })
+
+// Auto-match scenario tags to template IDs when AI results load
+watch(() => taskSourceStore.aiPreviewResults, (results) => {
+  const allTags = [...new Set(workflowTemplates.value.flatMap(t => t.tags || []))]
+  for (const r of results) {
+    if (r.scenarioTag && !r.recommendedWorkflowTemplateId && allTags.includes(r.scenarioTag)) {
+      const matched = workflowTemplates.value.find(t => (t.tags || []).includes(r.scenarioTag))
+      if (matched) {
+        r.recommendedWorkflowTemplateId = matched.template_id
+      }
+    }
+  }
+}, { deep: false })
 
 // --- Collapse ---
 const handleCollapse = () => {
@@ -892,6 +940,7 @@ const confirmDelete = (source) => {
 const handleSync = async (source) => {
   const isLocalAiMode = source.type === 'LOCAL_DIRECTORY' && source.config?.descriptionMode === 'ai'
   if (isLocalAiMode) {
+    loadWorkflowTemplates()
     try {
       const opened = await taskSourceStore.openAiPreview(source.id)
       if (!opened) {
@@ -989,9 +1038,10 @@ const testSource = async (source) => {
   }
 }
 
-const viewAnalysis = (sessionId) => {
+const viewAnalysis = async (sessionId) => {
   syncHistoryDialogVisible.value = false
-  taskSourceStore.viewSyncAnalysis(sessionId)
+  await loadWorkflowTemplates()
+  await taskSourceStore.reopenAiResults(currentSourceId.value, sessionId)
 }
 
 // --- Description expand/collapse ---
@@ -1025,6 +1075,11 @@ const formatFileSize = (bytes) => {
   if (bytes < 1024) return bytes + ' B'
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+const formatExternalUrl = (url) => {
+  if (url.startsWith('file://')) return url.replace('file://', '')
+  return url
 }
 
 const executeAiPreviewAndSync = async () => {
@@ -1451,6 +1506,17 @@ const deselectAllAiResults = () => {
   text-decoration: underline;
 }
 
+.external-link.local-path {
+  color: #909399;
+  cursor: default;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.external-link.local-path:hover {
+  text-decoration: none;
+}
+
 .sync-preview-empty {
   text-align: center;
   padding: 40px;
@@ -1538,6 +1604,17 @@ const deselectAllAiResults = () => {
   font-family: var(--font-mono, monospace);
 }
 
+.ai-prompt-editor {
+  font-family: var(--font-mono, monospace);
+}
+.ai-prompt-editor :deep(.el-textarea__inner) {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .ai-prompt-files {
   display: flex;
   flex-direction: column;
@@ -1618,6 +1695,10 @@ const deselectAllAiResults = () => {
   padding: 24px 0;
 }
 
+.ai-fallback-warning {
+  padding: 12px 0;
+}
+
 .ai-results-list {
   max-height: 400px;
   overflow-y: auto;
@@ -1656,6 +1737,29 @@ const deselectAllAiResults = () => {
 
 :deep(.result-title-input .el-input__inner) {
   font-weight: 500;
+}
+
+.result-workflow-input {
+  width: 100%;
+}
+.result-workflow-input :deep(.el-input__wrapper) {
+  background: var(--bg-secondary);
+}
+
+.result-tag-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.result-scenario-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .ai-preview-dialog :deep(.el-dialog__body) {
