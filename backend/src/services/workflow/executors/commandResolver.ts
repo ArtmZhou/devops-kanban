@@ -8,6 +8,7 @@ export function resolveCommand({
   defaultCommand,
   executorConfig,
   processEnv = process.env,
+  npmCacheOverride = EXECUTOR_NPM_CACHE,
 }: {
   defaultCommand: string[];
   executorConfig?: {
@@ -16,6 +17,7 @@ export function resolveCommand({
     env?: Record<string, string> | undefined;
   };
   processEnv?: NodeJS.ProcessEnv;
+  npmCacheOverride?: string;
 }) {
   const baseParts = executorConfig?.commandOverride
     ? splitCommand(executorConfig.commandOverride)
@@ -37,8 +39,8 @@ export function resolveCommand({
   delete env.CLAUDE_CODE_ENTRYPOINT;
 
   // Override npm cache path to avoid EPERM errors on Windows
-  if (EXECUTOR_NPM_CACHE && !env.npm_config_cache) {
-    env.npm_config_cache = EXECUTOR_NPM_CACHE;
+  if (npmCacheOverride && !env.npm_config_cache) {
+    env.npm_config_cache = npmCacheOverride;
   }
 
   return {
