@@ -2,7 +2,7 @@
   {
     "name": "full-starter",
     "displayName": "完整启动包",
-    "description": "包含全部 4 个 Agent（架构师、后端开发、前端开发、测试工程师）和全部工作流模板，每个 Agent 预装对应 Skills 和 MCP Server，适合新团队快速启动",
+    "description": "包含全部 5 个 Agent（架构师、后端开发、前端开发、测试工程师、CI/CD 部署工程师）和全部工作流模板，每个 Agent 预装对应 Skills 和 MCP Server，适合新团队快速启动",
     "tags": ["推荐", "全栈"],
     "filename": "devops-kanban-full-starter.zip"
   },
@@ -40,5 +40,12 @@
     "description": "一键分析代码仓，生成结构化介绍报告（KANBAN_COMPASS.md），含架构师 Agent 和 superpowers 技能",
     "tags": ["探索", "分析"],
     "filename": "devops-kanban-code-explorer.zip"
+  },
+  {
+    "name": "vulnerability-fix",
+    "displayName": "安全漏洞修复",
+    "description": "7 步安全漏洞修复流程：漏洞分析 → 补丁设计 → 安全测试 → 最小补丁 → 回归验证 → 真实环境验证 → 交付与部署评审，含 CI/CD 部署工程师",
+    "tags": ["安全", "漏洞修复", "CVE"],
+    "filename": "devops-kanban-vulnerability-fix.zip"
   }
 ]

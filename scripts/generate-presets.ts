@@ -52,6 +52,15 @@ const agents = {
     skillNames: ['playwright', 'tdd', 'git'],
     mcpServerNames: ['playwright', 'context7'],
   },
+  deploy: {
+    name: 'CI/CD 部署工程师',
+    executorType: 'OPEN_CODE',
+    role: 'DEVOPS',
+    description: '负责 CI/CD 流水线管理、部署发布与回滚操作',
+    enabled: true,
+    skillNames: ['git'],
+    mcpServerNames: ['github'],
+  },
 };
 
 // --- MCP Server definitions ---
@@ -148,14 +157,27 @@ const templates = {
       { id: 'explore', name: '代码仓探索', instructionPrompt: '你是一个代码分析专家。请深入分析当前代码仓库，生成一份结构化的介绍报告。\n\n遇到不熟悉的依赖库时，使用 context7 MCP 查询该库的最新文档和用法。\n\n分析内容：\n1. **项目概览**：目录结构、技术栈识别、主要语言统计、README 摘要\n2. **核心模块**：识别核心模块及其职责、入口文件分析\n3. **依赖关系**：主要依赖及其用途、模块间依赖关系\n4. **架构模式**：识别架构模式（MVC、分层架构等）\n\n最终输出格式化的 Markdown 报告，保存到 KANBAN_COMPASS.md 文件中。该文件将作为后续工作流执行的参考文档，其他工作流的 Agent 会读取此文件来了解项目结构。', agentName: '架构师', requiresConfirmation: false },
     ],
   },
+  'vuln-fix-sdd-tdd-v1': {
+    template_id: 'vuln-fix-sdd-tdd-v1',
+    name: '安全漏洞修复',
+    steps: [
+      { id: 'vuln-analysis', name: '漏洞分析与影响评估', instructionPrompt: '你当前负责安全漏洞修复的漏洞分析与影响评估阶段。遇到不熟悉的漏洞类型或攻击技术时，使用 context7 MCP 查询相关安全文档。目标：明确漏洞类型、攻击向量、影响范围和修复优先级。执行要求：1）识别漏洞类型（XSS、SQL注入、路径遍历、CSRF、反序列化等）和对应的 CVE/CWE 编号；2）分析攻击向量：攻击者如何利用、需要什么前提条件、能造成什么影响；3）评估影响范围：受影响的模块、接口、数据、用户群体；4）按 CVSS 评分标准给出严重等级（Critical/High/Medium/Low）；5）明确修复边界和非目标。禁止事项：1）不要跳过攻击向量分析直接给结论；2）不要低估影响范围；3）不要忽略间接影响（如关联组件）。输出要求：最终只输出 summary，包含：本步结论、已完成内容、交付物清单、未完成或范围外内容、风险与影响、阻塞与待确认问题、给下游步骤的交接建议。', agentName: '架构师' },
+      { id: 'vuln-patch-design', name: '安全补丁设计', instructionPrompt: '你当前负责安全漏洞修复的安全补丁设计阶段。目标：基于漏洞分析结果设计最小安全补丁方案。执行要求：1）明确修复点：具体哪个文件、哪个函数、哪个参数需要修改；2）设计最小补丁：只修复漏洞本身，不做无关重构；3）考虑旁路攻击：补丁是否可能被绕过，是否需要纵深防御；4）设计输入验证/输出编码/参数化查询等具体防御措施；5）定义回滚方案和灰度发布策略；6）列出需要升级的依赖及其版本。禁止事项：1）不要设计过度工程化的方案；2）不要忽略已有安全中间件或框架能力；3）不要遗漏配置层面的修复。输出要求：最终只输出 summary，包含：本步结论、已完成内容、交付物清单、未完成或范围外内容、风险与影响、阻塞与待确认问题、给下游步骤的交接建议。', agentName: '架构师' },
+      { id: 'vuln-test-design', name: '安全测试先行', instructionPrompt: '你当前负责安全漏洞修复的安全测试先行阶段。目标：先编写能暴露漏洞的失败测试，再进入补丁实现。执行要求：1）编写能复现漏洞的安全测试（如恶意 payload 触发 XSS、SQL注入等）；2）设计安全回归用例：确保补丁不引入新漏洞；3）列出边界场景：编码绕过、长度绕过、类型混淆等；4）覆盖上下游：修复点影响的其他接口或页面。禁止事项：1）不要先写补丁再补测试；2）不要只测正例不测攻击 payload；3）不要遗漏编码和转义场景。输出要求：最终只输出 summary，包含：本步结论、已完成内容、交付物清单、未完成或范围外内容、风险与影响、阻塞与待确认问题、给下游步骤的交接建议。', agentName: '测试工程师' },
+      { id: 'vuln-minimal-patch', name: '最小补丁实现', instructionPrompt: '你当前负责安全漏洞修复的最小补丁实现阶段。目标：在最小改动范围内修复安全漏洞，控制副作用。执行要求：1）严格按补丁设计实现，不扩展修复范围；2）优先使用框架/库的安全能力（如参数化查询、模板引擎自动转义）；3）确认失败测试全部通过；4）记录每个修改点及原因。禁止事项：1）不要做无关重构；2）不要引入新的安全风险；3）不要省略修改原因说明。输出要求：最终只输出 summary，包含：本步结论、已完成内容、交付物清单、未完成或范围外内容、风险与影响、阻塞与待确认问题、给下游步骤的交接建议。', agentName: '后端开发' },
+      { id: 'vuln-regression-validation', name: '安全回归验证', instructionPrompt: '你当前负责安全漏洞修复的安全回归验证阶段。目标：确认漏洞已被修复且未引入新安全问题。执行要求：1）验证所有安全测试通过（原始漏洞测试 + 回归用例）；2）执行攻击向量验证：用 summary 中列出的攻击方式逐一确认已不可利用；3）检查相关功能是否受影响；4）评估残余风险。禁止事项：1）不要只看测试通过就给结论；2）不要忽略间接影响；3）不要跳过攻击向量验证。输出要求：最终只输出 summary，包含：本步结论、已完成内容、交付物清单、未完成或范围外内容、风险与影响、阻塞与待确认问题、给下游步骤的交接建议。', agentName: '测试工程师' },
+      { id: 'vuln-real-env-validation', name: '真实环境安全验证', instructionPrompt: '你当前负责安全漏洞修复的真实环境安全验证阶段。使用 Playwright MCP 在真实浏览器中执行安全验证。目标：在真实运行环境中确认漏洞已不可利用。执行要求：1）使用 Playwright 访问受影响页面，尝试原始攻击 payload；2）验证安全头部（CSP、X-Frame-Options 等）是否正确；3）检查输入验证在真实 UI 中的表现；4）记录真实环境与测试环境的差异。禁止事项：1）不要仅凭自动化测试结果给通过结论；2）不要忽略浏览器特有的安全问题。输出要求：最终只输出 summary，包含：本步结论、已完成内容、交付物清单、未完成或范围外内容、风险与影响、阻塞与待确认问题、给下游步骤的交接建议。', agentName: '测试工程师' },
+      { id: 'vuln-delivery-review', name: '修复交付与部署评审', instructionPrompt: '你当前负责安全漏洞修复的修复交付与部署评审阶段。目标：综合安全分析、补丁设计、测试验证结果，判断是否具备发布条件，并评估部署风险。执行要求：1）架构师：检查漏洞修复证据链完整性、安全结论是否明确；2）评估发布风险：补丁是否需要灰度、是否影响性能、是否有回滚方案；3）明确部署策略：立即发布还是定时发布、是否需要通知用户；4）给出最终评审结论。禁止事项：1）不要隐藏残余风险；2）不要缺少部署建议；3）不要忽略监控和告警需求。输出要求：最终只输出 summary，包含：本步结论、已完成内容、交付物清单、未完成或范围外内容、风险与影响、阻塞与待确认问题、给下游步骤的交接建议。', agentName: '架构师' },
+    ],
+  },
 };
 
 // --- Preset definitions ---
 const presets = [
   {
     filename: 'devops-kanban-full-starter.zip',
-    templateIds: ['workflow-v1', 'dev-feature-sdd-tdd-v1', 'bugfix-sdd-tdd-v1', 'frontend-dev-v1', 'repo-explorer'],
-    agentKeys: ['architect', 'backend', 'frontend', 'qa'],
+    templateIds: ['workflow-v1', 'dev-feature-sdd-tdd-v1', 'bugfix-sdd-tdd-v1', 'frontend-dev-v1', 'repo-explorer', 'vuln-fix-sdd-tdd-v1'],
+    agentKeys: ['architect', 'backend', 'frontend', 'qa', 'deploy'],
     skillKeys: ['git', 'playwright', 'superpowers', 'tdd', 'frontend-design'],
     mcpKeys: ['context7', 'playwright', 'github'],
   },
@@ -193,6 +215,13 @@ const presets = [
     agentKeys: ['architect'],
     skillKeys: ['git', 'superpowers'],
     mcpKeys: ['context7', 'github'],
+  },
+  {
+    filename: 'devops-kanban-vulnerability-fix.zip',
+    templateIds: ['vuln-fix-sdd-tdd-v1'],
+    agentKeys: ['architect', 'backend', 'qa', 'deploy'],
+    skillKeys: ['git', 'superpowers', 'tdd', 'playwright'],
+    mcpKeys: ['context7', 'github', 'playwright'],
   },
 ];
 
