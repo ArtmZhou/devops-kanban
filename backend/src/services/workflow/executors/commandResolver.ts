@@ -1,3 +1,5 @@
+import { EXECUTOR_NPM_CACHE } from '../../../config/index.js';
+
 function splitCommand(commandString: string) {
   return commandString.trim().split(/\s+/).filter(Boolean);
 }
@@ -33,6 +35,11 @@ export function resolveCommand({
   // Remove env vars that cause "nested session" detection
   delete env.CLAUDECODE;
   delete env.CLAUDE_CODE_ENTRYPOINT;
+
+  // Override npm cache path to avoid EPERM errors on Windows
+  if (EXECUTOR_NPM_CACHE && !env.npm_config_cache) {
+    env.npm_config_cache = EXECUTOR_NPM_CACHE;
+  }
 
   return {
     command,
