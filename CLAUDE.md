@@ -70,6 +70,12 @@ DevOps Kanban board for managing projects/tasks with AI agent execution in isola
 - WorkflowRunRepository serializes all mutations to prevent race conditions when steps execute rapidly
 - Mastra stores workflow state in `data/mastra.db` (LibSQL)
 
+**Agent Configuration:**
+- Agents support optional `settingsPath` field for specifying a custom Claude Code `--settings` file path
+- When `settingsPath` is configured for an agent, the Claude Code executor appends `--settings <path>` to the CLI command
+- If not configured, Claude Code uses its default settings behavior
+- This is only applicable to agents with `executorType: CLAUDE_CODE`
+
 ### Frontend (`frontend/src/`) - Vue 3 + Vite 5 + Element Plus + Pinia
 
 **Routes:**
