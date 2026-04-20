@@ -165,7 +165,10 @@ export const agentRoutes: FastifyPluginAsync<AgentRouteOptions> = async (fastify
       if (request.body.mcpServers !== undefined && request.body.mcpServers.length > 0) {
         await validateExistingMcpServers(mcpServerRepo, request.body.mcpServers);
       }
-      const agent = await repo.create(request.body);
+      const agent = await repo.create({
+        ...request.body,
+        env: request.body.env || {},
+      });
       return successResponse(agent, 'Agent created');
     } catch (error) {
       logError(error, request);
