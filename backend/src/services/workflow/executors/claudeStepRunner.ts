@@ -10,7 +10,7 @@ import { logger } from '../../../utils/logger.js';
 
 const CLAUDE_DEFAULT_COMMAND = ['npx', '-y', '@anthropic-ai/claude-code@2.1.62'];
 
-type ClaudeRuntimeExecutorConfig = { commandOverride?: string; args?: string[]; env?: Record<string, string> | undefined };
+type ClaudeRuntimeExecutorConfig = { commandOverride?: string; args?: string[]; env?: Record<string, string> | undefined; settingsPath?: string | undefined };
 
 type ClaudeSpawnExecution = {
   exitCode: number | null;
@@ -209,6 +209,11 @@ async function defaultSpawnImpl({
   const resolved = buildClaudeSpawnCommand(executorConfig);
   const spawnCommand = resolved.command || 'npx';
   const commandArgs = [...resolved.args, ...cliArgs];
+
+  // Add --settings if settingsPath is configured
+  if (executorConfig.settingsPath) {
+    commandArgs.push('--settings', executorConfig.settingsPath);
+  }
 
   // Auto-detect .mcp.json in worktree and pass to Claude Code explicitly
   const mcpConfigPath = resolve(worktreePath, '.mcp.json');
