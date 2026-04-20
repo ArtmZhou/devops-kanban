@@ -57,7 +57,9 @@ test.test('resolveCommand does not inject npm_config_cache when npmCacheOverride
   assert.equal(resolved.env.npm_config_cache, undefined);
 });
 
-test.test('resolveCommand does not override npm_config_cache if already set in processEnv', () => {
+test.test('resolveCommand overrides npm_config_cache from processEnv when npmCacheOverride is set', () => {
+  // This is the key fix: when backend starts via `npm run dev`, npm injects
+  // npm_config_cache into process.env. EXECUTOR_NPM_CACHE must take priority.
   const resolved = resolveCommand({
     defaultCommand: ['npx', '-y', '@anthropic-ai/claude-code@2.1.62'],
     executorConfig: { commandOverride: null, args: [], env: {} },
@@ -65,7 +67,7 @@ test.test('resolveCommand does not override npm_config_cache if already set in p
     npmCacheOverride: '/custom/npm-cache',
   });
 
-  assert.equal(resolved.env.npm_config_cache, '/existing/cache');
+  assert.equal(resolved.env.npm_config_cache, '/custom/npm-cache');
 });
 
 test.test('resolveCommand does not override npm_config_cache if set via executorConfig env', () => {

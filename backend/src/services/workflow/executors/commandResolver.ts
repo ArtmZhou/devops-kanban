@@ -38,8 +38,10 @@ export function resolveCommand({
   delete env.CLAUDECODE;
   delete env.CLAUDE_CODE_ENTRYPOINT;
 
-  // Override npm cache path to avoid EPERM errors on Windows
-  if (npmCacheOverride && !env.npm_config_cache) {
+  // Override npm cache path to avoid EPERM errors on Windows.
+  // When EXECUTOR_NPM_CACHE is explicitly configured, always override npm_config_cache
+  // UNLESS the agent-level executorConfig.env has explicitly set it (highest priority).
+  if (npmCacheOverride && !executorConfig?.env?.npm_config_cache) {
     env.npm_config_cache = npmCacheOverride;
   }
 
