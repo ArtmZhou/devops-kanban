@@ -73,6 +73,13 @@ function validateCreateAgentBody(body: unknown): asserts body is CreateAgentBody
   if (body.mcpServers === undefined) {
     body.mcpServers = [];
   }
+
+  if (body.settingsPath !== undefined && typeof body.settingsPath !== 'string') {
+    throw new ValidationError('Settings 文件路径必须为字符串', 'settingsPath must be a string');
+  }
+  if (body.settingsPath && (body.settingsPath as string).length > 500) {
+    throw new ValidationError('Settings 文件路径不能超过 500 个字符', 'settingsPath exceeds maximum length of 500 characters');
+  }
 }
 
 function validateUpdateAgentBody(body: unknown): asserts body is UpdateAgentBody {
@@ -111,6 +118,13 @@ function validateUpdateAgentBody(body: unknown): asserts body is UpdateAgentBody
 
   if ('mcpServers' in body && body.mcpServers !== undefined && !isNumberArray(body.mcpServers)) {
     throw new ValidationError('MCP 服务器必须为数字数组', 'mcpServers must be an array of numbers');
+  }
+
+  if ('settingsPath' in body && body.settingsPath !== undefined && typeof body.settingsPath !== 'string') {
+    throw new ValidationError('Settings 文件路径必须为字符串', 'settingsPath must be a string');
+  }
+  if ('settingsPath' in body && body.settingsPath && (body.settingsPath as string).length > 500) {
+    throw new ValidationError('Settings 文件路径不能超过 500 个字符', 'settingsPath exceeds maximum length of 500 characters');
   }
 }
 
