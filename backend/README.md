@@ -178,6 +178,7 @@ backend/
 | `STORAGE_PATH` | 数据文件存储路径 | `../data` |
 | `CORS_ORIGINS` | 允许的 CORS 源 | `http://localhost:3000,http://localhost:5173` |
 | `LOG_LEVEL` | 日志级别 | `info` |
+| `EXECUTOR_NPM_CACHE` | Executor 子进程使用的 npm 缓存路径（可选）。在 Windows 上出现 npm EPERM 错误时设置此项 | 空（使用系统默认） |
 
 ## 开发说明
 
