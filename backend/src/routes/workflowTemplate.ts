@@ -150,10 +150,11 @@ const workflowTemplateRoutes: FastifyPluginAsync<WorkflowTemplateRouteOptions> =
       upstreamSteps?: Array<{ stepId: string; name: string }>;
       taskTitle?: string;
       taskDescription?: string;
+      projectEnv?: Record<string, string>;
     };
   }>('/preview-prompt', async (request, reply) => {
     try {
-      const { step, upstreamSteps = [], taskTitle, taskDescription } = request.body || {};
+      const { step, upstreamSteps = [], taskTitle, taskDescription, projectEnv } = request.body || {};
       if (!step || typeof step.name !== 'string' || typeof step.instructionPrompt !== 'string') {
         reply.code(400);
         return errorResponse('step.name and step.instructionPrompt are required');
@@ -179,13 +180,22 @@ const workflowTemplateRoutes: FastifyPluginAsync<WorkflowTemplateRouteOptions> =
         inputData[us.stepId] = { summary: `{{上游步骤「${us.name}」的执行摘要}}` };
       }
 
-      const prompt = assembleWorkflowPrompt({
+      const promptArgs: {
+        step: { name: string; instructionPrompt: string };
+        state: { taskTitle: string; taskDescription: string };
+        inputData: Record<string, unknown>;
+        upstreamStepIds?: string[];
+        agent?: { name: string; role: string; description?: string; skills: number[] };
+        projectEnv?: Record<string, string>;
+      } = {
         step,
         state: { taskTitle: taskTitle || '{{示例需求标题}}', taskDescription: taskDescription || '{{示例需求描述内容}}' },
         inputData,
         upstreamStepIds: upstreamSteps.map((s) => s.stepId),
         ...(agent ? { agent } : {}),
-      });
+        ...(projectEnv ? { projectEnv } : {}),
+      };
+      const prompt = assembleWorkflowPrompt(promptArgs);
 
       return successResponse({ prompt: prompt.replaceAll('\\n', '\n') });
     } catch (error) {
