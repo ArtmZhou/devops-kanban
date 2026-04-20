@@ -131,6 +131,15 @@
             </div>
           </div>
 
+          <!-- Settings 文件路径 (仅 Claude Code) -->
+          <div class="skills-section" v-if="selectedAgent.executorType === 'CLAUDE_CODE'">
+            <span class="section-label">{{ $t('agent.settingsPath') }}</span>
+            <div class="skills-tags">
+              <span v-if="selectedAgent.settingsPath" class="skill-tag env-tag">{{ selectedAgent.settingsPath }}</span>
+              <span v-else class="no-items-hint">{{ $t('agent.settingsPathDefault') }}</span>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -201,6 +210,11 @@
           </div>
         </el-form-item>
 
+        <el-form-item v-if="form.executorType === 'CLAUDE_CODE'" :label="$t('agent.settingsPath')">
+          <el-input v-model="form.settingsPath" :placeholder="$t('agent.settingsPathPlaceholder')" maxlength="500" show-word-limit />
+          <div class="form-hint">{{ $t('agent.settingsPathHint') }}</div>
+        </el-form-item>
+
         <el-form-item>
           <el-checkbox v-model="form.enabled">{{ $t('common.enabled') }}</el-checkbox>
         </el-form-item>
@@ -248,7 +262,8 @@ const form = ref({
   enabled: true,
   skills: [],
   mcpServers: [],
-  envPairs: []
+  envPairs: [],
+  settingsPath: ''
 })
 
 const selectedSkillToAdd = ref('')
@@ -277,7 +292,8 @@ const setFormState = (agent) => {
     mcpServers: Array.isArray(agent?.mcpServers) ? [...agent.mcpServers] : [],
     envPairs: agent?.env && typeof agent.env === 'object'
       ? Object.entries(agent.env).map(([key, value]) => ({ key, value: String(value) }))
-      : []
+      : [],
+    settingsPath: agent?.settingsPath || ''
   }
   selectedSkillToAdd.value = ''
   selectedMcpServerToAdd.value = ''
@@ -303,12 +319,13 @@ const buildAgentPayload = () => {
       env[pair.key.trim()] = pair.value
     }
   }
-  const { envPairs, ...rest } = form.value
+  const { envPairs, settingsPath, ...rest } = form.value
   return {
     ...rest,
     skills: [...form.value.skills],
     mcpServers: [...form.value.mcpServers],
-    env
+    env,
+    settingsPath: settingsPath?.trim() || undefined
   }
 }
 
@@ -903,6 +920,13 @@ onMounted(loadAgents)
 .checkbox-label input {
   width: auto;
   accent-color: var(--accent-color);
+}
+
+.form-hint {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  margin-bottom: 0;
 }
 
 </style>
