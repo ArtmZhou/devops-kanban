@@ -265,3 +265,30 @@ test.test('ClaudeStepRunner does not throw STEP_AWAITING_USER_INPUT when no AskU
   assert.equal(result.exitCode, 0);
   assert.equal(result.parsedResult.summary, '已完成任务');
 });
+
+test.test('defaultSpawnImpl places --settings before -p flag', async () => {
+  let capturedExecutorConfig: Record<string, unknown> | null = null;
+  const runner = new ClaudeStepRunner({
+    spawnImpl: async ({ executorConfig }) => {
+      capturedExecutorConfig = executorConfig as Record<string, unknown>;
+      return {
+        exitCode: 0,
+        stdout: '完成',
+        stderr: '',
+        commandSummary: 'mock command',
+        cwd: '/tmp/worktree',
+        prompt: 'test',
+        proc: null,
+      };
+    },
+  });
+
+  await runner.runStep({
+    prompt: 'test prompt',
+    worktreePath: '/tmp/worktree',
+    executorConfig: { settingsPath: '/path/to/settings.json' },
+  });
+
+  assert.ok(capturedExecutorConfig);
+  assert.equal(capturedExecutorConfig!.settingsPath, '/path/to/settings.json');
+});

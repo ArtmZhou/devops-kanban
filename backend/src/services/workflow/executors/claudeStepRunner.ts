@@ -208,9 +208,9 @@ async function defaultSpawnImpl({
   const cliArgs = buildClaudeCliArgs(prompt);
   const resolved = buildClaudeSpawnCommand(executorConfig);
   const spawnCommand = resolved.command || 'npx';
-  const commandArgs = [...resolved.args, ...cliArgs];
+  const commandArgs = [...resolved.args];
 
-  // Add --settings if settingsPath is configured
+  // Add --settings BEFORE -p flag so Claude Code loads config before prompt execution
   if (executorConfig.settingsPath) {
     commandArgs.push('--settings', executorConfig.settingsPath);
   }
@@ -220,6 +220,8 @@ async function defaultSpawnImpl({
   if (existsSync(mcpConfigPath)) {
     commandArgs.push('--mcp-config', mcpConfigPath);
   }
+
+  commandArgs.push(...cliArgs);
   const commandSummary = summarizeCommand(spawnCommand, commandArgs);
   const spawnImpl = await resolveCrossSpawn();
 
