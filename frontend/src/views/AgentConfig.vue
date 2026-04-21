@@ -245,6 +245,8 @@ import { ROLE_CONFIG, getRoleConfig } from '../constants/agent'
 import BaseDialog from '../components/BaseDialog.vue'
 import AgentChatPanel from '../components/AgentChatPanel.vue'
 
+defineOptions({ name: 'AgentConfig' })
+
 const { t, locale } = useI18n()
 const agentStore = useAgentStore()
 const skillStore = useSkillStore()

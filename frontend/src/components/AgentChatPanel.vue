@@ -119,6 +119,9 @@ let streamController = null
 let currentAgentId = null
 let msgIdCounter = 0
 
+// Per-agent chat state cache: preserves messages when switching between agents
+const agentStateCache = new Map() // agentId -> { chatId, messages }
+
 const displayedMessages = computed(() => {
   if (!hideToolMessages.value) return messages.value
   return messages.value.filter(m => m.kind !== 'tool_call' && m.kind !== 'tool_result')
@@ -177,8 +180,22 @@ async function startNewSession() {
   if (!props.agent) return
   if (isCreatingSession.value) return
 
-  // Clean up existing session
-  await cleanupSession()
+  // Clean up existing session for this agent on the server
+  if (streamController) {
+    streamController.abort()
+    streamController = null
+  }
+  if (chatId.value && currentAgentId) {
+    try {
+      await deleteChatSession(currentAgentId, chatId.value)
+    } catch { /* noop */ }
+  }
+  chatId.value = null
+  sessionStatus.value = 'idle'
+  messages.value = []
+  currentAgentId = null
+  // Remove cached state so a fresh session is used
+  agentStateCache.delete(props.agent.id)
 
   isCreatingSession.value = true
   try {
@@ -196,22 +213,6 @@ async function startNewSession() {
   } finally {
     isCreatingSession.value = false
   }
-}
-
-async function cleanupSession() {
-  if (streamController) {
-    streamController.abort()
-    streamController = null
-  }
-  if (chatId.value && currentAgentId) {
-    try {
-      await deleteChatSession(currentAgentId, chatId.value)
-    } catch { /* noop */ }
-  }
-  chatId.value = null
-  sessionStatus.value = 'idle'
-  messages.value = []
-  currentAgentId = null
 }
 
 async function sendMessage() {
@@ -264,16 +265,40 @@ async function sendMessage() {
   )
 }
 
-// Watch for agent changes: auto-start new session when agent is selected
+// Watch for agent changes: restore cached state or start a new session
 watch(
   () => props.agent?.id,
-  async (newId) => {
-    if (!newId) {
-      await cleanupSession()
-      return
+  async (newId, oldId) => {
+    // Abort any running stream
+    if (streamController) {
+      streamController.abort()
+      streamController = null
     }
-    // Only start if agent changes
-    if (newId !== currentAgentId) {
+
+    // Save current agent's state to cache (server session stays alive)
+    if (oldId && chatId.value) {
+      agentStateCache.set(oldId, {
+        chatId: chatId.value,
+        messages: [...messages.value],
+      })
+    }
+
+    // Reset local state
+    chatId.value = null
+    sessionStatus.value = 'idle'
+    messages.value = []
+    currentAgentId = null
+
+    if (!newId) return
+
+    // Restore from cache if available, otherwise start a new session
+    if (agentStateCache.has(newId)) {
+      const cached = agentStateCache.get(newId)
+      chatId.value = cached.chatId
+      messages.value = cached.messages
+      currentAgentId = newId
+      nextTick(() => scrollToBottom())
+    } else {
       await startNewSession()
     }
   },
@@ -281,7 +306,27 @@ watch(
 )
 
 onBeforeUnmount(async () => {
-  await cleanupSession()
+  if (streamController) {
+    streamController.abort()
+    streamController = null
+  }
+  // Delete all cached server sessions
+  const deletePromises = []
+  for (const [agentId, state] of agentStateCache) {
+    if (state.chatId) {
+      deletePromises.push(deleteChatSession(agentId, state.chatId).catch(() => {}))
+    }
+  }
+  agentStateCache.clear()
+  // Delete current session
+  if (chatId.value && currentAgentId) {
+    deletePromises.push(deleteChatSession(currentAgentId, chatId.value).catch(() => {}))
+  }
+  chatId.value = null
+  sessionStatus.value = 'idle'
+  messages.value = []
+  currentAgentId = null
+  await Promise.all(deletePromises)
 })
 </script>
 
