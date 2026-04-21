@@ -28,6 +28,15 @@
       <div class="panel-state-text">这里会显示该步骤的执行输出和对话记录。</div>
     </div>
     <div v-else class="panel-events-wrapper">
+      <div v-if="showPrompt && props.assembledPrompt" class="prompt-panel">
+        <div class="prompt-panel-header">
+          <span class="prompt-panel-title">{{ $t('chat.promptContent') }}</span>
+          <el-button size="small" text @click="copyPrompt">{{ $t('chat.copy') }}</el-button>
+        </div>
+        <div class="prompt-panel-content">
+          <pre>{{ props.assembledPrompt }}</pre>
+        </div>
+      </div>
       <div ref="eventsContainer" class="panel-events panel-events--chat">
         <template v-for="event in displayedEvents" :key="event.id ?? event.seq">
           <!-- Interactive AskUserQuestion rendering -->
@@ -59,15 +68,6 @@
           />
         </template>
       </div>
-      <div v-if="showPrompt && props.assembledPrompt" class="prompt-panel">
-        <div class="prompt-panel-header">
-          <span class="prompt-panel-title">Prompt 内容</span>
-          <el-button size="small" text @click="copyPrompt">复制</el-button>
-        </div>
-        <div class="prompt-panel-content">
-          <pre>{{ props.assembledPrompt }}</pre>
-        </div>
-      </div>
       <div class="panel-toolbar">
         <el-button
           size="small"
@@ -76,7 +76,7 @@
           @click="togglePrompt"
           :disabled="!props.assembledPrompt"
         >
-          {{ showPrompt ? '收起 Prompt' : '查看 Prompt' }}
+          {{ showPrompt ? $t('chat.collapsePrompt') : $t('chat.viewPrompt') }}
         </el-button>
         <label class="auto-scroll-check" @click.prevent="toggleAutoScroll">
           <span class="check-box" :class="{ checked: autoScrollEnabled }">
@@ -127,12 +127,15 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref, watch, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SessionEventRenderer from '../session/SessionEventRenderer.vue'
 import { useSessionEvents } from '../../composables/useSessionEvents.js'
 import { SESSION_INPUT_STATUSES, SESSION_BUSY_STATUSES } from '../../constants/session.js'
 import { getSession, continueSession } from '../../api/session.js'
 import { resumeWorkflow } from '../../api/workflow.js'
 import { ElMessage } from 'element-plus'
+
+const { t } = useI18n()
 
 const props = defineProps({
   sessionId: {
@@ -179,9 +182,9 @@ function togglePrompt() {
 async function copyPrompt() {
   try {
     await navigator.clipboard.writeText(props.assembledPrompt)
-    ElMessage.success('已复制到剪贴板')
+    ElMessage.success(t('chat.copySuccess'))
   } catch {
-    ElMessage.error('复制失败')
+    ElMessage.error(t('chat.copyFailed'))
   }
 }
 
