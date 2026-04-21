@@ -8,7 +8,7 @@
         <span v-if="sessionStatus === 'running'" class="chat-status-badge running">{{ $t('agent.chatThinking') }}</span>
         <span v-else-if="sessionStatus === 'idle'" class="chat-status-badge idle">{{ $t('agent.chatReady') }}</span>
       </div>
-      <button class="btn btn-secondary btn-sm" :disabled="isCreatingSession" @click="startNewSession">
+      <button class="btn btn-secondary btn-sm" :disabled="isCreatingSession || isLoadingMessages" @click="startNewSession">
         {{ isCreatingSession ? $t('common.loading') : $t('agent.chatNewSession') }}
       </button>
     </div>
@@ -16,7 +16,7 @@
     <!-- Chat body -->
     <div class="chat-body">
       <!-- No session state -->
-      <div v-if="!chatId" class="chat-empty-state">
+      <div v-if="!chatId && !isCreatingSession && !isLoadingMessages" class="chat-empty-state">
         <div class="chat-empty-icon">💬</div>
         <p class="chat-empty-title">{{ $t('agent.chatNoSession') }}</p>
         <p class="chat-empty-hint">{{ $t('agent.chatNoSessionHint') }}</p>
@@ -25,20 +25,25 @@
         </button>
       </div>
 
+      <!-- Loading state -->
+      <div v-else-if="isCreatingSession || isLoadingMessages" class="chat-empty-state">
+        <p class="chat-empty-hint">{{ $t('common.loading') }}</p>
+      </div>
+
       <!-- Messages list -->
       <div v-else ref="messagesContainer" class="chat-messages">
         <div v-if="messages.length === 0 && sessionStatus !== 'running'" class="chat-empty-state chat-empty-state--inline">
           <p class="chat-empty-hint">{{ $t('agent.chatEmptyHint') }}</p>
         </div>
 
-        <template v-for="msg in displayedMessages" :key="msg.id">
+        <template v-for="msg in displayedMessages" :key="msg._key">
           <!-- User message bubble -->
           <div v-if="msg.role === 'user' && msg.kind === 'message'" class="chat-user-message">
             <div class="chat-user-bubble">{{ msg.content }}</div>
           </div>
 
           <!-- Agent events via SessionEventRenderer -->
-          <SessionEventRenderer v-else :event="normalizeMessage(msg)" />
+          <SessionEventRenderer v-else :event="msg" />
         </template>
 
         <!-- Thinking indicator -->
@@ -53,6 +58,14 @@
 
     <!-- Toolbar -->
     <div v-if="chatId" class="chat-toolbar">
+      <label class="chat-filter-check" @click.prevent="autoScrollEnabled = !autoScrollEnabled">
+        <span class="check-box" :class="{ checked: autoScrollEnabled }">
+          <svg v-if="autoScrollEnabled" width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="check-label">{{ $t('agent.chatAutoScroll') }}</span>
+      </label>
       <label class="chat-filter-check" @click.prevent="hideToolMessages = !hideToolMessages">
         <span class="check-box" :class="{ checked: hideToolMessages }">
           <svg v-if="hideToolMessages" width="10" height="10" viewBox="0 0 10 10" fill="none">
@@ -60,6 +73,14 @@
           </svg>
         </span>
         <span class="check-label">{{ $t('agent.chatHideTools') }}</span>
+      </label>
+      <label class="chat-filter-check" @click.prevent="hideThinkingMessages = !hideThinkingMessages">
+        <span class="check-box" :class="{ checked: hideThinkingMessages }">
+          <svg v-if="hideThinkingMessages" width="10" height="10" viewBox="0 0 10 10" fill="none">
+            <path d="M2 5l2.5 2.5L8 3" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+        <span class="check-label">{{ $t('agent.chatHideThinking') }}</span>
       </label>
     </div>
 
@@ -96,7 +117,8 @@
 import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SessionEventRenderer from './session/SessionEventRenderer.vue'
-import { createChatSession, deleteChatSession, streamChatMessage } from '../api/agentChat.js'
+import { createChatSession, deleteChatSession, getChatMessages, streamChatMessage } from '../api/agentChat.js'
+import { normalizeEvents } from '../composables/useSessionEvents.js'
 
 const { t } = useI18n()
 
@@ -107,107 +129,63 @@ const props = defineProps({
   }
 })
 
+// ─── Module-level state (survives component unmount/remount on navigation) ────
+// Maps agentId -> chatId so the session persists when switching panels/routes
+const persistedChatIds = new Map()
+
+// ─── Component state ──────────────────────────────────────────────────────────
 const chatId = ref(null)
 const sessionStatus = ref('idle') // 'idle' | 'running'
 const messages = ref([])
 const inputText = ref('')
 const isCreatingSession = ref(false)
+const isLoadingMessages = ref(false)
 const messagesContainer = ref(null)
 const inputRef = ref(null)
 const hideToolMessages = ref(true)
+const hideThinkingMessages = ref(true)
+const autoScrollEnabled = ref(true)
 let streamController = null
 let currentAgentId = null
-let msgIdCounter = 0
-
-// Per-agent chat state cache: preserves messages when switching between agents
-const agentStateCache = new Map() // agentId -> { chatId, messages }
+// Temp ID counter for messages created during streaming (before backend assigns IDs)
+let tempIdCounter = -1
 
 const displayedMessages = computed(() => {
-  if (!hideToolMessages.value) return messages.value
-  return messages.value.filter(m => m.kind !== 'tool_call' && m.kind !== 'tool_result')
+  let result = messages.value
+  if (hideToolMessages.value) {
+    result = result.filter(m => m.kind !== 'tool_call' && m.kind !== 'tool_result')
+  }
+  if (hideThinkingMessages.value) {
+    result = result.filter(m => !m.isThinking)
+  }
+  return result
 })
 
-// Normalize stored message into shape expected by SessionEventRenderer
-function normalizeMessage(msg) {
-  const payload = msg.payload && typeof msg.payload === 'object' ? msg.payload : {}
-
-  let toolName = ''
-  if (typeof payload.tool_name === 'string') {
-    toolName = payload.tool_name
-  } else if (msg.kind === 'tool_call') {
-    toolName = msg.content
-  }
-
-  const toolCallId = typeof payload.tool_id === 'string' ? payload.tool_id : ''
-  const toolInput = Object.prototype.hasOwnProperty.call(payload, 'input') ? payload.input : null
-  const toolUseId = typeof payload.tool_use_id === 'string' ? payload.tool_use_id : ''
-  const isThinking = payload.block_type === 'thinking'
-
-  // Build tool input preview
-  let toolInputPreview = ''
-  if (toolInput !== null && toolInput !== undefined && typeof toolInput === 'object') {
-    const entries = Object.entries(toolInput).filter(([, v]) => v !== null && v !== undefined && v !== '').slice(0, 3)
-    toolInputPreview = entries.map(([k, v]) => `${k}: ${typeof v === 'string' ? v.slice(0, 80) : JSON.stringify(v).slice(0, 80)}`).join('\n')
-  }
-
-  return {
-    ...msg,
-    payload,
-    toolName,
-    toolCallId,
-    toolInput,
-    toolInputPreview,
-    toolCallCollapsedByDefault: true,
-    toolUseId,
-    toolIsError: payload.is_error === true,
-    isThinking,
-    toolResultText: typeof msg.content === 'string' ? msg.content : '',
-    toolResultSummary: typeof msg.content === 'string' ? msg.content.slice(0, 280) : '',
-    toolResultCollapsedByDefault: msg.kind === 'tool_result' && !!msg.content,
-    relatedToolName: '',
-  }
-}
-
+// ─── Scroll ───────────────────────────────────────────────────────────────────
 function scrollToBottom() {
   nextTick(() => {
-    if (messagesContainer.value) {
+    if (messagesContainer.value && autoScrollEnabled.value) {
       messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
     }
   })
 }
 
-async function startNewSession() {
-  if (!props.agent) return
-  if (isCreatingSession.value) return
+// ─── Session lifecycle ────────────────────────────────────────────────────────
 
-  // Clean up existing session for this agent on the server
-  if (streamController) {
-    streamController.abort()
-    streamController = null
-  }
-  if (chatId.value && currentAgentId) {
-    try {
-      await deleteChatSession(currentAgentId, chatId.value)
-    } catch { /* noop */ }
-  }
-  chatId.value = null
-  sessionStatus.value = 'idle'
-  messages.value = []
-  currentAgentId = null
-  // Remove cached state so a fresh session is used
-  agentStateCache.delete(props.agent.id)
-
+/** Create a brand-new backend session and set it as active. */
+async function doCreateSession(agentId) {
   isCreatingSession.value = true
   try {
-    const response = await createChatSession(props.agent.id)
+    const response = await createChatSession(agentId)
     if (!response?.success) {
       console.error('Failed to start chat session:', response?.message)
       return
     }
     chatId.value = response.data.id
-    currentAgentId = props.agent.id
+    currentAgentId = agentId
     sessionStatus.value = 'idle'
     messages.value = []
+    persistedChatIds.set(agentId, chatId.value)
   } catch (err) {
     console.error('Failed to start chat session:', err)
   } finally {
@@ -215,19 +193,80 @@ async function startNewSession() {
   }
 }
 
+/**
+ * Restore an existing session from backend or create a new one.
+ * Called automatically when the selected agent changes.
+ */
+async function loadOrCreateSession(agentId) {
+  const storedChatId = persistedChatIds.get(agentId)
+
+  if (storedChatId) {
+    // Try to restore history from backend
+    isLoadingMessages.value = true
+    try {
+      const res = await getChatMessages(agentId, storedChatId)
+      if (res?.success && Array.isArray(res.data)) {
+        const normalized = normalizeEvents(res.data)
+        // Add a stable key for v-for (backend IDs are sequential integers per session)
+        messages.value = normalized.map(m => ({ ...m, _key: `b_${m.id}` }))
+        chatId.value = storedChatId
+        currentAgentId = agentId
+        sessionStatus.value = 'idle'
+        tempIdCounter = -1
+        nextTick(() => scrollToBottom())
+        return
+      }
+    } catch {
+      // Session may have been cleaned up on server; fall through to create new
+    } finally {
+      isLoadingMessages.value = false
+    }
+    persistedChatIds.delete(agentId)
+  }
+
+  await doCreateSession(agentId)
+}
+
+/**
+ * Explicitly start a new session (user clicked "新建对话").
+ * Deletes the current backend session and creates a fresh one.
+ */
+async function startNewSession() {
+  if (!props.agent) return
+  if (isCreatingSession.value) return
+
+  if (streamController) {
+    streamController.abort()
+    streamController = null
+  }
+  if (chatId.value && currentAgentId) {
+    try { await deleteChatSession(currentAgentId, chatId.value) } catch { /* noop */ }
+  }
+  chatId.value = null
+  sessionStatus.value = 'idle'
+  messages.value = []
+  currentAgentId = null
+  persistedChatIds.delete(props.agent.id)
+
+  await doCreateSession(props.agent.id)
+}
+
+// ─── Messaging ────────────────────────────────────────────────────────────────
+
 async function sendMessage() {
   const text = inputText.value.trim()
   if (!text || sessionStatus.value === 'running' || !chatId.value) return
 
-  // Append user message locally
-  const userMsg = {
-    id: ++msgIdCounter,
+  // Append user message optimistically with a temporary key
+  const userMsg = normalizeEvents([{
+    id: tempIdCounter--,
     kind: 'message',
     role: 'user',
     content: text,
     payload: {},
     created_at: new Date().toISOString(),
-  }
+  }])[0]
+  userMsg._key = `t_${userMsg.id}`
   messages.value = [...messages.value, userMsg]
   inputText.value = ''
   sessionStatus.value = 'running'
@@ -238,16 +277,16 @@ async function sendMessage() {
     chatId.value,
     text,
     (event) => {
-      // Append streamed event
-      const enriched = {
-        id: ++msgIdCounter,
+      const normalized = normalizeEvents([{
+        id: tempIdCounter--,
         kind: event.kind,
         role: event.role,
         content: event.content,
         payload: event.payload ?? {},
         created_at: new Date().toISOString(),
-      }
-      messages.value = [...messages.value, enriched]
+      }])[0]
+      normalized._key = `t_${normalized.id}`
+      messages.value = [...messages.value, normalized]
       scrollToBottom()
     },
     () => {
@@ -265,68 +304,32 @@ async function sendMessage() {
   )
 }
 
-// Watch for agent changes: restore cached state or start a new session
+// ─── Watchers ─────────────────────────────────────────────────────────────────
+
 watch(
   () => props.agent?.id,
-  async (newId, oldId) => {
-    // Abort any running stream
+  async (newId) => {
     if (streamController) {
       streamController.abort()
       streamController = null
     }
-
-    // Save current agent's state to cache (server session stays alive)
-    if (oldId && chatId.value) {
-      agentStateCache.set(oldId, {
-        chatId: chatId.value,
-        messages: [...messages.value],
-      })
-    }
-
-    // Reset local state
     chatId.value = null
     sessionStatus.value = 'idle'
     messages.value = []
     currentAgentId = null
 
     if (!newId) return
-
-    // Restore from cache if available, otherwise start a new session
-    if (agentStateCache.has(newId)) {
-      const cached = agentStateCache.get(newId)
-      chatId.value = cached.chatId
-      messages.value = cached.messages
-      currentAgentId = newId
-      nextTick(() => scrollToBottom())
-    } else {
-      await startNewSession()
-    }
+    await loadOrCreateSession(newId)
   },
   { immediate: true }
 )
 
-onBeforeUnmount(async () => {
+onBeforeUnmount(() => {
+  // Only abort the in-flight stream; keep the backend session alive for restore
   if (streamController) {
     streamController.abort()
     streamController = null
   }
-  // Delete all cached server sessions
-  const deletePromises = []
-  for (const [agentId, state] of agentStateCache) {
-    if (state.chatId) {
-      deletePromises.push(deleteChatSession(agentId, state.chatId).catch(() => {}))
-    }
-  }
-  agentStateCache.clear()
-  // Delete current session
-  if (chatId.value && currentAgentId) {
-    deletePromises.push(deleteChatSession(currentAgentId, chatId.value).catch(() => {}))
-  }
-  chatId.value = null
-  sessionStatus.value = 'idle'
-  messages.value = []
-  currentAgentId = null
-  await Promise.all(deletePromises)
 })
 </script>
 

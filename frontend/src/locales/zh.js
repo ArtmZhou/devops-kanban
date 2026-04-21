@@ -500,6 +500,8 @@ export default {
     chatThinking: '思考中...',
     chatReady: '就绪',
     chatHideTools: '隐藏工具消息',
+    chatHideThinking: '隐藏思考过程',
+    chatAutoScroll: '自动滚动',
     chatSendFailed: '发送失败'
   },
   session: {
