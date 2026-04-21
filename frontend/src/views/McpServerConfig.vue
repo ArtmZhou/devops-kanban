@@ -245,7 +245,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useMcpServerStore } from '../stores/mcpServerStore'
@@ -282,9 +282,11 @@ function getDefaultForm() {
 }
 
 const form = ref(getDefaultForm())
+const isSettingForm = ref(false)
 
 // Reset config when server_type changes to avoid stale fields
 watch(() => form.value.server_type, (newType) => {
+  if (isSettingForm.value) return
   if (newType === 'stdio') {
     form.value.config = { command: '', args: [] }
     form.value.headerPairs = []
@@ -396,6 +398,7 @@ function setFormState(server) {
   }
   delete config.headers
 
+  isSettingForm.value = true
   form.value = {
     name: server.name || '',
     description: server.description || '',
@@ -404,6 +407,7 @@ function setFormState(server) {
     envPairs,
     headerPairs,
   }
+  nextTick(() => { isSettingForm.value = false })
 }
 
 const addArg = () => { form.value.config.args.push('') }

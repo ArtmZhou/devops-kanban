@@ -110,11 +110,9 @@ async function preCheckMcpServers(servers: McpServerConfigWithMeta[]): Promise<M
             logger.info('WorkflowMcpSync', `Auto-install completed for "${server.name}"`);
           } catch (err) {
             logger.warn('WorkflowMcpSync', `Auto-install failed for "${server.name}": ${err instanceof Error ? err.message : String(err)}`);
-            // Skip this server — it won't work without the dependency
             continue;
           }
 
-          // Re-check after install
           if (!isCommandAvailable(command)) {
             logger.warn('WorkflowMcpSync', `Command "${command}" still not available after install, skipping "${server.name}"`);
             continue;
@@ -123,6 +121,14 @@ async function preCheckMcpServers(servers: McpServerConfigWithMeta[]): Promise<M
           logger.warn('WorkflowMcpSync', `Command "${command}" not found for MCP server "${server.name}" (auto_install not configured), skipping`);
           continue;
         }
+      }
+    }
+
+    if (server.server_type === 'http') {
+      const url = server.config.url as string;
+      if (!url || !url.trim()) {
+        logger.warn('WorkflowMcpSync', `MCP server "${server.name}" has no URL, skipping`);
+        continue;
       }
     }
 
