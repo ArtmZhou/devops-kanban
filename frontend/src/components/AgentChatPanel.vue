@@ -5,7 +5,10 @@
       <div class="chat-panel-title-row">
         <span class="chat-panel-title">{{ $t('agent.chatTitle') }}</span>
         <span class="chat-title-hint">{{ $t('agent.chatTitleHint') }}</span>
-        <span v-if="sessionStatus === 'running'" class="chat-status-badge running">{{ $t('agent.chatThinking') }}</span>
+        <span v-if="sessionStatus === 'running'" class="chat-status-badge running">
+          {{ $t('agent.chatRunning') }}
+          <span class="chat-timer">{{ formattedElapsed }}</span>
+        </span>
         <span v-else-if="sessionStatus === 'idle'" class="chat-status-badge idle">{{ $t('agent.chatReady') }}</span>
       </div>
       <button class="btn btn-secondary btn-sm" :disabled="isCreatingSession || isLoadingMessages" @click="startNewSession">
