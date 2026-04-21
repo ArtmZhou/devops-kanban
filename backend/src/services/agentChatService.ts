@@ -56,6 +56,11 @@ class AgentChatService {
     return this.chatRepo.getSession(chatId);
   }
 
+  getLatestSession(agentId: number) {
+    const sessions = this.chatRepo.getSessionsByAgentId(agentId);
+    return sessions.length > 0 ? sessions[0] : null;
+  }
+
   getMessages(chatId: string) {
     return this.chatRepo.getMessages(chatId);
   }

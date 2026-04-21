@@ -122,6 +122,13 @@ class AgentChatRepository {
     return session ? session.messages : [];
   }
 
+  getSessionsByAgentId(agentId: number): AgentChatSession[] {
+    const data = this._read();
+    return Object.values(data.sessions)
+      .filter(s => s.agentId === agentId && s.status !== 'ended')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
+
   deleteSession(chatId: string): boolean {
     if (!AgentChatRepository._isValidChatId(chatId)) return false;
     const data = this._read();

@@ -23,6 +23,18 @@ const agentChatRoutes: FastifyPluginAsync<AgentChatRouteOptions> = async (
     }
   });
 
+  // GET /api/agents/:id/chat/sessions - Get latest active chat session for an agent
+  fastify.get<{ Params: IdParams }>('/:id/chat/sessions', async (request, reply) => {
+    try {
+      const session = service.getLatestSession(parseNumber(request.params.id));
+      return successResponse(session);
+    } catch (error) {
+      logError(error, request);
+      reply.code(getStatusCode(error));
+      return errorResponse(getErrorMessage(error, 'Failed to get chat sessions'));
+    }
+  });
+
   // GET /api/agents/:id/chat/sessions/:chatId/messages - Get chat history
   fastify.get<{ Params: IdParams & { chatId: string } }>('/:id/chat/sessions/:chatId/messages', async (request, reply) => {
     try {
