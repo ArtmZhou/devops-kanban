@@ -152,6 +152,8 @@ let tempIdCounter = -1
 // ─── Timer state ─────────────────────────────────────────────────────────────
 const elapsedSeconds = ref(0)
 let timerInterval = null
+let receivedCompletedStatus = false
+const COMPLETED_PATTERNS = ['完成', '结束', 'success', 'completed', 'done']
 
 function startTimer() {
   stopTimer()
@@ -289,6 +291,7 @@ async function sendMessage() {
   messages.value = [...messages.value, userMsg]
   inputText.value = ''
   sessionStatus.value = 'running'
+  receivedCompletedStatus = false
   startTimer()
   scrollToBottom()
 
@@ -297,6 +300,9 @@ async function sendMessage() {
     chatId.value,
     text,
     (event) => {
+      if (event.kind === 'status' && COMPLETED_PATTERNS.some(p => (event.content || '').toLowerCase().includes(p))) {
+        receivedCompletedStatus = true
+      }
       const normalized = normalizeEvents([{
         id: tempIdCounter--,
         kind: event.kind,
@@ -310,17 +316,17 @@ async function sendMessage() {
       scrollToBottom()
     },
     () => {
-      // Stream done
-      sessionStatus.value = 'idle'
-      stopTimer()
+      // Stream done — only stop running if agent sent a completed status event
+      if (receivedCompletedStatus) {
+        sessionStatus.value = 'idle'
+        stopTimer()
+      }
       streamController = null
       scrollToBottom()
       nextTick(() => inputRef.value?.focus())
     },
     (err) => {
       console.error('Chat stream error:', err)
-      sessionStatus.value = 'idle'
-      stopTimer()
       streamController = null
     }
   )
