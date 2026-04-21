@@ -358,7 +358,7 @@ const askQuestionOptions = computed(() => {
 .event-message-wrapper {
   display: flex;
   flex-direction: column;
-  max-width: min(82%, 520px);
+  max-width: min(88%, 720px);
 }
 
 .event-message-wrapper.align-right {
@@ -438,7 +438,7 @@ const askQuestionOptions = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: min(92%, 640px);
+  max-width: min(95%, 800px);
   padding: 9px 11px;
   border-radius: 14px;
   border: 1px solid #e5e7eb;
@@ -569,7 +569,7 @@ const askQuestionOptions = computed(() => {
 }
 
 .event-tool-result {
-  max-width: min(calc(100% - 24px), 520px);
+  max-width: min(calc(100% - 24px), 800px);
 }
 
 .event-tool-result .event-system-content,
@@ -1167,7 +1167,7 @@ const askQuestionOptions = computed(() => {
 }
 
 .event-system-card .event-system:not(.event-stream-shell):not(.event-error) {
-  max-width: min(88%, 520px);
+  max-width: min(92%, 800px);
 }
 
 .event-chat-message .event-message {
@@ -1629,7 +1629,7 @@ const askQuestionOptions = computed(() => {
   background: #f8fafc;
   align-self: flex-start;
   width: fit-content;
-  max-width: min(calc(100% - 24px), 520px);
+  max-width: min(calc(100% - 24px), 800px);
   min-width: min(240px, 100%);
   color: #475569;
 }
