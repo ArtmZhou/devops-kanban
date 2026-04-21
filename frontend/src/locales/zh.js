@@ -487,7 +487,19 @@ export default {
     status: {
       idle: '空闲',
       working: '执行中'
-    }
+    },
+    chatTitle: '对话测试',
+    chatNewSession: '新建对话',
+    chatStart: '开始对话',
+    chatNoSession: '尚未开始对话',
+    chatNoSessionHint: '点击"开始对话"以与该 Agent 进行测试对话。',
+    chatEmptyHint: '在下方输入消息开始对话',
+    chatInputPlaceholder: '输入消息... (Enter 发送, Shift+Enter 换行)',
+    chatInputHint: 'Enter 发送 · Shift+Enter 换行',
+    chatThinking: '思考中...',
+    chatReady: '就绪',
+    chatHideTools: '隐藏工具消息',
+    chatSendFailed: '发送失败'
   },
   session: {
     title: '会话',

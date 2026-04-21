@@ -141,6 +141,9 @@
 
         </div>
       </div>
+
+      <!-- 第三栏：对话测试面板 -->
+      <AgentChatPanel v-if="selectedAgent" :agent="selectedAgent" />
     </div>
 
     <!-- Add/Edit Form Modal -->
@@ -240,6 +243,7 @@ import { useSkillStore } from '../stores/skillStore'
 import { useMcpServerStore } from '../stores/mcpServerStore'
 import { ROLE_CONFIG, getRoleConfig } from '../constants/agent'
 import BaseDialog from '../components/BaseDialog.vue'
+import AgentChatPanel from '../components/AgentChatPanel.vue'
 
 const { t, locale } = useI18n()
 const agentStore = useAgentStore()
@@ -519,7 +523,7 @@ onMounted(loadAgents)
 
 /* Left panel - Agent list */
 .agent-list-panel {
-  width: 300px;
+  width: 220px;
   flex-shrink: 0;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
@@ -621,7 +625,8 @@ onMounted(loadAgents)
 
 /* Right panel - Agent detail */
 .agent-detail-panel {
-  flex: 1;
+  width: 360px;
+  flex-shrink: 0;
   background: var(--panel-bg);
   overflow: hidden;
   display: flex;
