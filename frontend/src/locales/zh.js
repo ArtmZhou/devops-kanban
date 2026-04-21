@@ -498,6 +498,7 @@ export default {
     chatInputPlaceholder: '输入消息... (Enter 发送, Shift+Enter 换行)',
     chatInputHint: 'Enter 发送 · Shift+Enter 换行',
     chatThinking: '思考中...',
+    chatRunning: '运行中',
     chatReady: '就绪',
     chatHideTools: '隐藏工具消息',
     chatHideThinking: '隐藏思考过程',
