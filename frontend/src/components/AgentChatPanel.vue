@@ -117,7 +117,7 @@
 import { ref, watch, nextTick, computed, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import SessionEventRenderer from './session/SessionEventRenderer.vue'
-import { createChatSession, deleteChatSession, getChatMessages, streamChatMessage } from '../api/agentChat.js'
+import { createChatSession, deleteChatSession, getLatestChatSession, streamChatMessage } from '../api/agentChat.js'
 import { normalizeEvents } from '../composables/useSessionEvents.js'
 
 const { t } = useI18n()
@@ -128,10 +128,6 @@ const props = defineProps({
     default: null
   }
 })
-
-// ─── Module-level state (survives component unmount/remount on navigation) ────
-// Maps agentId -> chatId so the session persists when switching panels/routes
-const persistedChatIds = new Map()
 
 // ─── Component state ──────────────────────────────────────────────────────────
 const chatId = ref(null)
@@ -185,7 +181,6 @@ async function doCreateSession(agentId) {
     currentAgentId = agentId
     sessionStatus.value = 'idle'
     messages.value = []
-    persistedChatIds.set(agentId, chatId.value)
   } catch (err) {
     console.error('Failed to start chat session:', err)
   } finally {
@@ -198,30 +193,25 @@ async function doCreateSession(agentId) {
  * Called automatically when the selected agent changes.
  */
 async function loadOrCreateSession(agentId) {
-  const storedChatId = persistedChatIds.get(agentId)
-
-  if (storedChatId) {
-    // Try to restore history from backend
-    isLoadingMessages.value = true
-    try {
-      const res = await getChatMessages(agentId, storedChatId)
-      if (res?.success && Array.isArray(res.data)) {
-        const normalized = normalizeEvents(res.data)
-        // Add a stable key for v-for (backend IDs are sequential integers per session)
-        messages.value = normalized.map(m => ({ ...m, _key: `b_${m.id}` }))
-        chatId.value = storedChatId
-        currentAgentId = agentId
-        sessionStatus.value = 'idle'
-        tempIdCounter = -1
-        nextTick(() => scrollToBottom())
-        return
-      }
-    } catch {
-      // Session may have been cleaned up on server; fall through to create new
-    } finally {
-      isLoadingMessages.value = false
+  // Query backend for the latest active session for this agent
+  isLoadingMessages.value = true
+  try {
+    const res = await getLatestChatSession(agentId)
+    if (res?.success && res.data && res.data.id) {
+      const session = res.data
+      const normalized = normalizeEvents(session.messages || [])
+      messages.value = normalized.map(m => ({ ...m, _key: `b_${m.id}` }))
+      chatId.value = session.id
+      currentAgentId = agentId
+      sessionStatus.value = 'idle'
+      tempIdCounter = -1
+      nextTick(() => scrollToBottom())
+      return
     }
-    persistedChatIds.delete(agentId)
+  } catch {
+    // No existing session or server error; fall through to create new
+  } finally {
+    isLoadingMessages.value = false
   }
 
   await doCreateSession(agentId)
@@ -246,7 +236,6 @@ async function startNewSession() {
   sessionStatus.value = 'idle'
   messages.value = []
   currentAgentId = null
-  persistedChatIds.delete(props.agent.id)
 
   await doCreateSession(props.agent.id)
 }

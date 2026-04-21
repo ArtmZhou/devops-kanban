@@ -7,6 +7,12 @@ export const createChatSession = (agentId) =>
   api.post(`/agents/${agentId}/chat/sessions`)
 
 /**
+ * Get the latest active chat session for an agent (includes messages).
+ */
+export const getLatestChatSession = (agentId) =>
+  api.get(`/agents/${agentId}/chat/sessions`)
+
+/**
  * Get all messages for a chat session.
  */
 export const getChatMessages = (agentId, chatId) =>
