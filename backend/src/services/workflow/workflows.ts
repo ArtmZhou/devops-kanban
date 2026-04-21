@@ -273,7 +273,6 @@ export function buildWorkflowFromInstance(
         segmentId = sessionInfo.segmentId;
 
         try {
-          let assembledPrompt: string | null = null;
           const result = await executeWorkflowStep({
             stepId: templateStep.id,
             worktreePath: state.worktreePath,
@@ -308,9 +307,8 @@ export function buildWorkflowFromInstance(
               }
             },
             onAssembledPrompt: async (prompt) => {
-              assembledPrompt = prompt;
               await options.lifecycle.workflowRunRepo.updateStep(options.runId, templateStep.id, {
-                assembled_prompt: assembledPrompt,
+                assembled_prompt: prompt,
               });
             },
           });
