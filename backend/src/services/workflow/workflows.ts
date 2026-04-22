@@ -16,7 +16,11 @@ const sharedStateSchema = z.object({
   projectEnv: z.record(z.string()).optional(),
 });
 
-const stepOutputSchema = z.object({ summary: z.string() });
+const stepOutputSchema = z.object({
+  summary: z.string(),
+  earlyExitDecision: z.enum(['CONTINUE', 'SUCCESS_EXIT', 'FAIL_EXIT']).optional(),
+  earlyExitReason: z.string().nullable().optional(),
+});
 
 const firstStepInputSchema = z.object({
   taskId: z.number(),
@@ -251,7 +255,16 @@ export function buildWorkflowFromInstance(
             }
 
             // Step completed successfully (no confirmation required)
-            await options.lifecycle.onStepComplete(options.runId, templateStep.id, result);
+            const earlyExitDecision = result.earlyExitDecision as 'CONTINUE' | 'SUCCESS_EXIT' | 'FAIL_EXIT' | undefined;
+            const earlyExitReason = result.earlyExitReason as string | null | undefined;
+
+            if (earlyExitDecision && (earlyExitDecision === 'SUCCESS_EXIT' || earlyExitDecision === 'FAIL_EXIT') && earlyExitReason) {
+              await options.lifecycle.onStepComplete(options.runId, templateStep.id, { summary: result.summary });
+              await options.lifecycle.onEarlyExit(options.runId, templateStep.id, earlyExitDecision, earlyExitReason);
+              return { summary: result.summary, earlyExitDecision, earlyExitReason };
+            }
+
+            await options.lifecycle.onStepComplete(options.runId, templateStep.id, result as unknown as Record<string, unknown>);
 
             return result;
           } catch (err) {

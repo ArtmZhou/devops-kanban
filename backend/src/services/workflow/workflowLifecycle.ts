@@ -519,6 +519,63 @@ class WorkflowLifecycle {
     });
   }
 
+  async onEarlyExit(
+    runId: number,
+    stepId: string,
+    decision: 'SUCCESS_EXIT' | 'FAIL_EXIT',
+    reason: string,
+  ) {
+    // Update current step with early exit info
+    await this.workflowRunRepo.updateStep(runId, stepId, {
+      early_exit: true,
+      early_exit_reason: reason,
+    });
+
+    // Cancel all PENDING steps
+    const run = await this.workflowRunRepo.findById(runId);
+    if (!run) return;
+
+    const completedAt = new Date().toISOString();
+    for (const step of run.steps) {
+      if (step.status === 'PENDING') {
+        await this.workflowRunRepo.updateStep(runId, step.step_id, {
+          status: 'CANCELLED',
+          started_at: completedAt,
+          completed_at: completedAt,
+          summary: null,
+          error: 'Skipped — previous step triggered early exit',
+        });
+      }
+    }
+
+    // Update workflow run status
+    if (decision === 'SUCCESS_EXIT') {
+      await this.workflowRunRepo.update(runId, {
+        status: 'COMPLETED',
+        current_step: null,
+      });
+      if (run.task_id) {
+        await this.taskRepo.update(run.task_id, { status: 'DONE' });
+      }
+      await this._emitNotification('COMPLETED', runId, run.task_id, {
+        currentStepId: stepId,
+        errorMessage: `AI 提前终止: ${reason}`,
+      });
+    } else {
+      await this.workflowRunRepo.update(runId, {
+        status: 'FAILED',
+        current_step: null,
+      });
+      if (run.task_id) {
+        await this.taskRepo.update(run.task_id, { status: 'TODO' });
+      }
+      await this._emitNotification('FAILED', runId, run.task_id, {
+        currentStepId: stepId,
+        errorMessage: `AI 提前终止: ${reason}`,
+      });
+    }
+  }
+
   async onStepError(runId: number, stepId: string, errorMessage: string) {
     await this._finalizeStepArtifacts(runId, stepId, 'FAILED', {
       error: errorMessage || 'Step failed',
