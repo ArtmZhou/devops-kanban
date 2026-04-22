@@ -155,9 +155,9 @@ let timerInterval = null
 let receivedCompletedStatus = false
 const COMPLETED_PATTERNS = ['完成', '结束', 'success', 'completed', 'done']
 
-function startTimer() {
+function startTimer(initialSeconds = 0) {
   stopTimer()
-  elapsedSeconds.value = 0
+  elapsedSeconds.value = initialSeconds
   timerInterval = setInterval(() => {
     elapsedSeconds.value++
   }, 1000)
@@ -238,7 +238,8 @@ async function loadOrCreateSession(agentId) {
       tempIdCounter = -1
       nextTick(() => scrollToBottom())
       if (session.status === 'running') {
-        startTimer()
+        const elapsedSec = Math.floor((Date.now() - new Date(session.updated_at).getTime()) / 1000)
+        startTimer(Math.max(0, elapsedSec))
         pollUntilIdle(agentId, session.id)
       }
       return
