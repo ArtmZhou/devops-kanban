@@ -156,6 +156,10 @@ const props = defineProps({
   assembledPrompt: {
     type: String,
     default: ''
+  },
+  disableInput: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -195,7 +199,7 @@ const displayedEvents = computed(() => {
 })
 
 const canInput = computed(() => SESSION_INPUT_STATUSES.includes(sessionStatus.value))
-const isBusy = computed(() => SESSION_BUSY_STATUSES.includes(sessionStatus.value))
+const isBusy = computed(() => SESSION_BUSY_STATUSES.includes(sessionStatus.value) || props.disableInput)
 const statusClass = computed(() => `status-${(sessionStatus.value || 'pending').toLowerCase()}`)
 const sessionStatusText = computed(() => {
   const texts = {
