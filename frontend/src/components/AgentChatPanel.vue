@@ -233,9 +233,14 @@ async function loadOrCreateSession(agentId) {
       messages.value = normalized.map(m => ({ ...m, _key: `b_${m.id}` }))
       chatId.value = session.id
       currentAgentId = agentId
-      sessionStatus.value = 'idle'
+      // Restore running state if the backend session is still processing
+      sessionStatus.value = session.status === 'running' ? 'running' : 'idle'
       tempIdCounter = -1
       nextTick(() => scrollToBottom())
+      if (session.status === 'running') {
+        startTimer()
+        pollUntilIdle(agentId, session.id)
+      }
       return
     }
   } catch {
@@ -245,6 +250,35 @@ async function loadOrCreateSession(agentId) {
   }
 
   await doCreateSession(agentId)
+}
+
+/**
+ * Poll the backend every 2 seconds until the session is no longer running.
+ * Updates messages with any new content received while the client was away.
+ */
+async function pollUntilIdle(agentId, sessionId) {
+  while (true) {
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Stop if user has switched to a different agent/session
+    if (chatId.value !== sessionId) break
+    try {
+      const res = await getLatestChatSession(agentId)
+      if (!res?.success || !res.data || res.data.id !== sessionId) break
+      const session = res.data
+      // Refresh messages with any new ones persisted by the backend
+      const normalized = normalizeEvents(session.messages || [])
+      messages.value = normalized.map(m => ({ ...m, _key: `b_${m.id}` }))
+      nextTick(() => scrollToBottom())
+      if (session.status !== 'running') {
+        sessionStatus.value = 'idle'
+        stopTimer()
+        nextTick(() => inputRef.value?.focus())
+        break
+      }
+    } catch {
+      break
+    }
+  }
 }
 
 /**
