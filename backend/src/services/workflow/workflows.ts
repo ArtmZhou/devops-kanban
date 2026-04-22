@@ -292,6 +292,9 @@ export function buildWorkflowFromInstance(
               // Look up provider_session_id stored by onProviderState during execution
               const run = await options.lifecycle.workflowRunRepo.findById(options.runId);
               providerSessionId = run?.steps.find((s) => s.step_id === templateStep.id)?.provider_session_id ?? undefined;
+              if (!providerSessionId) {
+                throw new Error(`Cannot continue step ${templateStep.id}: provider_session_id not found. The AI session may have ended before asking the question.`);
+              }
               pendingAnswer = userAnswer;
               askUserHandled = false; // reset so next question in this step is also saved
 
