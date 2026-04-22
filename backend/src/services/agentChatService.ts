@@ -123,7 +123,7 @@ class AgentChatService {
         onEvent(event);
       };
 
-      // Use continue (with providerSessionId) for Claude Code multi-turn, execute for others
+      // Use continue (with providerSessionId) for multi-turn context across all executor types
       let newProviderSessionId: string | null = null;
       const captureProviderState = async (state: { providerSessionId?: string | null }) => {
         if (state.providerSessionId) {
@@ -131,7 +131,7 @@ class AgentChatService {
         }
       };
 
-      if (agent.executorType === ExecutorType.CLAUDE_CODE && session.providerSessionId) {
+      if (session.providerSessionId) {
         await executor.continue({
           prompt: userInput,
           worktreePath: session.tempDir,
