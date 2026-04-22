@@ -152,12 +152,11 @@ let tempIdCounter = -1
 // ─── Timer state ─────────────────────────────────────────────────────────────
 const elapsedSeconds = ref(0)
 let timerInterval = null
-let receivedCompletedStatus = false
-const COMPLETED_PATTERNS = ['完成', '结束', 'success', 'completed', 'done']
 
-function startTimer() {
+
+function startTimer(initialSeconds = 0) {
   stopTimer()
-  elapsedSeconds.value = 0
+  elapsedSeconds.value = initialSeconds
   timerInterval = setInterval(() => {
     elapsedSeconds.value++
   }, 1000)
@@ -233,9 +232,15 @@ async function loadOrCreateSession(agentId) {
       messages.value = normalized.map(m => ({ ...m, _key: `b_${m.id}` }))
       chatId.value = session.id
       currentAgentId = agentId
-      sessionStatus.value = 'idle'
+      // Restore running state if the backend session is still processing
+      sessionStatus.value = session.status === 'running' ? 'running' : 'idle'
       tempIdCounter = -1
       nextTick(() => scrollToBottom())
+      if (session.status === 'running') {
+        const elapsedSec = Math.floor((Date.now() - new Date(session.updated_at).getTime()) / 1000)
+        startTimer(Math.max(0, elapsedSec))
+        pollUntilIdle(agentId, session.id)
+      }
       return
     }
   } catch {
@@ -245,6 +250,35 @@ async function loadOrCreateSession(agentId) {
   }
 
   await doCreateSession(agentId)
+}
+
+/**
+ * Poll the backend every 2 seconds until the session is no longer running.
+ * Updates messages with any new content received while the client was away.
+ */
+async function pollUntilIdle(agentId, sessionId) {
+  while (true) {
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    // Stop if user has switched to a different agent/session
+    if (chatId.value !== sessionId) break
+    try {
+      const res = await getLatestChatSession(agentId)
+      if (!res?.success || !res.data || res.data.id !== sessionId) break
+      const session = res.data
+      // Refresh messages with any new ones persisted by the backend
+      const normalized = normalizeEvents(session.messages || [])
+      messages.value = normalized.map(m => ({ ...m, _key: `b_${m.id}` }))
+      nextTick(() => scrollToBottom())
+      if (session.status !== 'running') {
+        sessionStatus.value = 'idle'
+        stopTimer()
+        nextTick(() => inputRef.value?.focus())
+        break
+      }
+    } catch {
+      break
+    }
+  }
 }
 
 /**
@@ -291,7 +325,6 @@ async function sendMessage() {
   messages.value = [...messages.value, userMsg]
   inputText.value = ''
   sessionStatus.value = 'running'
-  receivedCompletedStatus = false
   startTimer()
   scrollToBottom()
 
@@ -300,9 +333,6 @@ async function sendMessage() {
     chatId.value,
     text,
     (event) => {
-      if (event.kind === 'status' && COMPLETED_PATTERNS.some(p => (event.content || '').toLowerCase().includes(p))) {
-        receivedCompletedStatus = true
-      }
       const normalized = normalizeEvents([{
         id: tempIdCounter--,
         kind: event.kind,
@@ -316,17 +346,17 @@ async function sendMessage() {
       scrollToBottom()
     },
     () => {
-      // Stream done — only stop running if agent sent a completed status event
-      if (receivedCompletedStatus) {
-        sessionStatus.value = 'idle'
-        stopTimer()
-      }
+      // Stream done — session is idle, ready for next message
+      sessionStatus.value = 'idle'
+      stopTimer()
       streamController = null
       scrollToBottom()
       nextTick(() => inputRef.value?.focus())
     },
     (err) => {
       console.error('Chat stream error:', err)
+      sessionStatus.value = 'idle'
+      stopTimer()
       streamController = null
     }
   )
