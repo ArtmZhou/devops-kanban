@@ -398,7 +398,7 @@ export function buildWorkflowFromInstance(
         } else if (result.status === 'suspended') {
           // Workflow suspended - lifecycle already handled in onStepSuspend
           const suspendedSteps = (result as any).suspended as string[] | undefined;
-          logger.info('Workflows', `Workflow suspended at steps: ${suspendedSteps?.join(', ')}`);
+          logger.info('Workflows', `Workflow suspended at steps: ${suspendedSteps?.join(', ') ?? 'unknown'}`);
         } else if (result.status === 'failed' || result.status === 'tripwire') {
           const errorMessage = result.error?.message || 'Workflow failed';
           await options.lifecycle.onWorkflowError(options.runId, errorMessage);
