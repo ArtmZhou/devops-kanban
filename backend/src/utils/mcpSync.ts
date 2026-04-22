@@ -51,7 +51,7 @@ async function ensureMcpJsonInWorktree(
 
 /**
  * Write OpenCode MCP config: .opencode/opencode.json
- * Format: { "name": { "type": "local", "command": [...], "environment": {...}, "enabled": true } | { "type": "remote", "url": "...", "headers": {...}, "enabled": true } }
+ * Format: { "$schema": "https://opencode.ai/config.json", "mcp": { "name": { "type": "local", "command": [...], "enabled": true, "environment": {...} } | { "type": "remote", "url": "...", "enabled": true } } }
  */
 async function ensureOpenCodeMcpJson(
   mcpServerConfigs: McpServerConfig[],
@@ -67,7 +67,7 @@ async function ensureOpenCodeMcpJson(
     return;
   }
 
-  const mcpConfig: Record<string, unknown> = {};
+  const mcpServers: Record<string, unknown> = {};
 
   for (const server of mcpServerConfigs) {
     if (server.server_type === 'http') {
@@ -78,33 +78,35 @@ async function ensureOpenCodeMcpJson(
       };
       if (config.url) serverEntry.url = config.url;
       if (config.headers) serverEntry.headers = config.headers;
-      mcpConfig[server.name] = serverEntry;
+      mcpServers[server.name] = serverEntry;
     } else {
       const config = server.config;
       const serverEntry: Record<string, unknown> = {
         type: 'local',
         enabled: true,
       };
-      // command as array
       if (config.command) {
         serverEntry.command = Array.isArray(config.command)
           ? config.command
           : [config.command as string];
       }
       if (config.args && Array.isArray(config.args)) {
-        // Merge args into command array
         const cmd = Array.isArray(serverEntry.command)
           ? serverEntry.command as unknown[]
           : [];
         serverEntry.command = [...cmd, ...(config.args as unknown[])];
       }
       if (config.env) serverEntry.environment = config.env;
-      mcpConfig[server.name] = serverEntry;
+      mcpServers[server.name] = serverEntry;
     }
   }
 
   mkdirSync(opencodeDir, { recursive: true });
-  writeFileSync(mcpJsonPath, JSON.stringify(mcpConfig, null, 2), 'utf-8');
+  const mcpJson = {
+    $schema: 'https://opencode.ai/config.json',
+    mcp: mcpServers,
+  };
+  writeFileSync(mcpJsonPath, JSON.stringify(mcpJson, null, 2), 'utf-8');
 }
 
 async function cleanupMcpJson(worktreePath: string): Promise<void> {
