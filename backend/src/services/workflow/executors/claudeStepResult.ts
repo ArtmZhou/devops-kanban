@@ -1,3 +1,23 @@
+import type { EarlyExitDecision } from '../../../types/executors.js';
+
+const EARLY_EXIT_REGEX = /\{[\s]*"decision"\s*:\s*"(SUCCESS_EXIT|FAIL_EXIT|CONTINUE)"[\s,]*"reason"\s*:\s*"([^"]*)"[^}]*\}/;
+
+export function extractEarlyExitSignal(summary: string): { signal: { decision: EarlyExitDecision; reason?: string } | null; cleanSummary: string } {
+  const match = summary.match(EARLY_EXIT_REGEX);
+  if (!match) {
+    return { signal: null, cleanSummary: summary };
+  }
+
+  const signal = {
+    decision: match[1] as EarlyExitDecision,
+    reason: match[2] || undefined,
+  };
+
+  const cleanSummary = summary.replace(EARLY_EXIT_REGEX, '').trim();
+
+  return { signal, cleanSummary };
+}
+
 function extractResultFromStreamJson(stdout: string): string {
   const assistantTextParts: string[] = [];
 
