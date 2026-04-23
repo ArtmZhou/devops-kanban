@@ -131,7 +131,7 @@ async function assembleWorkflowPrompt({
     '执行完成后，只输出最后结果总结。',
     summaryInstruction,
     canEarlyExit
-      ? '如果认为目标已达成或无法继续，请在总结末尾以 JSON 格式输出：\n{"decision": "SUCCESS_EXIT", "reason": "..."}  或\n{"decision": "FAIL_EXIT", "reason": "..."}  或\n{"decision": "CONTINUE"}'
+      ? '智能终止说明：如果你认为原始需求已经完成或无法继续执行后续步骤，请在总结末尾以JSON格式输出终止决定。\n\n三个选项的含义：\n- CONTINUE：需要继续执行后续步骤（默认选项，如果不输出JSON则视为CONTINUE）。\n- SUCCESS_EXIT：原始需求已达成，后续所有步骤无需执行。这不是指当前步骤执行成功，而是指可以根据原始需求的标题和内容，判断整个任务可以提前成功结束。\n- FAIL_EXIT：无法继续执行后续步骤（遇到无法解决的问题），任务需要终止。\n\nJSON格式示例：\n{"decision": "CONTINUE"}\n或\n{"decision": "SUCCESS_EXIT", "reason": "根据原始需求的标题和内容，目标已达成，因为..."}\n或\n{"decision": "FAIL_EXIT", "reason": "无法继续，因为..."}'
       : '',
   ].filter(Boolean).join('\n\n').replaceAll('\n', '\\n');
 }
