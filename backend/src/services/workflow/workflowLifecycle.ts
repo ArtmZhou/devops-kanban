@@ -692,14 +692,27 @@ class WorkflowLifecycle {
    * Returns the latest user message content.
    * Used by the step function to wait for user answers without suspending the workflow.
    */
-  async waitForSessionResponse(sessionId: number, abortSignal?: AbortSignal): Promise<string> {
+  async waitForSessionResponse(sessionId: number, abortSignal?: AbortSignal, runId?: number): Promise<string> {
     const POLL_INTERVAL_MS = 1000;
     const MAX_WAIT_MS = 600_000; // 10 minutes timeout
     const startTime = Date.now();
+    // Stale signal: already aborted before this wait started (from a previously-cancelled run).
+    // Don't treat it as a live cancellation — the retry should be allowed to proceed.
+    const signalAlreadyAborted = abortSignal?.aborted ?? false;
 
     while (Date.now() - startTime < MAX_WAIT_MS) {
-      if (abortSignal?.aborted) {
+      // Only honour a fresh abort (signal flipped during this wait, not before)
+      if (abortSignal?.aborted && !signalAlreadyAborted) {
         throw new Error('WORKFLOW_CANCELLED');
+      }
+
+      // When the signal is stale we fall back to a DB check so that a cancel
+      // issued *during* a retry is still detected.
+      if (runId !== undefined) {
+        const run = await this.workflowRunRepo.findById(runId);
+        if (run?.status === 'CANCELLED') {
+          throw new Error('WORKFLOW_CANCELLED');
+        }
       }
 
       const session = await this.sessionRepo.findById(sessionId);
