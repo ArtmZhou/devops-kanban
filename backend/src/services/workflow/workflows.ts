@@ -106,7 +106,16 @@ export function buildWorkflowFromInstance(
       execute: async ({ inputData, state, abortSignal, abort, resumeData, suspend, suspendData }) => {
         logger.info('Workflows', `Step ${templateStep.id} starting, abortSignal exists: ${!!abortSignal}, workflowRun: ${options.runId}, resumeData: ${!!resumeData}`);
 
-        if (abortSignal) {
+        // Capture whether the signal was already aborted at step start.
+        // A stale signal (aborted before this step began) comes from a previously-cancelled
+        // Mastra Run whose AbortController is permanently aborted. We must NOT treat it as a
+        // live cancellation — doing so would abort a legitimate retry immediately.
+        const signalAlreadyAborted = abortSignal?.aborted ?? false;
+        if (signalAlreadyAborted) {
+          logger.warn('Workflows', `Step ${templateStep.id} received stale abort signal (from previous cancel), ignoring for retry. workflowRun: ${options.runId}`);
+        }
+
+        if (abortSignal && !signalAlreadyAborted) {
           abortSignal.addEventListener('abort', () => {
             logger.info('Workflows', `Step ${templateStep.id} received abort signal! workflowRun: ${options.runId}`);
           });
@@ -234,7 +243,8 @@ export function buildWorkflowFromInstance(
               });
             }
 
-            if (abortSignal?.aborted) {
+            // Only abort on a fresh signal — ignore stale signals from a previously-cancelled run
+            if (abortSignal?.aborted && !signalAlreadyAborted) {
               abort();
               return { summary: '' };
             }
@@ -285,7 +295,7 @@ export function buildWorkflowFromInstance(
               }
 
               // Wait for user to respond via chat (continueSession changes session from ASK_USER to RUNNING)
-              const userAnswer = await options.lifecycle.waitForSessionResponse(sessionId!, abortSignal);
+              const userAnswer = await options.lifecycle.waitForSessionResponse(sessionId!, abortSignal, options.runId);
 
               logger.info('Workflows', `Step ${templateStep.id} received user response, continuing conversation`);
 

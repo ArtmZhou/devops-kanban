@@ -237,8 +237,10 @@ async function defaultSpawnImpl({
 
     if (abortSignal) {
       if (abortSignal.aborted) {
-        logger.info('ClaudeStepRunner', 'Already aborted, killing process immediately');
-        killProcessTree(proc);
+        // Stale abort signal from a cancelled Mastra Run — Mastra reuses the cached
+        // Run instance whose AbortController was already aborted during cancel().
+        // Do NOT kill the process; let the retry execution proceed normally.
+        logger.warn('ClaudeStepRunner', `Abort signal already set (stale from cancelled run), ignoring to allow retry. pid: ${proc.pid}`);
       } else {
         const abortHandler = () => {
           logger.info('ClaudeStepRunner', `Abort event received, killing process. pid: ${proc.pid}`);
@@ -358,7 +360,8 @@ class ClaudeStepRunner {
     }
 
     if (execution.exitCode !== 0) {
-      throw new Error(`Claude step failed with exit code ${execution.exitCode}: ${execution.stderr || execution.stdout}`);
+      const parts = [execution.stderr, execution.stdout].filter(Boolean);
+      throw new Error(`Claude step failed with exit code ${execution.exitCode}: ${parts.join('\n')}`);
     }
 
     let parsedResult;

@@ -47,7 +47,7 @@
       </div>
 
       <!-- 右侧：角色详情面板 -->
-      <div class="agent-detail-panel" :class="{ 'has-chat': !!selectedAgent }">
+      <div class="agent-detail-panel" :class="{ 'has-chat': !!selectedAgent && !isChatCollapsed }">
         <!-- 空状态：未选中角色 -->
         <div v-if="!selectedAgent" class="empty-detail">
           <p>{{ $t('agent.selectAgentHint') }}</p>
@@ -143,7 +143,7 @@
       </div>
 
       <!-- 第三栏：对话测试面板 -->
-      <AgentChatPanel v-if="selectedAgent" :agent="selectedAgent" />
+      <AgentChatPanel v-if="selectedAgent" :agent="selectedAgent" :collapsed="isChatCollapsed" @toggle-collapse="isChatCollapsed = !isChatCollapsed" />
     </div>
 
     <!-- Add/Edit Form Modal -->
@@ -258,6 +258,7 @@ const editingAgent = ref(null)
 
 // Selected agent for detail view
 const selectedAgent = ref(null)
+const isChatCollapsed = ref(false)
 
 const form = ref({
   name: '',
