@@ -47,7 +47,7 @@
       </div>
 
       <!-- 右侧：角色详情面板 -->
-      <div class="agent-detail-panel">
+      <div class="agent-detail-panel" :class="{ 'has-chat': !!selectedAgent }">
         <!-- 空状态：未选中角色 -->
         <div v-if="!selectedAgent" class="empty-detail">
           <p>{{ $t('agent.selectAgentHint') }}</p>
@@ -141,6 +141,9 @@
 
         </div>
       </div>
+
+      <!-- 第三栏：对话测试面板 -->
+      <AgentChatPanel v-if="selectedAgent" :agent="selectedAgent" />
     </div>
 
     <!-- Add/Edit Form Modal -->
@@ -240,6 +243,9 @@ import { useSkillStore } from '../stores/skillStore'
 import { useMcpServerStore } from '../stores/mcpServerStore'
 import { ROLE_CONFIG, getRoleConfig } from '../constants/agent'
 import BaseDialog from '../components/BaseDialog.vue'
+import AgentChatPanel from '../components/AgentChatPanel.vue'
+
+defineOptions({ name: 'AgentConfig' })
 
 const { t, locale } = useI18n()
 const agentStore = useAgentStore()
@@ -519,7 +525,7 @@ onMounted(loadAgents)
 
 /* Left panel - Agent list */
 .agent-list-panel {
-  width: 300px;
+  width: 220px;
   flex-shrink: 0;
   background: var(--panel-bg);
   border: 1px solid var(--border-color);
@@ -622,6 +628,7 @@ onMounted(loadAgents)
 /* Right panel - Agent detail */
 .agent-detail-panel {
   flex: 1;
+  min-width: 0;
   background: var(--panel-bg);
   overflow: hidden;
   display: flex;
@@ -629,6 +636,11 @@ onMounted(loadAgents)
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
+}
+
+/* When the chat panel is also visible, clamp detail panel to a fixed width */
+.agent-detail-panel.has-chat {
+  flex: 1;
 }
 
 .agent-title-row {

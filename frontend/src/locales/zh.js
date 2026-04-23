@@ -487,7 +487,23 @@ export default {
     status: {
       idle: '空闲',
       working: '执行中'
-    }
+    },
+    chatTitle: '对话测试',
+    chatTitleHint: '本对话仅作为测试agent-cli连通性使用，工作空间为临时空白目录！',
+    chatNewSession: '新建对话',
+    chatStart: '开始对话',
+    chatNoSession: '尚未开始对话',
+    chatNoSessionHint: '点击"开始对话"以与该 Agent 进行测试对话。',
+    chatEmptyHint: '在下方输入消息开始对话',
+    chatInputPlaceholder: '输入消息... (Enter 发送, Shift+Enter 换行)',
+    chatInputHint: 'Enter 发送 · Shift+Enter 换行',
+    chatThinking: '思考中...',
+    chatRunning: '运行中',
+    chatReady: '就绪',
+    chatHideTools: '隐藏工具消息',
+    chatHideThinking: '隐藏思考过程',
+    chatAutoScroll: '自动滚动',
+    chatSendFailed: '发送失败'
   },
   session: {
     title: '会话',
