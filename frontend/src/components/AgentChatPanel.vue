@@ -1,5 +1,15 @@
 <template>
-  <div class="agent-chat-panel">
+  <div class="agent-chat-panel" :class="{ collapsed }">
+    <!-- Collapse toggle button -->
+    <div class="chat-collapse-toggle" @click="emit('toggleCollapse')" :title="collapsed ? 'Expand Chat' : 'Collapse Chat'">
+      <span class="collapse-arrow" :class="{ collapsed }">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </span>
+    </div>
+
+    <template v-if="!collapsed">
     <!-- Panel header -->
     <div class="chat-panel-header">
       <div class="chat-panel-title-row">
@@ -113,6 +123,7 @@
       </div>
       <p class="chat-input-hint">{{ $t('agent.chatInputHint') }}</p>
     </div>
+    </template>
   </div>
 </template>
 
@@ -129,8 +140,14 @@ const props = defineProps({
   agent: {
     type: Object,
     default: null
+  },
+  collapsed: {
+    type: Boolean,
+    default: false
   }
 })
+
+const emit = defineEmits(['toggleCollapse'])
 
 // ─── Component state ──────────────────────────────────────────────────────────
 const chatId = ref(null)
@@ -429,6 +446,51 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  position: relative;
+  transition: flex 0.2s ease;
+}
+
+.agent-chat-panel.collapsed {
+  flex: 0 0 36px;
+  min-width: 36px;
+  overflow: visible;
+}
+
+/* Collapse toggle button */
+.chat-collapse-toggle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 48px;
+  background: #111827;
+  border: none;
+  border-radius: 8px 0 0 8px;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  box-shadow: -2px 0 10px rgba(15, 23, 42, 0.15);
+}
+
+.chat-collapse-toggle:hover {
+  width: 28px;
+  background: #0f172a;
+}
+
+.collapse-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.collapse-arrow.collapsed {
+  transform: rotate(180deg);
 }
 
 /* Header */
