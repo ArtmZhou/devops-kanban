@@ -111,7 +111,9 @@ class SessionService {
             ask_user_answer: input,
           });
         } catch (err) {
-          console.error(`[SessionService] Failed to resume workflow run ${session.workflow_run_id}:`, err instanceof Error ? err.message : String(err));
+          // Revert session to ASK_USER so the user can retry
+          await this.sessionRepo.update(sessionId, { status: 'ASK_USER' });
+          throw err;
         }
       }
 
