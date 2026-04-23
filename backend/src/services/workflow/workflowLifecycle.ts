@@ -647,15 +647,17 @@ class WorkflowLifecycle {
 
   /**
    * Called when an executor encounters AskUserQuestion during a step.
-   * Only changes session status to ASK_USER — does NOT suspend the workflow.
-   * The workflow step function polls for session status and handles execution internally.
+   * Saves the ask_user event to session, sets session to ASK_USER,
+   * and updates the workflow run and step to SUSPENDED so the Mastra workflow
+   * can be resumed after server restart.
    */
   async onSessionAskUser(
     runId: number,
     stepId: string,
     data: { ask_user_question: Record<string, unknown> },
   ) {
-    const { step } = await this._getRunStep(runId, stepId);
+    const { run, step } = await this._getRunStep(runId, stepId);
+    const completedAt = new Date().toISOString();
 
     // Save ask_user event to session
     if (step.session_id) {
@@ -664,7 +666,7 @@ class WorkflowLifecycle {
       if (latestSegment?.status === 'RUNNING') {
         await this.sessionSegmentRepo.update(latestSegment.id, {
           status: 'ASK_USER',
-          completed_at: new Date().toISOString(),
+          completed_at: completedAt,
         });
       }
 
@@ -684,7 +686,32 @@ class WorkflowLifecycle {
       });
     }
 
-    // Do NOT update workflow run status or step status — workflow stays RUNNING
+    // Update step to SUSPENDED with ask_user_question data
+    await this.workflowRunRepo.updateStep(runId, stepId, {
+      status: 'SUSPENDED',
+      completed_at: completedAt,
+      suspend_reason: 'AI 提出了问题',
+      ask_user_question: data.ask_user_question,
+    });
+
+    // Update workflow run to SUSPENDED
+    await this.workflowRunRepo.update(runId, {
+      status: 'SUSPENDED',
+      current_step: stepId,
+    });
+
+    this._clearStepAttemptSegmentId(runId, stepId);
+
+    // Emit notification so frontend updates immediately
+    if (run?.task_id) {
+      await this._emitNotification('SUSPENDED', runId, run.task_id, {
+        currentStepId: stepId,
+        suspendInfo: {
+          reason: 'AI 提出了问题',
+          askUserQuestion: data.ask_user_question,
+        },
+      });
+    }
   }
 
   /**
