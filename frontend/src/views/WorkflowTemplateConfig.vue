@@ -226,9 +226,7 @@
                             </span>
                           </div>
                           <div v-if="previewSteps[index]?.skillNames?.length" class="workflow-step-card__skills">
-                            <el-tooltip v-for="skill in previewSteps[index].skillNames" :key="skill.name" :content="skill.description" :disabled="!skill.description" placement="top">
-                              <span class="workflow-skill-tag">{{ skill.name }}</span>
-                            </el-tooltip>
+                            <span v-for="skill in previewSteps[index].skillNames" :key="skill.name" class="workflow-skill-tag">{{ skill.name }}</span>
                           </div>
                         </div>
                       </div>
