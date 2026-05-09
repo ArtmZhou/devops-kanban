@@ -256,9 +256,9 @@ test.test('assembleWorkflowPrompt includes external_id when present', async () =
     isFirstStep: true,
   });
 
-  assert.ok(prompt.includes('外部需求单号：RR-12345'), 'prompt should include external_id');
+  assert.ok(prompt.includes('需求编码：RR-12345'), 'prompt should include external_id');
   const titleIdx = prompt.indexOf('原始需求标题');
-  const externalIdx = prompt.indexOf('外部需求单号');
+  const externalIdx = prompt.indexOf('需求编码');
   const descIdx = prompt.indexOf('原始需求内容');
   assert.ok(titleIdx < externalIdx && externalIdx < descIdx, 'external_id should be between title and description');
 });
@@ -276,7 +276,7 @@ test.test('assembleWorkflowPrompt omits external_id section when empty', async (
     isFirstStep: true,
   });
 
-  assert.ok(!prompt.includes('外部需求单号'), 'prompt should not include external_id section when empty');
+  assert.ok(!prompt.includes('需求编码'), 'prompt should not include external_id section when empty');
 });
 
 test.test('assembleWorkflowPrompt omits external_id section when undefined', async () => {
@@ -291,5 +291,5 @@ test.test('assembleWorkflowPrompt omits external_id section when undefined', asy
     isFirstStep: true,
   });
 
-  assert.ok(!prompt.includes('外部需求单号'), 'prompt should not include external_id section when undefined');
+  assert.ok(!prompt.includes('需求编码'), 'prompt should not include external_id section when undefined');
 });

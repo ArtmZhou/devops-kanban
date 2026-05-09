@@ -121,7 +121,7 @@ async function assembleWorkflowPrompt({
   return [
     `当前步骤：${step.name}`,
     `原始需求标题：\n${state.taskTitle}`,
-    state.taskExternalId ? `外部需求单号：${state.taskExternalId}` : '',
+    state.taskExternalId ? `需求编码：${state.taskExternalId}` : '',
     `原始需求内容：\n${state.taskDescription}`,
     upstreamSummaries.length > 0
       ? ['上游步骤摘要：', ...upstreamSummaries.map((item) => `- ${item.stepId}:\n${item.summary}`)].join('\n')
