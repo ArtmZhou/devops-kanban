@@ -14,6 +14,7 @@ const sharedStateSchema = z.object({
   taskDescription: z.string(),
   worktreePath: z.string(),
   projectEnv: z.record(z.string()).optional(),
+  taskExternalId: z.string().optional(),
 });
 
 const stepOutputSchema = z.object({
@@ -28,6 +29,7 @@ const firstStepInputSchema = z.object({
   taskDescription: z.string(),
   worktreePath: z.string(),
   projectEnv: z.record(z.string()).optional(),
+  taskExternalId: z.string().optional(),
 });
 
 // Suspend/resume schemas for confirmation steps and AskUserQuestion
