@@ -233,6 +233,7 @@ export function buildWorkflowFromInstance(
                   taskTitle: state.taskTitle,
                   taskDescription: state.taskDescription,
                   worktreePath: state.worktreePath,
+                  ...(state.taskExternalId ? { taskExternalId: state.taskExternalId } : {}),
                   ...(state.projectEnv ? { projectEnv: state.projectEnv } : {}),
                 },
                 inputData,

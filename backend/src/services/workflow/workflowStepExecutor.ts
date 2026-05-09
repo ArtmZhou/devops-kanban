@@ -25,6 +25,7 @@ interface ExecuteWorkflowStepInput {
     taskDescription: string;
     worktreePath: string;
     projectEnv?: Record<string, string>;
+    taskExternalId?: string;
   };
   inputData: Record<string, unknown>;
   upstreamStepIds?: string[];
