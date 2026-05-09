@@ -150,12 +150,13 @@ const workflowTemplateRoutes: FastifyPluginAsync<WorkflowTemplateRouteOptions> =
       upstreamSteps?: Array<{ stepId: string; name: string }>;
       taskTitle?: string;
       taskDescription?: string;
+      taskExternalId?: string;
       projectEnv?: Record<string, string>;
       canEarlyExit?: boolean;
     };
   }>('/preview-prompt', async (request, reply) => {
     try {
-      const { step, upstreamSteps = [], taskTitle, taskDescription, projectEnv, canEarlyExit } = request.body || {};
+      const { step, upstreamSteps = [], taskTitle, taskDescription, taskExternalId, projectEnv, canEarlyExit } = request.body || {};
       if (!step || typeof step.name !== 'string' || typeof step.instructionPrompt !== 'string') {
         reply.code(400);
         return errorResponse('step.name and step.instructionPrompt are required');
@@ -190,7 +191,7 @@ const workflowTemplateRoutes: FastifyPluginAsync<WorkflowTemplateRouteOptions> =
         projectEnv?: Record<string, string>;
       } = {
         step,
-        state: { taskTitle: taskTitle || '{{示例需求标题}}', taskDescription: taskDescription || '{{示例需求描述内容}}' },
+        state: { taskTitle: taskTitle || '{{示例需求标题}}', taskDescription: taskDescription || '{{示例需求描述内容}}', ...(taskExternalId ? { taskExternalId } : {}) },
         inputData,
         upstreamStepIds: upstreamSteps.map((s) => s.stepId),
         ...(agent ? { agent } : {}),

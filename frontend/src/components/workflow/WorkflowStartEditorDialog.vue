@@ -256,6 +256,7 @@ const props = defineProps({
   draftTemplate: { type: Object, default: null },
   taskTitle: { type: String, default: '' },
   taskDescription: { type: String, default: '' },
+  taskExternalId: { type: String, default: '' },
   projectEnv: { type: Object, default: () => ({}) }
 })
 
@@ -497,6 +498,7 @@ const handlePreviewPrompt = async () => {
       upstreamSteps,
       ...(props.taskTitle ? { taskTitle: props.taskTitle } : {}),
       ...(props.taskDescription ? { taskDescription: props.taskDescription } : {}),
+      ...(props.taskExternalId ? { taskExternalId: props.taskExternalId } : {}),
       ...(Object.keys(props.projectEnv).length > 0 ? { projectEnv: props.projectEnv } : {}),
       ...(step.canEarlyExit ? { canEarlyExit: true } : {}),
     })

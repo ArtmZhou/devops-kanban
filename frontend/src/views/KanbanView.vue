@@ -570,6 +570,7 @@
       :draft-template="workflowStartDraftTemplate"
       :task-title="selectedTask?.title || ''"
       :task-description="selectedTask?.description || ''"
+      :task-external-id="selectedTask?.external_id || ''"
       :project-env="currentProjectEnv"
       @confirm="handleWorkflowStartEditorConfirm"
     />
