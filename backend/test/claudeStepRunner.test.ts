@@ -99,7 +99,7 @@ test.test('ClaudeStepRunner includes diagnostics when stdout summary is missing'
       exitCode: 0,
       stdout: '   \n\n',
       stderr: 'stderr line 1',
-      commandSummary: '"npx" "-y" "@anthropic-ai/claude-code@2.1.62" "-p" "prompt"',
+      commandSummary: '"npx" "-y" "@anthropic-ai/claude-code" "-p" "prompt"',
       cwd: '/tmp/worktree',
       prompt: 'prompt body',
       proc: null,

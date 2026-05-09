@@ -5,19 +5,19 @@ import { resolveCommand } from '../src/services/workflow/executors/commandResolv
 
 test.test('resolveCommand uses executor default command when no override is set', () => {
   assert.deepEqual(resolveCommand({
-    defaultCommand: ['npx', '-y', '@anthropic-ai/claude-code@2.1.62'],
+    defaultCommand: ['npx', '-y', '@anthropic-ai/claude-code'],
     executorConfig: { commandOverride: null, args: [], env: {} },
     processEnv: { PATH: 'x' },
   }), {
     command: 'npx',
-    args: ['-y', '@anthropic-ai/claude-code@2.1.62'],
+    args: ['-y', '@anthropic-ai/claude-code'],
     env: { PATH: 'x' },
   });
 });
 
 test.test('resolveCommand merges command override args and env', () => {
   const resolved = resolveCommand({
-    defaultCommand: ['npx', '-y', '@anthropic-ai/claude-code@2.1.62'],
+    defaultCommand: ['npx', '-y', '@anthropic-ai/claude-code'],
     executorConfig: {
       commandOverride: 'node custom-cli.js',
       args: ['--foo'],
