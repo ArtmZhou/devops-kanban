@@ -240,3 +240,56 @@ test.test('assembleWorkflowPrompt renders projectEnv placeholders in instruction
   assert.ok(decoded.includes('执行流水线 789'), `Expected rendered prompt to include "执行流水线 789", got: ${decoded}`);
   assert.ok(!decoded.includes('{{PIPELINE_ID}}'), `Expected no {{PIPELINE_ID}} in prompt, got: ${decoded}`);
 });
+
+// --- taskExternalId tests ---
+
+test.test('assembleWorkflowPrompt includes external_id when present', async () => {
+  const prompt = await assembleWorkflowPrompt({
+    step: { name: '开发', instructionPrompt: '实现这个功能' },
+    state: {
+      taskTitle: '用户登录',
+      taskDescription: '需要实现用户登录功能',
+      taskExternalId: 'RR-12345',
+    },
+    inputData: {},
+    upstreamStepIds: [],
+    isFirstStep: true,
+  });
+
+  assert.ok(prompt.includes('外部需求单号：RR-12345'), 'prompt should include external_id');
+  const titleIdx = prompt.indexOf('原始需求标题');
+  const externalIdx = prompt.indexOf('外部需求单号');
+  const descIdx = prompt.indexOf('原始需求内容');
+  assert.ok(titleIdx < externalIdx && externalIdx < descIdx, 'external_id should be between title and description');
+});
+
+test.test('assembleWorkflowPrompt omits external_id section when empty', async () => {
+  const prompt = await assembleWorkflowPrompt({
+    step: { name: '开发', instructionPrompt: '实现这个功能' },
+    state: {
+      taskTitle: '用户登录',
+      taskDescription: '需要实现用户登录功能',
+      taskExternalId: '',
+    },
+    inputData: {},
+    upstreamStepIds: [],
+    isFirstStep: true,
+  });
+
+  assert.ok(!prompt.includes('外部需求单号'), 'prompt should not include external_id section when empty');
+});
+
+test.test('assembleWorkflowPrompt omits external_id section when undefined', async () => {
+  const prompt = await assembleWorkflowPrompt({
+    step: { name: '开发', instructionPrompt: '实现这个功能' },
+    state: {
+      taskTitle: '用户登录',
+      taskDescription: '需要实现用户登录功能',
+    },
+    inputData: {},
+    upstreamStepIds: [],
+    isFirstStep: true,
+  });
+
+  assert.ok(!prompt.includes('外部需求单号'), 'prompt should not include external_id section when undefined');
+});
