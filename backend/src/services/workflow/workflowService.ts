@@ -473,6 +473,7 @@ class WorkflowService {
           taskDescription: task.description || '',
           worktreePath: executionPath,
           projectEnv,
+          taskExternalId: task.external_id || '',
         },
       });
 
