@@ -288,12 +288,14 @@ class WorkflowService {
           taskDescription: task.description || '',
           worktreePath: task.execution_path,
           projectEnv: task.project_env,
+          taskExternalId: task.external_id || '',
         },
         initialState: {
           taskTitle: task.title || 'Untitled Task',
           taskDescription: task.description || '',
           worktreePath: task.execution_path,
           projectEnv: task.project_env,
+          taskExternalId: task.external_id || '',
         },
       });
 
