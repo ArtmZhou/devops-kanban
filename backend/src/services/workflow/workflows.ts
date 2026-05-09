@@ -330,14 +330,12 @@ export function buildWorkflowFromInstance(
 
               // Suspend the Mastra workflow — state is persisted to DB, survives server restart.
               // When resumed, execute() is called again with resumeData.ask_user_answer populated.
-              await suspend({
+              return await suspend({
                 reason: 'AI 提出了问题',
                 stepName: templateStep.name,
                 providerSessionId,
                 askUserQuestion: anyErr.askUserQuestion,
               });
-              // suspend() does not return — execution ends here.
-              // The workflow is resumed by resumeWorkflow() or SessionService.continue().
             }
 
             // Handle cancellation or timeout while waiting for user input
