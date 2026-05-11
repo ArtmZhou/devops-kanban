@@ -16,6 +16,7 @@ import { cleanupMcpJson, cleanupOpenCodeMcpJson } from '../../utils/mcpSync.js';
 import { logger } from '../../utils/logger.js';
 import { resolve } from 'node:path';
 import { type StepSnapshot, WorkflowNotificationEvent } from '../notificationEvents.js';
+import { taskService } from '../taskService.js';
 
 class WorkflowLifecycle {
   workflowRunRepo: WorkflowRunRepository;
@@ -564,6 +565,7 @@ class WorkflowLifecycle {
       });
       if (run.task_id) {
         await this.taskRepo.update(run.task_id, { status: 'DONE' });
+        await taskService.onTaskStatusChange(run.task_id, 'DONE');
       }
       await this._emitNotification('COMPLETED', runId, run.task_id, {
         currentStepId: stepId,
@@ -868,6 +870,7 @@ class WorkflowLifecycle {
 
     if (run.task_id) {
       await this.taskRepo.update(run.task_id, { status: 'DONE' });
+      await taskService.onTaskStatusChange(run.task_id, 'DONE');
     }
 
     // Emit notification hook

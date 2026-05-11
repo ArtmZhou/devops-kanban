@@ -7,7 +7,7 @@ import { ProjectRepository } from '../repositories/projectRepository.js';
 import { AgentRepository } from '../repositories/agentRepository.js';
 import { McpServerRepository } from '../repositories/mcpServerRepository.js';
 import { WorkflowService } from './workflow/workflowService.js';
-import { createWorktree, cleanupWorktree, isGitRepository, buildBranchName } from '../utils/git.js';
+import { createWorktree, cleanupWorktree, isGitRepository, buildBranchName, ensureExternalRepo, getExternalRepoPath } from '../utils/git.js';
 import { ensureMcpJsonInWorktree } from '../utils/mcpSync.js';
 import { ValidationError, NotFoundError, BusinessError, InternalError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
@@ -108,6 +108,7 @@ class TaskService {
       status: taskData.status || 'TODO',
       priority: taskData.priority || 'MEDIUM',
       source: 'manual',
+      depends_on: [],
     };
 
     if (taskData.assignee !== undefined) createData.assignee = taskData.assignee;
@@ -138,7 +139,13 @@ class TaskService {
   }
 
   async updateStatus(taskId: number, status: string) {
-    return await this.taskRepo.update(taskId, { status });
+    const current = await this.taskRepo.findById(taskId);
+    const oldStatus = current?.status;
+    const updated = await this.taskRepo.update(taskId, { status });
+    if (updated && oldStatus !== status) {
+      await this.onTaskStatusChange(taskId, status);
+    }
+    return updated;
   }
 
   async startTask(taskId: number, body: StartTaskInput) {
@@ -220,17 +227,24 @@ class TaskService {
       throw new NotFoundError('未找到任务', 'Task not found', { taskId });
     }
 
-    const project = await this.projectRepo.findById(task.project_id) as ProjectEntity | null;
-    if (!project) {
-      throw new NotFoundError('未找到项目', 'Project not found', { projectId: task.project_id });
-    }
-
-    if (!project.local_path || !fs.existsSync(project.local_path)) {
-      throw new ValidationError('项目未配置本地路径或路径不存在，请先在项目设置中添加有效的 local_path', 'Project local_path is not configured or does not exist', { projectId: project.id });
-    }
-
+    let repoPath: string;
     try {
-      const repoPath = await this.getOrCloneRepo(project);
+      if (task.target_repo_url) {
+        // External repo — not linked to any Coplat project
+        repoPath = await ensureExternalRepo(task.target_repo_url);
+      } else {
+        const project = await this.projectRepo.findById(task.project_id) as ProjectEntity | null;
+        if (!project) {
+          throw new NotFoundError('未找到项目', 'Project not found', { projectId: task.project_id });
+        }
+
+        if (!project.local_path && !project.git_url) {
+          throw new ValidationError('项目未配置本地路径或 Git URL', 'Project has neither local_path nor git_url', { projectId: project.id });
+        }
+
+        repoPath = await this.getOrCloneRepo(project);
+      }
+
       const worktreePath = createWorktree(taskId, task.title, repoPath);
       const branchName = buildBranchName(taskId, task.title);
       await this.taskRepo.update(taskId, {
@@ -300,8 +314,13 @@ class TaskService {
     }
 
     try {
-      const project = await this.projectRepo.findById(task.project_id) as ProjectEntity | null;
-      const repoPath = project?.local_path || (project?.git_url ? path.join('/tmp/claude-repos', String(project.id)) : process.cwd());
+      let repoPath: string;
+      if (task.target_repo_url) {
+        repoPath = getExternalRepoPath(task.target_repo_url);
+      } else {
+        const project = await this.projectRepo.findById(task.project_id) as ProjectEntity | null;
+        repoPath = project?.local_path || (project?.git_url ? path.join('/tmp/claude-repos', String(project.id)) : process.cwd());
+      }
 
       let branchName = task.worktree_branch;
       if (!branchName && task.title) {
@@ -378,7 +397,10 @@ class TaskService {
     return this.taskRepo.findDependents(taskId);
   }
 
-  async onTaskStatusChange(taskId: number, newStatus: string): Promise<void> {
+  async onTaskStatusChange(taskId: number, newStatus: string, visited: Set<number> = new Set()): Promise<void> {
+    if (visited.has(taskId)) return;
+    visited.add(taskId);
+
     if (newStatus === 'DONE') {
       const dependents = await this.taskRepo.findDependents(taskId);
       for (const dep of dependents) {
@@ -386,15 +408,16 @@ class TaskService {
         const upstreams = await Promise.all((dep.depends_on ?? []).map(id => this.taskRepo.findById(id)));
         const allDone = upstreams.every(u => u?.status === 'DONE');
         if (allDone) {
-          await this.taskRepo.update(dep.id, { status: 'TODO' } as any);
+          await this.taskRepo.update(dep.id, { status: 'TODO' });
+          await this.onTaskStatusChange(dep.id, 'TODO', visited);
         }
       }
     } else if (newStatus === 'BLOCKED' || newStatus === 'CANCELLED') {
       const dependents = await this.taskRepo.findDependents(taskId);
       for (const dep of dependents) {
         if (dep.status === 'DONE' || dep.status === 'BLOCKED' || dep.status === 'CANCELLED') continue;
-        await this.taskRepo.update(dep.id, { status: 'BLOCKED' } as any);
-        await this.onTaskStatusChange(dep.id, 'BLOCKED');
+        await this.taskRepo.update(dep.id, { status: 'BLOCKED' });
+        await this.onTaskStatusChange(dep.id, 'BLOCKED', visited);
       }
     }
   }
@@ -440,7 +463,7 @@ class TaskService {
         target_repo_url: s.linked_project_id == null ? s.target_repo_url : null,
         auto_execute_template_id: s.template_id,
         labels: [],
-      } as any);
+      });
 
       created.push(task);
     }
