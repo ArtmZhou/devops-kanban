@@ -383,7 +383,7 @@ class TaskService {
       const dependents = await this.taskRepo.findDependents(taskId);
       for (const dep of dependents) {
         if (dep.status !== 'WAITING') continue;
-        const upstreams = await Promise.all(dep.depends_on.map(id => this.taskRepo.findById(id)));
+        const upstreams = await Promise.all((dep.depends_on ?? []).map(id => this.taskRepo.findById(id)));
         const allDone = upstreams.every(u => u?.status === 'DONE');
         if (allDone) {
           await this.taskRepo.update(dep.id, { status: 'TODO' } as any);
