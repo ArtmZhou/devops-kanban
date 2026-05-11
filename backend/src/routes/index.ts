@@ -15,3 +15,4 @@ export { bundleRoutes } from './bundle.js';
 export { notificationRoutes } from './notifications.js';
 export { settingsRoutes } from './settings.js';
 export { presetRoutes } from './presets.js';
+export { default as splitSuggestionsRoutes } from './splitSuggestions.js';
