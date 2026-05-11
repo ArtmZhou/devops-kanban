@@ -12,7 +12,8 @@ import { ensureMcpJsonInWorktree } from '../utils/mcpSync.js';
 import { ValidationError, NotFoundError, BusinessError, InternalError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 
-import type { TaskEntity, ProjectEntity } from '../types/entities.ts';
+import { hasCycle } from './workflow/dependencyValidator.js';
+import type { Suggestion, TaskEntity, ProjectEntity } from '../types/entities.ts';
 import type { CreateTaskInput, StartTaskInput, UpdateTaskInput } from '../types/dto/tasks.js';
 
 interface WorktreeResult {
@@ -372,6 +373,57 @@ class TaskService {
 
     return { root, nodes };
   }
+
+  async batchCreate(input: {
+    parent_task_id: number;
+    suggestions: Suggestion[];
+  }): Promise<TaskEntity[]> {
+    const enabled = input.suggestions
+      .map((s, originalIdx) => ({ s, originalIdx }))
+      .filter(({ s }) => s.enabled);
+
+    const indexMap = new Map<number, number>();
+    enabled.forEach((e, i) => indexMap.set(e.originalIdx, i));
+
+    const remappedDeps = enabled.map(({ s }) =>
+      s.depends_on_indices
+        .map(oi => indexMap.get(oi))
+        .filter((i): i is number => i !== undefined),
+    );
+
+    if (hasCycle(remappedDeps.map(d => ({ depends_on_indices: d })))) {
+      throw new Error('suggestions contain a dependency cycle');
+    }
+
+    const parent = await this.taskRepo.findById(input.parent_task_id);
+    if (!parent) throw new Error(`parent task ${input.parent_task_id} not found`);
+
+    const created: TaskEntity[] = [];
+    for (let i = 0; i < enabled.length; i++) {
+      const { s } = enabled[i]!;
+      const deps = remappedDeps[i]!.map(pos => created[pos]?.id).filter((id): id is number => id != null);
+
+      const task = await this.taskRepo.create({
+        title: s.title,
+        description: s.description,
+        project_id: s.linked_project_id ?? parent.project_id,
+        status: deps.length === 0 ? 'TODO' : 'WAITING',
+        priority: 'MEDIUM',
+        source: 'internal',
+        parent_task_id: input.parent_task_id,
+        depends_on: deps,
+        target_repo_url: s.linked_project_id == null ? s.target_repo_url : null,
+        auto_execute_template_id: s.template_id,
+        labels: [],
+      } as any);
+
+      created.push(task);
+    }
+
+    return created;
+  }
 }
 
 export { TaskService };
+
+export const taskService = new TaskService();

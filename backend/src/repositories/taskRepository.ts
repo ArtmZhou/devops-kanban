@@ -191,3 +191,4 @@ class TaskRepository extends BaseRepository<TaskEntity> {
 
 export { TaskRepository };
 export type { TaskStatusCounts };
+export const taskRepository = new TaskRepository();

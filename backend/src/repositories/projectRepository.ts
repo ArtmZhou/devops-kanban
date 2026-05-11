@@ -34,3 +34,4 @@ class ProjectRepository extends BaseRepository<ProjectEntity> {
 }
 
 export { ProjectRepository };
+export const projectRepository = new ProjectRepository();
