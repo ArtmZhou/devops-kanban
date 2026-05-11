@@ -374,6 +374,27 @@ class TaskService {
     return { root, nodes };
   }
 
+  async onTaskStatusChange(taskId: number, newStatus: string): Promise<void> {
+    if (newStatus === 'DONE') {
+      const dependents = await this.taskRepo.findDependents(taskId);
+      for (const dep of dependents) {
+        if (dep.status !== 'WAITING') continue;
+        const upstreams = await Promise.all(dep.depends_on.map(id => this.taskRepo.findById(id)));
+        const allDone = upstreams.every(u => u?.status === 'DONE');
+        if (allDone) {
+          await this.taskRepo.update(dep.id, { status: 'TODO' } as any);
+        }
+      }
+    } else if (newStatus === 'BLOCKED' || newStatus === 'CANCELLED') {
+      const dependents = await this.taskRepo.findDependents(taskId);
+      for (const dep of dependents) {
+        if (dep.status === 'DONE' || dep.status === 'BLOCKED' || dep.status === 'CANCELLED') continue;
+        await this.taskRepo.update(dep.id, { status: 'BLOCKED' } as any);
+        await this.onTaskStatusChange(dep.id, 'BLOCKED');
+      }
+    }
+  }
+
   async batchCreate(input: {
     parent_task_id: number;
     suggestions: Suggestion[];
