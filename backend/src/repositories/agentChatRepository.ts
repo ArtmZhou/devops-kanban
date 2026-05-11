@@ -17,7 +17,7 @@ export interface AgentChatMessage {
 export interface AgentChatSession {
   id: string;
   agentId: number;
-  status: 'idle' | 'running' | 'ended';
+  status: 'idle' | 'running' | 'ended' | 'ask_user';
   tempDir: string;
   providerSessionId: string | null;
   messages: AgentChatMessage[];
@@ -78,7 +78,7 @@ class AgentChatRepository {
     return data.sessions[chatId] ?? null;
   }
 
-  updateSession(chatId: string, update: { status?: 'idle' | 'running' | 'ended'; providerSessionId?: string | null }): AgentChatSession | null {
+  updateSession(chatId: string, update: { status?: 'idle' | 'running' | 'ended' | 'ask_user'; providerSessionId?: string | null }): AgentChatSession | null {
     if (!AgentChatRepository._isValidChatId(chatId)) return null;
     const data = this._read();
     if (!Object.prototype.hasOwnProperty.call(data.sessions, chatId)) return null;
@@ -127,7 +127,7 @@ class AgentChatRepository {
   getSessionsByAgentId(agentId: number): AgentChatSession[] {
     const data = this._read();
     return Object.values(data.sessions)
-      .filter(s => s.agentId === agentId && s.status !== 'ended')
+      .filter(s => s.agentId === agentId && s.status !== 'ended' && s.status !== 'ask_user')
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
