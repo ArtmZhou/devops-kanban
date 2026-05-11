@@ -56,6 +56,24 @@
         </el-input>
       </el-form-item>
 
+      <el-form-item :label="$t('project.defaultTemplate')">
+        <el-select
+          v-model="form.defaultTemplateId"
+          clearable
+          :placeholder="$t('project.defaultTemplateNone')"
+          :loading="templatesLoading"
+          style="width: 100%"
+        >
+          <el-option
+            v-for="tpl in availableTemplates"
+            :key="tpl.template_id"
+            :value="tpl.template_id"
+            :label="tpl.name || tpl.template_id"
+          />
+        </el-select>
+        <div class="form-hint">{{ $t('project.defaultTemplateHint') }}</div>
+      </el-form-item>
+
       <el-divider v-if="!isEditing" />
 
       <el-divider>
@@ -95,10 +113,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Link, FolderOpened, Setting } from '@element-plus/icons-vue'
 import BaseDialog from '../BaseDialog.vue'
+import { getWorkflowTemplates } from '../../api/workflowTemplate.js'
 
 const props = defineProps({
   modelValue: {
@@ -120,12 +139,15 @@ const emit = defineEmits(['update:modelValue', 'submit', 'cancel'])
 const { t } = useI18n()
 
 const formRef = ref(null)
+const availableTemplates = ref([])
+const templatesLoading = ref(false)
 
 const form = ref({
   name: '',
   description: '',
   gitUrl: '',
   localPath: '',
+  defaultTemplateId: '',
   createExplorationTask: false,
   envPairs: []
 })
@@ -149,10 +171,33 @@ const resetForm = () => {
     description: '',
     gitUrl: '',
     localPath: '',
+    defaultTemplateId: '',
     createExplorationTask: false,
     envPairs: []
   }
 }
+
+const loadTemplates = async () => {
+  if (templatesLoading.value) return
+  templatesLoading.value = true
+  try {
+    const resp = await getWorkflowTemplates()
+    if (resp?.success) {
+      availableTemplates.value = Array.isArray(resp.data) ? resp.data : []
+    }
+  } catch {
+    availableTemplates.value = []
+  } finally {
+    templatesLoading.value = false
+  }
+}
+
+onMounted(loadTemplates)
+// Refresh template list whenever the dialog opens so newly added templates
+// show up without a full page reload.
+watch(() => props.modelValue, (open) => {
+  if (open) loadTemplates()
+})
 
 watch(() => props.project, (newProject) => {
   if (newProject) {
@@ -164,6 +209,8 @@ watch(() => props.project, (newProject) => {
       description: newProject.description || '',
       gitUrl: newProject.gitUrl || newProject.git_url || newProject.repoUrl || '',
       localPath: newProject.localPath || newProject.local_path || '',
+      defaultTemplateId: newProject.defaultTemplateId ?? newProject.default_template_id ?? '',
+      createExplorationTask: false,
       envPairs
     }
   } else {
@@ -191,6 +238,14 @@ const handleSubmit = async () => {
     }
     if (form.value.localPath) {
       submitData.local_path = form.value.localPath
+    }
+    // Only send default_template_id when the user actually picked something.
+    // Sending an empty string would wipe out an existing value on edit.
+    if (form.value.defaultTemplateId) {
+      submitData.default_template_id = form.value.defaultTemplateId
+    } else if (isEditing.value && (props.project?.defaultTemplateId || props.project?.default_template_id)) {
+      // User explicitly cleared the selection while editing — signal removal.
+      submitData.default_template_id = null
     }
     emit('submit', submitData)
   } catch {
@@ -231,5 +286,11 @@ const removeEnvPair = (index) => { form.value.envPairs.splice(index, 1) }
 }
 .env-remove-btn:hover {
   color: var(--el-color-danger-dark-2);
+}
+.form-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.4;
 }
 </style>
