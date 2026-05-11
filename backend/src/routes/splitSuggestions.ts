@@ -24,7 +24,7 @@ const splitSuggestionsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  fastify.patch<{ Params: { id: string }; Body: { suggestions: unknown[] } }>('/:id', async (request, reply) => {
+  fastify.patch<{ Params: { id: string }; Body: { suggestions: unknown[] } }>('/split-suggestions/:id', async (request, reply) => {
     const parsed = z.array(suggestionSchema).safeParse(request.body?.suggestions);
     if (!parsed.success) {
       return reply.code(400).send(errorResponse(`invalid suggestions: ${parsed.error.message}`));
@@ -38,7 +38,7 @@ const splitSuggestionsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  fastify.post<{ Params: { id: string } }>('/:id/confirm', async (request, reply) => {
+  fastify.post<{ Params: { id: string } }>('/split-suggestions/:id/confirm', async (request, reply) => {
     try {
       const id = Number(request.params.id);
       const result = await splitSuggestionService.confirm(id);
@@ -48,7 +48,7 @@ const splitSuggestionsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  fastify.post<{ Params: { id: string } }>('/:id/dismiss', async (request, reply) => {
+  fastify.post<{ Params: { id: string } }>('/split-suggestions/:id/dismiss', async (request, reply) => {
     try {
       const id = Number(request.params.id);
       const result = await splitSuggestionService.dismiss(id);
