@@ -4,19 +4,19 @@
     <div class="workspace-left" :style="{ width: leftWidth + 'px', minWidth: leftWidth + 'px' }">
       <div class="workspace-header">
         <h3>任务列表</h3>
-        <span class="task-count">{{ mockTasks.length }}</span>
+        <span class="task-count">{{ tasks.length }}</span>
       </div>
       <div class="task-list">
         <div
-          v-for="task in mockTasks"
+          v-for="task in tasks"
           :key="task.id"
           class="task-card"
           :class="{ 'selected': selectedTask?.id === task.id }"
           @click="selectTask(task)"
         >
           <div class="task-card-header">
-            <span class="task-priority" :class="task.priorityClass">{{ task.priority }}</span>
-            <span class="task-status" :class="task.statusClass">{{ task.status }}</span>
+            <span class="task-priority" :class="priorityClass(task.priority)">{{ task.priority }}</span>
+            <span class="task-status" :class="statusClass(task.status)">{{ task.status }}</span>
           </div>
           <div class="task-card-title">{{ task.title }}</div>
         </div>
@@ -34,87 +34,23 @@
           <div class="panel-header">
             <h4>工作流链路</h4>
           </div>
-          <div class="pipeline-inline" v-if="selectedTask && selectedTask.hasPipeline">
+          <div class="pipeline-inline" v-if="selectedTask && dagLayers.length">
             <div class="pipeline-dag-dialog">
               <div class="dag-flow">
-                <!-- 设计工作流 -->
-                <div class="dag-column">
-                  <div class="dag-node-wrapper done">
-                    <div class="dag-node" @click="toggleDagNode('design')">
-                      <div class="dag-node-dot"></div>
-                      <span>设计工作流</span>
-                      <span class="dag-node-sub">知识仓</span>
-                      <span class="dag-toggle" :class="{ open: expandedDagNodes.has('design') }">▾</span>
-                    </div>
-                    <div class="dag-steps-list" v-show="expandedDagNodes.has('design')">
-                      <div class="dag-step-item done">需求分析</div>
-                      <div class="dag-step-item done">方案设计</div>
-                    </div>
-                  </div>
-                </div>
-                <div class="dag-arrow-h"></div>
-                <!-- 并行：用户服务 / 订单服务 / 前端 -->
-                <div class="dag-parallel-group">
-                  <div class="dag-column">
-                    <div class="dag-node-wrapper running current">
-                      <div class="dag-node" @click="toggleDagNode('user-service')">
-                        <div class="dag-node-dot"></div>
-                        <span>用户服务工作流</span>
-                        <span class="dag-current-badge">当前</span>
-                        <span class="dag-toggle" :class="{ open: expandedDagNodes.has('user-service') }"></span>
-                      </div>
-                      <div class="dag-steps-list" v-show="expandedDagNodes.has('user-service')">
-                        <div class="dag-step-item done">API 设计</div>
-                        <div class="dag-step-item done">实体建模</div>
-                        <div class="dag-step-item running">接口实现</div>
-                        <div class="dag-step-item pending">单元测试</div>
+                <template v-for="(layer, layerIdx) in dagLayers" :key="layerIdx">
+                  <template v-for="node in layer" :key="node.id">
+                    <div class="dag-column">
+                      <div class="dag-node-wrapper" :class="{ current: node.id === selectedTask?.id, 'is-done': node.status === 'DONE', running: node.status === 'IN_PROGRESS', waiting: node.status === 'WAITING', failed: node.status === 'BLOCKED' || node.status === 'FAILED' }">
+                        <div class="dag-node" @click="selectedTask = node">
+                          <span class="dag-node-status">{{ statusIcon(node.status) }}</span>
+                          <span class="dag-node-title">{{ node.title }}</span>
+                          <span v-if="node.id === selectedTask?.id" class="current-badge">当前</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div class="dag-column">
-                    <div class="dag-node-wrapper done">
-                      <div class="dag-node" @click="toggleDagNode('order-service')">
-                        <div class="dag-node-dot"></div>
-                        <span>订单服务工作流</span>
-                        <span class="dag-toggle" :class="{ open: expandedDagNodes.has('order-service') }">▾</span>
-                      </div>
-                      <div class="dag-steps-list" v-show="expandedDagNodes.has('order-service')">
-                        <div class="dag-step-item done">API 设计</div>
-                        <div class="dag-step-item done">实体建模</div>
-                        <div class="dag-step-item done">接口实现</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="dag-column">
-                    <div class="dag-node-wrapper running">
-                      <div class="dag-node" @click="toggleDagNode('frontend')">
-                        <div class="dag-node-dot"></div>
-                        <span>前端工作流</span>
-                        <span class="dag-toggle" :class="{ open: expandedDagNodes.has('frontend') }"></span>
-                      </div>
-                      <div class="dag-steps-list" v-show="expandedDagNodes.has('frontend')">
-                        <div class="dag-step-item done">页面设计</div>
-                        <div class="dag-step-item running">组件开发</div>
-                        <div class="dag-step-item pending">联调测试</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="dag-arrow-h"></div>
-                <!-- 集成测试工作流 -->
-                <div class="dag-column">
-                  <div class="dag-node-wrapper waiting">
-                    <div class="dag-node" @click="toggleDagNode('integration')">
-                      <div class="dag-node-dot"></div>
-                      <span>集成测试工作流</span>
-                      <span class="dag-toggle" :class="{ open: expandedDagNodes.has('integration') }"></span>
-                    </div>
-                    <div class="dag-steps-list" v-show="expandedDagNodes.has('integration')">
-                      <div class="dag-step-item pending">测试用例</div>
-                      <div class="dag-step-item pending">E2E 测试</div>
-                    </div>
-                  </div>
-                </div>
+                  </template>
+                  <div v-if="layerIdx < dagLayers.length - 1" class="dag-arrow-h"></div>
+                </template>
               </div>
             </div>
           </div>
@@ -290,73 +226,37 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import AiSplitCard from '../components/workspace/AiSplitCard.vue'
 import { useSplitSuggestionsStore } from '../stores/splitSuggestions.js'
+import { listTasks, getTaskPipeline } from '../api/task.js'
 
 const splitStore = useSplitSuggestionsStore()
 
-const mockTasks = [
-  {
-    id: 1,
-    title: '设计用户中心功能',
-    priority: 'HIGH',
-    priorityClass: 'high',
-    status: '已完成',
-    statusClass: 'done',
-    hasPipeline: true,
-    dependsOn: null,
-    downstream: '用户服务, 订单服务, 前端'
-  },
-  {
-    id: 2,
-    title: '用户服务开发',
-    priority: 'HIGH',
-    priorityClass: 'high',
-    status: '已完成',
-    statusClass: 'done',
-    hasPipeline: false,
-    dependsOn: '设计任务',
-    downstream: null
-  },
-  {
-    id: 3,
-    title: '订单服务开发',
-    priority: 'MEDIUM',
-    priorityClass: 'medium',
-    status: '已完成',
-    statusClass: 'done',
-    hasPipeline: false,
-    dependsOn: '设计任务',
-    downstream: null
-  },
-  {
-    id: 4,
-    title: '前端页面开发',
-    priority: 'HIGH',
-    priorityClass: 'high',
-    status: '处理中',
-    statusClass: 'running',
-    hasPipeline: false,
-    dependsOn: '设计任务',
-    downstream: null
-  },
-  {
-    id: 5,
-    title: '集成测试',
-    priority: 'MEDIUM',
-    priorityClass: 'medium',
-    status: '等待中',
-    statusClass: 'waiting',
-    hasPipeline: false,
-    dependsOn: '用户服务, 订单服务, 前端',
-    downstream: null
-  }
-]
+const tasks = ref([])
+const pipeline = ref({ root: null, nodes: [] })
 
-const workflowSteps = [
-  { id: 'step-1', name: 'API 设计', agent: '后端工程师', statusClass: 'done' },
-  { id: 'step-2', name: '实体建模', agent: '后端工程师', statusClass: 'done' },
-  { id: 'step-3', name: '接口实现', agent: '后端工程师', statusClass: 'running' },
-  { id: 'step-4', name: '单元测试', agent: '后端工程师', statusClass: 'pending' }
-]
+async function loadTasks() {
+  try {
+    const resp = await listTasks()
+    if (resp?.success) tasks.value = resp.data || []
+  } catch (e) {
+    console.error('Failed to load tasks:', e)
+    tasks.value = []
+  }
+  if (tasks.value.length && !selectedTask.value) {
+    selectedTask.value = tasks.value[0]
+  }
+}
+
+async function loadPipeline(taskId) {
+  try {
+    const resp = await getTaskPipeline(taskId)
+    if (resp?.success) pipeline.value = resp.data || { root: null, nodes: [] }
+    else pipeline.value = { root: null, nodes: [] }
+  } catch (e) {
+    pipeline.value = { root: null, nodes: [] }
+  }
+}
+
+const workflowSteps = ref([])
 
 const changedFiles = [
   { name: 'UserService.ts', path: 'src/services/', additions: 156, deletions: 0 },
@@ -366,7 +266,7 @@ const changedFiles = [
 
 const chatInput = ref('')
 const selectedFile = ref('src/services/UserService.ts')
-const selectedTask = ref(mockTasks[0])
+const selectedTask = ref(null)
 const expandedDagNodes = ref(new Set()) // track which DAG nodes are expanded
 
 const toggleDagNode = (name) => {
@@ -453,6 +353,16 @@ const selectTask = (task) => {
   selectedTask.value = task
 }
 
+function priorityClass(priority) {
+  const map = { CRITICAL: 'high', HIGH: 'high', MEDIUM: 'medium', LOW: '' }
+  return map[priority] || ''
+}
+
+function statusClass(status) {
+  const map = { DONE: 'done', IN_PROGRESS: 'running', WAITING: 'waiting', BLOCKED: 'waiting', FAILED: 'waiting', TODO: 'waiting', CANCELLED: 'waiting' }
+  return map[status] || 'waiting'
+}
+
 const handleChatKeydown = (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -474,10 +384,47 @@ async function onDismissSplit() {
   if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
 }
 
+function statusIcon(status) {
+  const icons = { DONE: '✓', IN_PROGRESS: '▶', WAITING: '○', BLOCKED: '✗', FAILED: '✗', TODO: '○', CANCELLED: '✗' }
+  return icons[status] || '○'
+}
+
+const dagLayers = computed(() => {
+  const nodes = pipeline.value.nodes || []
+  if (!nodes.length) return []
+  const depth = new Map()
+  for (const n of nodes) depth.set(n.id, 0)
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const n of nodes) {
+      for (const depId of (n.depends_on || [])) {
+        const d = (depth.get(depId) ?? 0) + 1
+        if (d > (depth.get(n.id) ?? 0)) {
+          depth.set(n.id, d)
+          changed = true
+        }
+      }
+    }
+  }
+  const layers = []
+  for (const n of nodes) {
+    const d = depth.get(n.id) ?? 0
+    if (!layers[d]) layers[d] = []
+    layers[d].push(n)
+  }
+  return layers
+})
+
 // Load split suggestions when selected task changes
 watch(() => selectedTask.value?.id, async (taskId) => {
   if (taskId) await splitStore.load(taskId)
 }, { immediate: true })
+
+onMounted(loadTasks)
+watch(() => selectedTask.value?.id, async (newId) => {
+  if (newId) await loadPipeline(newId)
+})
 </script>
 
 <style scoped>
@@ -1178,6 +1125,39 @@ watch(() => selectedTask.value?.id, async (taskId) => {
 
 .dag-node:hover {
   opacity: 0.85;
+}
+
+.dag-node-wrapper.is-done .dag-node {
+  background: var(--done-soft);
+  border-color: var(--teal-border-soft);
+  color: var(--done-strong);
+}
+
+.dag-node-wrapper.failed .dag-node {
+  background: var(--danger-soft);
+  border-color: var(--danger-strong);
+  color: var(--danger-strong);
+}
+
+.dag-node-status {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.dag-node-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-badge {
+  font-size: 9px;
+  color: var(--accent-color);
+  background: var(--accent-color-soft);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .dag-toggle {
