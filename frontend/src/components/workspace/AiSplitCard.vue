@@ -33,14 +33,24 @@
               <input type="checkbox" :checked="enabledIndices.has(index)" @change="toggleEnabled(index)" />
             </div>
             <div class="suggestion-main">
-              <div class="suggestion-title">
-                {{ item.title }}
-                <span class="suggestion-template-badge">{{ item.template }}</span>
+              <div class="suggestion-title-row">
+                <input
+                  class="suggestion-title-input"
+                  :value="item.title"
+                  @input="updateField(index, 'title', $event.target.value)"
+                  placeholder="任务标题"
+                />
+                <span class="suggestion-template-badge">{{ item.template_id || '未指定模板' }}</span>
               </div>
-              <div class="suggestion-desc">{{ item.description }}</div>
+              <textarea
+                class="suggestion-desc-input"
+                :value="item.description"
+                @input="updateField(index, 'description', $event.target.value)"
+                placeholder="任务描述"
+                rows="2"
+              ></textarea>
             </div>
             <div class="suggestion-actions">
-              <el-button size="small" text @click.stop="onEdit(index)">编辑</el-button>
               <el-button size="small" text type="danger" @click.stop="onDelete(index)">删除</el-button>
             </div>
           </div>
@@ -49,10 +59,10 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
               </svg>
-              {{ item.repo }}
+              {{ repoLabel(item) }}
             </span>
-            <span class="meta-tag dep" v-if="item.dependsOn && item.dependsOn.length">
-              依赖: {{ item.dependsOn.join(', ') }}
+            <span class="meta-tag dep" v-if="item.depends_on_indices && item.depends_on_indices.length">
+              依赖: {{ dependencyLabel(item) }}
             </span>
             <span class="meta-tag dep-none" v-else>
               依赖: 无
@@ -79,7 +89,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   suggestion: { type: Object, default: null },
@@ -96,45 +106,90 @@ const suggestions = computed(() => {
 
 const enabledIndices = ref(new Set())
 
-// Initialize enabledIndices when suggestion changes
-import { watch } from 'vue'
+// Initialize enabledIndices when suggestion changes. Respect the `enabled`
+// flag from the backend payload so we don't accidentally re-enable everything
+// on re-renders after a user disabled some items.
 watch(() => props.suggestion, (val) => {
   if (val?.suggestions) {
-    enabledIndices.value = new Set(val.suggestions.map((_, i) => i))
+    enabledIndices.value = new Set(
+      val.suggestions
+        .map((s, i) => (s?.enabled === false ? null : i))
+        .filter((i) => i !== null)
+    )
   } else {
     enabledIndices.value = new Set()
   }
 }, { immediate: true })
+
+function emitSuggestions(list) {
+  emit('update', list)
+}
 
 function toggleEnabled(index) {
   const next = new Set(enabledIndices.value)
   if (next.has(index)) next.delete(index)
   else next.add(index)
   enabledIndices.value = next
-  emitUpdate()
-}
 
-function emitUpdate() {
   if (!props.suggestion) return
-  const updated = suggestions.value.map((item, i) => ({
+  const list = suggestions.value.map((item, i) => ({
     ...item,
-    enabled: enabledIndices.value.has(i)
+    enabled: next.has(i)
   }))
-  emit('update', updated)
+  emitSuggestions(list)
 }
 
-function onEdit(index) {
-  // TODO: open edit dialog
+function updateField(index, field, value) {
+  if (!props.suggestion) return
+  const list = suggestions.value.map((s, i) =>
+    i === index ? { ...s, [field]: value } : s
+  )
+  emitSuggestions(list)
 }
 
 function onDelete(index) {
   if (!props.suggestion) return
-  const updated = suggestions.value.filter((_, i) => i !== index)
-  emit('update', updated)
+  const list = suggestions.value.filter((_, i) => i !== index)
+  // Rebuild depends_on_indices so dangling references don't remain. Any index
+  // that pointed at or past the removed slot gets shifted down by one.
+  const reindexed = list.map((item) => ({
+    ...item,
+    depends_on_indices: (item.depends_on_indices || [])
+      .filter((idx) => idx !== index)
+      .map((idx) => (idx > index ? idx - 1 : idx))
+  }))
+  emitSuggestions(reindexed)
 }
 
 function onAddTask() {
-  // TODO: open add task dialog
+  if (!props.suggestion) return
+  const list = [
+    ...suggestions.value,
+    {
+      title: '新任务',
+      description: '',
+      template_id: null,
+      linked_project_id: null,
+      target_repo_url: null,
+      depends_on_indices: [],
+      enabled: true,
+    },
+  ]
+  emitSuggestions(list)
+}
+
+function repoLabel(item) {
+  if (item.linked_project_id != null) return `项目 #${item.linked_project_id}`
+  if (item.target_repo_url) return item.target_repo_url
+  return '当前项目'
+}
+
+function dependencyLabel(item) {
+  const indices = item.depends_on_indices || []
+  if (!indices.length) return '无'
+  return indices
+    .map((i) => suggestions.value[i]?.title || `#${i}`)
+    .join(', ')
 }
 
 function onConfirm() {
@@ -310,6 +365,60 @@ function onDismiss() {
   align-items: center;
   gap: 6px;
   margin-bottom: 3px;
+}
+
+.suggestion-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.suggestion-title-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 3px 6px;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.suggestion-title-input:hover {
+  border-color: var(--border-color);
+}
+
+.suggestion-title-input:focus {
+  border-color: var(--accent-color);
+  background: var(--bg-primary);
+}
+
+.suggestion-desc-input {
+  width: 100%;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  resize: vertical;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.suggestion-desc-input:hover {
+  border-color: var(--border-color);
+}
+
+.suggestion-desc-input:focus {
+  border-color: var(--accent-color);
+  background: var(--bg-primary);
 }
 
 .suggestion-template-badge {
