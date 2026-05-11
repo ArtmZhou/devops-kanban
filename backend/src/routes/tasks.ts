@@ -18,6 +18,8 @@ type QueryWithTaskFilters = ProjectIdQuery & { iteration_id?: string };
 type StatusBody = { status?: string };
 type ReorderRequestBody = { updates?: Array<{ id?: number; order?: number }> };
 
+import { splitSuggestionService } from '../services/splitSuggestionService.js';
+
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: QueryWithTaskFilters }>('/', async (request) => {
     try {
@@ -169,6 +171,46 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       reply.code(getStatusCode(error));
       return errorResponse(getErrorMessage(error, 'Failed to reorder tasks'));
     }
+  });
+
+  // Batch create, pipeline, dependents, regenerate-split
+  fastify.post<{ Body: { parent_task_id: number; suggestions: any[] } }>(
+    '/batch-create',
+    async (req, reply) => {
+      try {
+        const tasks = await taskService.batchCreate(req.body);
+        return successResponse(tasks);
+      } catch (e) {
+        reply.code(400);
+        return errorResponse(getErrorMessage(e, 'Failed to batch create tasks'));
+      }
+    },
+  );
+
+  fastify.get<{ Params: IdParams }>('/:id/dependents', async (req) => {
+    const dependents = await taskService.getDependents(parseNumber(req.params.id));
+    return successResponse(dependents);
+  });
+
+  fastify.get<{ Params: IdParams }>('/:id/pipeline', async (req, reply) => {
+    try {
+      const pipeline = await taskService.getPipeline(parseNumber(req.params.id));
+      return successResponse(pipeline);
+    } catch (e) {
+      const statusCode = getStatusCode(e);
+      if (statusCode === 404) {
+        reply.code(404);
+        return errorResponse(getErrorMessage(e, 'Task not found'));
+      }
+      reply.code(statusCode);
+      return errorResponse(getErrorMessage(e, 'Failed to get pipeline'));
+    }
+  });
+
+  fastify.post<{ Params: IdParams }>('/:id/regenerate-split', async (req) => {
+    const existing = await splitSuggestionService.getPendingByTask(parseNumber(req.params.id));
+    if (existing) await splitSuggestionService.dismiss(existing.id);
+    return successResponse({ regenerated: true, dismissed: !!existing });
   });
 
   // Worktree routes

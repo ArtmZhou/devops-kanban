@@ -374,6 +374,10 @@ class TaskService {
     return { root, nodes };
   }
 
+  async getDependents(taskId: number): Promise<TaskEntity[]> {
+    return this.taskRepo.findDependents(taskId);
+  }
+
   async onTaskStatusChange(taskId: number, newStatus: string): Promise<void> {
     if (newStatus === 'DONE') {
       const dependents = await this.taskRepo.findDependents(taskId);
