@@ -27,6 +27,20 @@
             <span v-if="!isSidebarCollapsed" class="nav-text">{{ $t('nav.projects') }}</span>
           </router-link>
 
+          <router-link to="/workspace" class="nav-item" :class="{ 'router-link-active': $route.path.startsWith('/workspace') }" :title="$t('nav.workspace')">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+              <line x1="10" y1="6.5" x2="14" y2="6.5"></line>
+              <line x1="6.5" y1="10" x2="6.5" y2="14"></line>
+              <line x1="17.5" y1="10" x2="17.5" y2="14"></line>
+              <line x1="10" y1="17.5" x2="14" y2="17.5"></line>
+            </svg>
+            <span v-if="!isSidebarCollapsed" class="nav-text">{{ $t('nav.workspace') }}</span>
+          </router-link>
+
           <router-link to="/kanban" class="nav-item" :class="{ 'router-link-active': $route.path.startsWith('/kanban') }" :title="$t('nav.kanban')">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="7" height="7"></rect>
