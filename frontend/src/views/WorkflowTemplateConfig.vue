@@ -307,6 +307,19 @@
                     />
                   </div>
                 </div>
+
+                <div class="editor-field editor-field--full step-type-field">
+                  <label>{{ $t('workflowTemplate.stepType') }}</label>
+                  <div class="editor-field__row">
+                    <el-select v-model="selectedStep.type" size="small" style="flex: 0 0 280px">
+                      <el-option :label="$t('workflowTemplate.stepTypeDefault')" value="DEFAULT" />
+                      <el-option :label="$t('workflowTemplate.stepTypeSplit')" value="SPLIT_TASK" />
+                    </el-select>
+                    <span v-if="selectedStep.type === 'SPLIT_TASK'" class="step-type-hint">
+                      {{ $t('workflowTemplate.stepTypeSplitHint') }}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div class="editor-field editor-field--full editor-field--prompt">
@@ -1610,6 +1623,12 @@ const handlePreviewPrompt = async () => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.step-type-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: var(--line-height-relaxed);
 }
 
 .editor-field {
