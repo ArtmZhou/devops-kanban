@@ -341,6 +341,37 @@ class TaskService {
       worktree_status: exists ? 'created' : 'none',
     };
   }
+
+  async getPipeline(taskId: number): Promise<{ root: TaskEntity; nodes: TaskEntity[] }> {
+    // Walk up to root
+    let current = await this.taskRepo.findById(taskId);
+    if (!current) {
+      throw new NotFoundError('未找到任务', 'Task not found', { taskId });
+    }
+    while (current.parent_task_id != null) {
+      const parent = await this.taskRepo.findById(current.parent_task_id);
+      if (!parent) break;
+      current = parent;
+    }
+    const root = current;
+
+    // BFS descendants
+    const nodes: TaskEntity[] = [root];
+    const queue: number[] = [root.id];
+    const seen = new Set<number>([root.id]);
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      const children = await this.taskRepo.findChildren(id);
+      for (const c of children) {
+        if (seen.has(c.id)) continue;
+        seen.add(c.id);
+        nodes.push(c);
+        queue.push(c.id);
+      }
+    }
+
+    return { root, nodes };
+  }
 }
 
 export { TaskService };
