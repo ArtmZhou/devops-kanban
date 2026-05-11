@@ -208,9 +208,16 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   fastify.post<{ Params: IdParams }>('/:id/regenerate-split', async (req) => {
+    // NOTE: true regeneration would require re-running the SPLIT_TASK step
+    // of the latest workflow run. That requires a step-retry primitive
+    // (e.g. workflowService.retryStep(runId, stepId)) which is not yet
+    // implemented — workflowService.retryWorkflow retries from the last
+    // running/suspended step, not an arbitrary one. Until that primitive
+    // exists this endpoint only dismisses the pending suggestion so the
+    // user can manually re-trigger the step from the workflow panel.
     const existing = await splitSuggestionService.getPendingByTask(parseNumber(req.params.id));
     if (existing) await splitSuggestionService.dismiss(existing.id);
-    return successResponse({ regenerated: true, dismissed: !!existing });
+    return successResponse({ dismissed: !!existing });
   });
 
   // Worktree routes
