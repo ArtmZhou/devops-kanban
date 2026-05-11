@@ -225,18 +225,21 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import AiSplitCard from '../components/workspace/AiSplitCard.vue'
 import { useSplitSuggestionsStore } from '../stores/splitSuggestions.js'
 import { listTasks, getTaskPipeline } from '../api/task.js'
 
 const splitStore = useSplitSuggestionsStore()
+const route = useRoute()
+const projectId = computed(() => route.params.projectId ? Number(route.params.projectId) : null)
 
 const tasks = ref([])
 const pipeline = ref({ root: null, nodes: [] })
 
 async function loadTasks() {
   try {
-    const resp = await listTasks()
+    const resp = projectId.value ? await listTasks({ project_id: projectId.value }) : await listTasks()
     if (resp?.success) tasks.value = resp.data || []
   } catch (e) {
     console.error('Failed to load tasks:', e)
@@ -396,7 +399,11 @@ const dagLayers = computed(() => {
   const depth = new Map()
   for (const n of nodes) depth.set(n.id, 0)
   let changed = true
-  while (changed) {
+  // Guard: if a cycle slips past backend validation, bound the relaxation
+  // iterations so we never infinite-loop. Worst-case DAG needs O(V*E) passes,
+  // so V^2 + 1 is a safe upper bound.
+  let maxIter = nodes.length * nodes.length + 1
+  while (changed && maxIter-- > 0) {
     changed = false
     for (const n of nodes) {
       for (const depId of (n.depends_on || [])) {
