@@ -113,6 +113,7 @@
           <AiSplitCard
             :suggestion="splitStore.pendingByTask.get(selectedTask?.id)"
             :task-id="selectedTask?.id"
+            @update="(suggestions) => selectedTask?.id && splitStore.updateSuggestions(selectedTask.id, suggestions)"
             @confirm="onConfirmSplit"
             @dismiss="onDismissSplit"
           />
