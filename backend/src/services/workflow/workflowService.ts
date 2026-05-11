@@ -199,9 +199,18 @@ class WorkflowService {
     }
   }
 
-  private async resolveExecutionPath(task: { project_id: number; worktree_path?: string | null }) {
+  private async resolveExecutionPath(task: { project_id: number; worktree_path?: string | null; target_repo_url?: string | null }) {
     if (task.worktree_path && existsSync(task.worktree_path)) {
       return task.worktree_path;
+    }
+
+    if (task.target_repo_url) {
+      // Dynamic import: workflowService participates in an ESM cycle with
+      // taskService via workflowLifecycle. Importing utils/git.js statically
+      // here reorders module evaluation and triggers a TDZ error on
+      // `new WorkflowService()` at the bottom of taskService.ts.
+      const { ensureExternalRepo } = await import('../../utils/git.js');
+      return await ensureExternalRepo(task.target_repo_url);
     }
 
     const project = await this.projectRepo.findById(task.project_id);

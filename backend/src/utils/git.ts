@@ -1,6 +1,8 @@
 import { execSync } from 'node:child_process';
+import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { logger } from './logger.js';
 
@@ -22,6 +24,84 @@ export function buildBranchName(taskId: number, taskTitle: string, maxLength = 8
   const safeTitle = sanitizeName(taskTitle).substring(0, 50);
   const branch = `task/${taskId}-${safeTitle}`;
   return branch.length > maxLength ? branch.substring(0, maxLength) : branch;
+}
+
+/**
+ * Resolve the local data storage root. Mirrors `config/index.ts` STORAGE_PATH,
+ * but inlined to avoid introducing a new module-graph edge into `utils/git.ts`,
+ * which is imported from services that participate in the
+ * `taskService <-> workflowService` ESM cycle.
+ */
+function resolveStoragePath(): string {
+  if (process.env.STORAGE_PATH) {
+    return path.resolve(process.env.STORAGE_PATH);
+  }
+  const fileDir = path.dirname(fileURLToPath(import.meta.url));
+  // src/utils/git.ts -> backend/ -> project root -> data/
+  const backendRoot = path.resolve(fileDir, '..', '..');
+  const projectRoot = path.resolve(backendRoot, '..');
+  return path.join(projectRoot, 'data');
+}
+
+/**
+ * Compute the deterministic local cache directory for an external repository.
+ * Used so callers can locate an already-cloned external repo without re-running
+ * network operations. Returns `<STORAGE_PATH>/repos/<sha256(url)[0..16]>`.
+ */
+export function getExternalRepoPath(repoUrl: string): string {
+  const hash = crypto.createHash('sha256').update(repoUrl).digest('hex').slice(0, 16);
+  return path.join(resolveStoragePath(), 'repos', hash);
+}
+
+/**
+ * Ensure a clone of an external repo exists at `data/repos/<hash(url)>/`.
+ * If the clone already exists, fetch latest refs. Otherwise clone fresh.
+ * Returns the local path to the clone.
+ */
+export async function ensureExternalRepo(repoUrl: string): Promise<string> {
+  if (!repoUrl || !repoUrl.trim()) {
+    throw new Error('ensureExternalRepo: repoUrl is required');
+  }
+
+  const repoDir = getExternalRepoPath(repoUrl);
+
+  if (fs.existsSync(repoDir) && isGitRepository(repoDir)) {
+    try {
+      execSync('git fetch --all --prune', {
+        cwd: repoDir,
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      });
+    } catch (error) {
+      const execError = error as Error & { stderr?: string };
+      logger.warn('Git', `Failed to fetch external repo ${repoUrl}: ${execError.stderr || execError.message}`);
+    }
+    return repoDir;
+  }
+
+  // Stale directory that is not a git repo: remove and re-clone
+  if (fs.existsSync(repoDir)) {
+    fs.rmSync(repoDir, { recursive: true, force: true });
+  }
+
+  fs.mkdirSync(path.dirname(repoDir), { recursive: true });
+
+  try {
+    execSync(`git clone ${repoUrl} ${repoDir}`, {
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    });
+  } catch (error) {
+    const execError = error as Error & { stderr?: string };
+    const stderr = execError.stderr || execError.message;
+    throw new Error(`Failed to clone external repository ${repoUrl}: ${stderr}`);
+  }
+
+  if (!isGitRepository(repoDir)) {
+    throw new Error(`Cloned directory is not a valid git repository: ${repoDir}`);
+  }
+
+  return repoDir;
 }
 
 export function getWorktreePath(taskId: number, taskTitle: string, repoPath: string) {
