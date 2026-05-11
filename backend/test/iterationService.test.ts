@@ -127,6 +127,7 @@ test.test('delete detaches tasks before removing iteration by default', async ()
       status: 'TODO',
       priority: 'MEDIUM',
       source: 'MANUAL',
+      depends_on: [],
     });
 
     const deleted = await service.delete(iteration.id);
@@ -173,6 +174,7 @@ test.test('delete removes linked tasks when deleteTasks is true', async () => {
       status: 'TODO',
       priority: 'MEDIUM',
       source: 'MANUAL',
+      depends_on: [],
     });
 
     const deleted = await service.delete(iteration.id, true);

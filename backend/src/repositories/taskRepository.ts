@@ -8,6 +8,7 @@ interface TaskStatusCounts {
   DONE: number;
   BLOCKED: number;
   CANCELLED: number;
+  WAITING: number;
 }
 
 class TaskRepository extends BaseRepository<TaskEntity> {
@@ -63,6 +64,7 @@ class TaskRepository extends BaseRepository<TaskEntity> {
       DONE: 0,
       BLOCKED: 0,
       CANCELLED: 0,
+      WAITING: 0,
     };
 
     for (const row of result.rows) {
@@ -100,6 +102,7 @@ class TaskRepository extends BaseRepository<TaskEntity> {
       DONE: [],
       BLOCKED: [],
       CANCELLED: [],
+      WAITING: [],
     };
 
     for (const task of tasks) {

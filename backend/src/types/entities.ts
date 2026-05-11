@@ -34,7 +34,7 @@ export interface TaskEntity {
   auto_execute?: number;
   auto_execute_template_id?: string | null;
   parent_task_id?: number | null;
-  depends_on?: number[];
+  depends_on: number[];
   target_repo_url?: string | null;
   created_at: string;
   updated_at: string;

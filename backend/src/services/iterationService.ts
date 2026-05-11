@@ -46,6 +46,7 @@ class IterationService {
       DONE: 0,
       BLOCKED: 0,
       CANCELLED: 0,
+      WAITING: 0,
     };
 
     for (const task of iterationTasks) {

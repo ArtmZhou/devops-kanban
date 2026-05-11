@@ -191,6 +191,7 @@ test.test('getSyncHistory counts tasks for each session', async () => {
     priority: 'MEDIUM',
     external_id: `file1-${crypto.randomUUID()}.txt`,
     source: 'TEST_SYNC_HISTORY',
+    depends_on: [],
   });
 
   await taskRepo.create({
@@ -201,6 +202,7 @@ test.test('getSyncHistory counts tasks for each session', async () => {
     priority: 'MEDIUM',
     external_id: `file2-${crypto.randomUUID()}.txt`,
     source: 'TEST_SYNC_HISTORY',
+    depends_on: [],
   });
 
   const result = await service.getSyncHistory(String(source.id));
