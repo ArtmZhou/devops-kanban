@@ -124,6 +124,7 @@ export interface WorkflowTemplateStepEntity {
   requiresConfirmation?: boolean;
   // Early exit configuration
   canEarlyExit?: boolean;
+  type?: string;
 }
 
 export interface WorkflowRunEntity {
