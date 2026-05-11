@@ -19,6 +19,7 @@ class TaskRepository extends BaseRepository<TaskEntity> {
     return {
       ...row,
       labels: row.labels ? JSON.parse(row.labels as string) : undefined,
+      depends_on: row.depends_on ? JSON.parse(row.depends_on as string) : [],
     } as TaskEntity;
   }
 
@@ -26,6 +27,9 @@ class TaskRepository extends BaseRepository<TaskEntity> {
     const result: Record<string, unknown> = { ...entity };
     if (entity.labels !== undefined) {
       result.labels = JSON.stringify(entity.labels);
+    }
+    if (entity.depends_on !== undefined) {
+      result.depends_on = JSON.stringify(entity.depends_on);
     }
     return result;
   }
@@ -164,6 +168,24 @@ class TaskRepository extends BaseRepository<TaskEntity> {
     });
     if (result.rows.length === 0) return null;
     return this.parseRow(result.rows[0] as Record<string, unknown>);
+  }
+
+  async findDependents(taskId: number): Promise<TaskEntity[]> {
+    const result = await this.client.execute({
+      sql: `SELECT * FROM tasks WHERE depends_on LIKE ?`,
+      args: [`%${taskId}%`],
+    });
+    return result.rows
+      .map(row => this.parseRow(row as Record<string, unknown>))
+      .filter(task => (task.depends_on ?? []).includes(taskId));
+  }
+
+  async findChildren(parentTaskId: number): Promise<TaskEntity[]> {
+    const result = await this.client.execute({
+      sql: 'SELECT * FROM tasks WHERE parent_task_id = ?',
+      args: [parentTaskId],
+    });
+    return result.rows.map(row => this.parseRow(row as Record<string, unknown>));
   }
 }
 
