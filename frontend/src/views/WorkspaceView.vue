@@ -136,13 +136,6 @@
         </div>
 
         <div class="workspace-section workspace-mid-bottom">
-          <AiSplitCard
-            :suggestion="splitStore.pendingByTask.get(selectedTask?.id)"
-            :task-id="selectedTask?.id"
-            @update="(suggestions) => selectedTask?.id && splitStore.updateSuggestions(selectedTask.id, suggestions)"
-            @confirm="onConfirmSplit"
-            @dismiss="onDismissSplit"
-          />
           <div class="chat-panel">
             <!-- Session info header -->
             <div v-if="activeSession" class="chat-session-header">
@@ -279,18 +272,15 @@
 import { ref, computed, watch, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import AiSplitCard from '../components/workspace/AiSplitCard.vue'
 import PipelineDag from '../components/workspace/PipelineDag.vue'
 import CurrentWorkflow from '../components/workspace/CurrentWorkflow.vue'
 import TaskFileViewer from '../components/workspace/TaskFileViewer.vue'
 import ChangedFilesPanel from '../components/workspace/ChangedFilesPanel.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
-import { useSplitSuggestionsStore } from '../stores/splitSuggestions.js'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
 import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi } from '../api/task.js'
 
-const splitStore = useSplitSuggestionsStore()
 const projectStore = useProjectStore()
 const agentStore = useAgentStore()
 const route = useRoute()
@@ -634,18 +624,6 @@ function statusClass(status) {
   return map[status] || 'waiting'
 }
 
-async function onConfirmSplit() {
-  if (!selectedTask.value?.id) return
-  await splitStore.doConfirm(selectedTask.value.id)
-  if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
-}
-
-async function onDismissSplit() {
-  if (!selectedTask.value?.id) return
-  await splitStore.doDismiss(selectedTask.value.id)
-  if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
-}
-
 async function onWorkflowRefresh() {
   if (selectedTask.value?.id) {
     await loadPipeline(selectedTask.value.id)
@@ -744,11 +722,6 @@ const runStatusClass = computed(() => {
   const s = currentRun.value?.status
   return s ? (RUN_STATUS_CLASS[s] || 'pending') : 'pending'
 })
-
-// Load split suggestions when selected task changes
-watch(() => selectedTask.value?.id, async (taskId) => {
-  if (taskId) await splitStore.load(taskId)
-}, { immediate: true })
 
 onMounted(async () => {
   await projectStore.fetchProjects()
