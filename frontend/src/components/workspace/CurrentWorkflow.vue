@@ -307,7 +307,7 @@ function handleStepClick(step) {
 }
 
 function handleTemplate() {
-  emit('open-template')
+  emit('open-template', 'switch')
 }
 
 async function loadTask(id) {
@@ -364,6 +364,11 @@ async function load() {
 
 async function handleStart() {
   if (!props.taskId) return
+  // If task has no workflow template, open template picker first with 'start' intent
+  if (!task.value?.auto_execute_template_id) {
+    emit('open-template', 'start')
+    return
+  }
   actionLoading.value = true
   try {
     const resp = await startTask(props.taskId)

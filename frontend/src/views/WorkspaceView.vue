@@ -211,7 +211,7 @@
             @refresh="onWorkflowRefresh"
             @run-update="onRunUpdate"
             @step-select="onStepSelect"
-            @open-template="showWorkflowTemplateDialog = true"
+            @open-template="onOpenTemplateDialog"
           />
         </div>
 
@@ -365,7 +365,7 @@ import WorkflowTemplateSelectDialog from '../components/workflow/WorkflowTemplat
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
 import { getRoleConfig } from '../constants/agent.js'
-import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi } from '../api/task.js'
+import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi, startTask } from '../api/task.js'
 import draggable from 'vuedraggable'
 import { useTaskTimer } from '../composables/kanban/useTaskTimer.js'
 
@@ -610,6 +610,12 @@ const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
 const selectedStatus = ref(null)
 const taskListViewMode = ref('list') // 'list' | 'kanban'
 const showWorkflowTemplateDialog = ref(false)
+const templateDialogIntent = ref('switch') // 'switch' | 'start'
+
+function onOpenTemplateDialog(intent = 'switch') {
+  templateDialogIntent.value = intent
+  showWorkflowTemplateDialog.value = true
+}
 
 async function handleWorkflowTemplateConfirm({ templateId }) {
   if (!selectedTask.value?.id || selectedTask.value.id < 0) {
@@ -623,12 +629,27 @@ async function handleWorkflowTemplateConfirm({ templateId }) {
     })
     if (resp?.success) {
       showWorkflowTemplateDialog.value = false
-      ElMessage.success('模板已切换')
       await loadTasks()
-      onWorkflowRefresh()
+      if (templateDialogIntent.value === 'start') {
+        try {
+          const startResp = await startTask(selectedTask.value.id)
+          if (startResp?.success) {
+            ElMessage.success('任务已启动')
+            onWorkflowRefresh()
+          } else {
+            ElMessage.error(startResp?.message || '启动失败')
+          }
+        } catch (err) {
+          ElMessage.error(err?.message || '启动失败')
+        }
+      } else {
+        ElMessage.success('模板已切换')
+        onWorkflowRefresh()
+      }
+      templateDialogIntent.value = 'switch'
     }
   } catch (e) {
-    ElMessage.error(e?.message || '切换模板失败')
+    ElMessage.error(e?.message || '操作失败')
   }
 }
 const tasks = computed(() => {
