@@ -211,6 +211,7 @@
             @refresh="onWorkflowRefresh"
             @run-update="onRunUpdate"
             @step-select="onStepSelect"
+            @open-template="showWorkflowTemplateDialog = true"
           />
         </div>
 
@@ -343,6 +344,11 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <WorkflowTemplateSelectDialog
+      v-model="showWorkflowTemplateDialog"
+      @confirm="handleWorkflowTemplateConfirm"
+    />
   </div>
 </template>
 
@@ -355,6 +361,7 @@ import CurrentWorkflow from '../components/workspace/CurrentWorkflow.vue'
 import TaskFileViewer from '../components/workspace/TaskFileViewer.vue'
 import ChangedFilesPanel from '../components/workspace/ChangedFilesPanel.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
+import WorkflowTemplateSelectDialog from '../components/workflow/WorkflowTemplateSelectDialog.vue'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
 import { getRoleConfig } from '../constants/agent.js'
@@ -602,6 +609,28 @@ const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
 
 const selectedStatus = ref(null)
 const taskListViewMode = ref('list') // 'list' | 'kanban'
+const showWorkflowTemplateDialog = ref(false)
+
+async function handleWorkflowTemplateConfirm({ templateId }) {
+  if (!selectedTask.value?.id || selectedTask.value.id < 0) {
+    showWorkflowTemplateDialog.value = false
+    return
+  }
+  try {
+    const resp = await updateTask(selectedTask.value.id, {
+      auto_execute: 1,
+      auto_execute_template_id: templateId,
+    })
+    if (resp?.success) {
+      showWorkflowTemplateDialog.value = false
+      ElMessage.success('模板已切换')
+      await loadTasks()
+      onWorkflowRefresh()
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '切换模板失败')
+  }
+}
 const tasks = computed(() => {
   // Prepend the mock root task so users can preview the cross-project DAG
   const mockForCurrent = { ...MOCK_TASK, project_id: selectedProjectId.value ?? MOCK_TASK.project_id }
