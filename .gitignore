@@ -63,4 +63,13 @@ backend/data/
 __pycache__/
 .worktrees/
 .claude/
+.kanban/
+.opencode/
+.superpowers/
+.env
 docs/screenshots/
+
+### Local screenshots/images ###
+*.png
+generated-images/
+scripts/
