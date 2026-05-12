@@ -1574,7 +1574,7 @@ watch(taskListViewMode, (mode) => {
 
 .task-kanban-column {
   flex: 1;
-  min-width: 180px;
+  min-width: 240px;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
