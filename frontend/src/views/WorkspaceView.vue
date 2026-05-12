@@ -81,12 +81,13 @@
             </div>
           </div>
         </template>
-        <div v-if="taskListViewMode === 'kanban'" class="task-kanban-board">
+        <div v-if="taskListViewMode === 'kanban'" class="task-kanban-board" :class="{ 'column-resizing': isResizingColumn }">
           <div
-            v-for="col in kanbanColumns"
+            v-for="(col, idx) in kanbanColumns"
             :key="col.status"
             class="task-kanban-column"
             :data-status="col.status"
+            :style="kanbanColumnStyle(col.status)"
           >
             <div class="task-kanban-column-header">
               <span class="task-kanban-column-title">{{ col.title }}</span>
@@ -133,6 +134,13 @@
               </template>
             </draggable>
           </div>
+          <div
+            v-for="(col, idx) in kanbanColumns"
+            v-if="idx < kanbanColumns.length - 1"
+            :key="'resize-' + col.status"
+            class="column-resize-handle"
+            @mousedown="startColumnResize($event, col.status)"
+          ></div>
         </div>
         <div class="task-list-expand-toggle" @click="taskListViewMode = taskListViewMode === 'list' ? 'kanban' : 'list'">
           <svg v-if="taskListViewMode === 'list'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -604,6 +612,50 @@ const kanbanColumns = computed(() =>
     tasks: tasks.value.filter(t => t.status === col.status)
   }))
 )
+
+// Kanban column resize
+const isResizingColumn = ref(false)
+const kanbanColumnWidths = ref({})
+const resizeTargetStatus = ref(null)
+const resizeStartX = ref(0)
+const resizeStartWidth = ref(0)
+
+function kanbanColumnStyle(status) {
+  const w = kanbanColumnWidths.value[status]
+  return w ? { flexBasis: w + 'px', flexGrow: 0, flexShrink: 0 } : {}
+}
+
+function getCurrentColumnWidth(status) {
+  const el = document.querySelector(`.task-kanban-column[data-status="${status}"]`)
+  return el ? el.getBoundingClientRect().width : 240
+}
+
+function startColumnResize(e, status) {
+  e.preventDefault()
+  isResizingColumn.value = true
+  resizeTargetStatus.value = status
+  resizeStartX.value = e.clientX
+  resizeStartWidth.value = kanbanColumnWidths.value[status] || getCurrentColumnWidth(status)
+
+  function onMove(ev) {
+    const delta = ev.clientX - resizeStartX.value
+    const newWidth = Math.max(180, resizeStartWidth.value + delta)
+    kanbanColumnWidths.value[resizeTargetStatus.value] = newWidth
+  }
+
+  function onUp() {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+    isResizingColumn.value = false
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+}
 
 async function loadTasks() {
   try {
@@ -1634,5 +1686,34 @@ watch(taskListViewMode, (mode) => {
 
 .task-kanban-column .task-card:last-child {
   margin-bottom: 0;
+}
+
+.column-resize-handle {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  z-index: 10;
+}
+
+.column-resize-handle::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.column-resize-handle:hover::after,
+.column-resize-handle:active::after {
+  background: var(--accent-color);
+}
+
+.task-kanban-board.column-resizing .task-kanban-column {
+  pointer-events: none;
 }
 </style>
