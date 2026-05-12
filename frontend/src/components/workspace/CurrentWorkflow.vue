@@ -48,15 +48,15 @@
           >
             <div v-if="index > 0" class="step-connector-h" :class="{ active: step.statusClass === 'done' || step.statusClass === 'running' }"></div>
             <div class="step-node-wrap">
-              <!-- Animated arrow above the current active workflow step -->
-              <div v-if="index === currentStepIndex" class="current-arrow" aria-hidden="true">
+              <!-- Animated arrow above the selected step -->
+              <div v-if="selectedStepId === step.id" class="current-arrow" aria-hidden="true">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#111827" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
                   <polygon points="12 4 20 18 12 15 4 18"></polygon>
                 </svg>
               </div>
               <div
                 class="step-node-h"
-                :class="[step.statusClass, { selected: selectedStepId === step.id, 'is-current': index === currentStepIndex }]"
+                :class="[step.statusClass, { selected: selectedStepId === step.id }]"
                 @click="handleStepClick(step)"
               >
                 <div class="step-indicator">
@@ -228,8 +228,8 @@ const steps = computed(() => {
   }))
 })
 
-// "Current" step = first running/suspended, otherwise the first pending after completed ones,
-// otherwise the last completed. Based strictly on workflow step statuses.
+// "Current" step used for default selection:
+// running > failed > first pending > last step.
 const currentStepIndex = computed(() => {
   const list = steps.value
   if (!list.length) return -1
@@ -237,11 +237,9 @@ const currentStepIndex = computed(() => {
   if (runningIdx !== -1) return runningIdx
   const failedIdx = list.findIndex(s => s.statusClass === 'failed')
   if (failedIdx !== -1) return failedIdx
-  // First pending after completed ones
   for (let i = 0; i < list.length; i++) {
     if (list[i].statusClass === 'pending') return i
   }
-  // All done — point to last
   return list.length - 1
 })
 
@@ -443,6 +441,17 @@ async function handleRefresh() {
 
 watch(activeRun, (newRun) => {
   emit('run-update', newRun)
+  // Auto-select the current step (running > failed > first pending > last done)
+  // so the arrow points at a sensible default. User clicks can override.
+  const list = steps.value
+  if (list.length) {
+    const idx = currentStepIndex.value >= 0 ? currentStepIndex.value : list.length - 1
+    const target = list[idx]
+    if (target) {
+      selectedStepId.value = target.id
+      emit('step-select', target)
+    }
+  }
 }, { immediate: true })
 
 watch(() => props.taskId, () => {
