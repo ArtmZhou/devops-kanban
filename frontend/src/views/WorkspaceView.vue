@@ -212,6 +212,7 @@
             @run-update="onRunUpdate"
             @step-select="onStepSelect"
             @open-template="onOpenTemplateDialog"
+            @merge="onOpenMergeDialog"
           />
         </div>
 
@@ -349,6 +350,15 @@
       v-model="showWorkflowTemplateDialog"
       @confirm="handleWorkflowTemplateConfirm"
     />
+
+    <MergeDialog
+      v-if="showMergeDialog"
+      :project-id="mergeDialogData?.projectId"
+      :task-id="mergeDialogData?.taskId"
+      :source-branch="mergeDialogData?.worktreeBranch"
+      @close="showMergeDialog = false"
+      @merged="onMerged"
+    />
   </div>
 </template>
 
@@ -362,6 +372,7 @@ import TaskFileViewer from '../components/workspace/TaskFileViewer.vue'
 import ChangedFilesPanel from '../components/workspace/ChangedFilesPanel.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
 import WorkflowTemplateSelectDialog from '../components/workflow/WorkflowTemplateSelectDialog.vue'
+import MergeDialog from '../components/MergeDialog.vue'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
 import { getRoleConfig } from '../constants/agent.js'
@@ -615,6 +626,21 @@ const templateDialogIntent = ref('switch') // 'switch' | 'start'
 function onOpenTemplateDialog(intent = 'switch') {
   templateDialogIntent.value = intent
   showWorkflowTemplateDialog.value = true
+}
+
+const showMergeDialog = ref(false)
+const mergeDialogData = ref(null)
+
+function onOpenMergeDialog(data) {
+  mergeDialogData.value = data
+  showMergeDialog.value = true
+}
+
+async function onMerged() {
+  ElMessage.success('合并成功')
+  showMergeDialog.value = false
+  await loadTasks()
+  onWorkflowRefresh()
 }
 
 async function handleWorkflowTemplateConfirm({ templateId }) {
