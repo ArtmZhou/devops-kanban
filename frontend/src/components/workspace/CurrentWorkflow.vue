@@ -6,7 +6,7 @@
       <span v-else-if="loading" class="current-wf-badge">加载中...</span>
     </div>
 
-    <div class="workflow-timeline" v-show="!collapsed">
+    <div class="workflow-timeline">
       <div v-if="!taskId" class="workflow-empty">请选择任务</div>
       <div v-else-if="loading" class="workflow-empty">加载中...</div>
       <div v-else-if="error" class="workflow-empty">{{ error }}</div>
@@ -693,9 +693,5 @@ defineExpose({ workflowName })
   background: #059669;
   border-color: #059669;
   color: #fff;
-}
-
-.is-collapsed .workflow-timeline {
-  display: none;
 }
 </style>
