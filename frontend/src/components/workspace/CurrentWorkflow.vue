@@ -47,34 +47,42 @@
             class="workflow-step-h"
           >
             <div v-if="index > 0" class="step-connector-h" :class="{ active: step.statusClass === 'done' || step.statusClass === 'running' }"></div>
-            <div
-              class="step-node-h"
-              :class="[step.statusClass, { selected: selectedStepId === step.id }]"
-              @click="handleStepClick(step)"
-            >
-              <div class="step-indicator">
-                <svg v-if="step.statusClass === 'done'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
+            <div class="step-node-wrap">
+              <!-- Animated arrow above the current active workflow step -->
+              <div v-if="index === currentStepIndex" class="current-arrow" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#111827" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
+                  <polygon points="12 4 20 18 12 15 4 18"></polygon>
                 </svg>
-                <svg v-else-if="step.statusClass === 'running'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="spin-svg">
-                  <line x1="12" y1="2" x2="12" y2="6"></line>
-                  <line x1="12" y1="18" x2="12" y2="22"></line>
-                  <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                  <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                  <line x1="2" y1="12" x2="6" y2="12"></line>
-                  <line x1="18" y1="12" x2="22" y2="12"></line>
-                  <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                  <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-                </svg>
-                <svg v-else-if="step.statusClass === 'failed'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-                <span v-else class="step-index">{{ index + 1 }}</span>
               </div>
-              <div class="step-content-h">
-                <span class="step-name-h">{{ step.name }}</span>
-                <span class="step-agent-h">{{ step.statusLabel }}</span>
+              <div
+                class="step-node-h"
+                :class="[step.statusClass, { selected: selectedStepId === step.id, 'is-current': index === currentStepIndex }]"
+                @click="handleStepClick(step)"
+              >
+                <div class="step-indicator">
+                  <svg v-if="step.statusClass === 'done'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                  <svg v-else-if="step.statusClass === 'running'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="spin-svg">
+                    <line x1="12" y1="2" x2="12" y2="6"></line>
+                    <line x1="12" y1="18" x2="12" y2="22"></line>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                    <line x1="2" y1="12" x2="6" y2="12"></line>
+                    <line x1="18" y1="12" x2="22" y2="12"></line>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                  </svg>
+                  <svg v-else-if="step.statusClass === 'failed'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                  <span v-else class="step-index">{{ index + 1 }}</span>
+                </div>
+                <div class="step-content-h">
+                  <span class="step-name-h">{{ step.name }}</span>
+                  <span class="step-agent-h">{{ step.statusLabel }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -218,6 +226,23 @@ const steps = computed(() => {
     agent_id: step.agent_id || null,
     raw: step
   }))
+})
+
+// "Current" step = first running/suspended, otherwise the first pending after completed ones,
+// otherwise the last completed. Based strictly on workflow step statuses.
+const currentStepIndex = computed(() => {
+  const list = steps.value
+  if (!list.length) return -1
+  const runningIdx = list.findIndex(s => s.statusClass === 'running')
+  if (runningIdx !== -1) return runningIdx
+  const failedIdx = list.findIndex(s => s.statusClass === 'failed')
+  if (failedIdx !== -1) return failedIdx
+  // First pending after completed ones
+  for (let i = 0; i < list.length; i++) {
+    if (list[i].statusClass === 'pending') return i
+  }
+  // All done — point to last
+  return list.length - 1
 })
 
 function formatDateTime(input) {
@@ -534,6 +559,29 @@ defineExpose({ workflowName })
   background: var(--accent-color);
 }
 
+.step-node-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.current-arrow {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: arrow-bounce 1.2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes arrow-bounce {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -4px); }
+}
+
 .step-node-h {
   display: flex;
   align-items: center;
@@ -544,7 +592,7 @@ defineExpose({ workflowName })
   white-space: nowrap;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .step-node-h:hover {
@@ -553,7 +601,7 @@ defineExpose({ workflowName })
 
 .step-node-h.selected {
   background: var(--bg-secondary);
-  border-color: var(--accent-color);
+  box-shadow: inset 0 0 0 1px var(--accent-color);
 }
 
 .step-indicator {
