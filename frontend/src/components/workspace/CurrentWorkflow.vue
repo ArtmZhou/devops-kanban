@@ -1,12 +1,12 @@
 <template>
-  <div class="current-workflow-section">
-    <div class="panel-header">
+  <div class="current-workflow-section" :class="{ 'is-embedded': embedded, 'is-collapsed': collapsed }">
+    <div v-if="!embedded" class="panel-header">
       <h4>当前工作流</h4>
       <span v-if="workflowName" class="current-wf-badge">{{ workflowName }}</span>
       <span v-else-if="loading" class="current-wf-badge">加载中...</span>
     </div>
 
-    <div class="workflow-timeline">
+    <div class="workflow-timeline" v-show="!collapsed">
       <div v-if="!taskId" class="workflow-empty">请选择任务</div>
       <div v-else-if="loading" class="workflow-empty">加载中...</div>
       <div v-else-if="error" class="workflow-empty">{{ error }}</div>
@@ -17,9 +17,32 @@
           :key="step.id || index"
           class="workflow-step-h"
         >
-          <div class="step-connector-h" v-if="index > 0"></div>
-          <div class="step-node-h" :class="step.statusClass">
-            <div class="step-dot-h" :class="step.statusClass"></div>
+          <div class="step-connector-h" v-if="index > 0" :class="{ active: step.statusClass !== 'pending' }"></div>
+          <div
+            class="step-node-h"
+            :class="[step.statusClass, { selected: selectedStepId === step.id }]"
+            @click="handleStepClick(step)"
+          >
+            <div class="step-indicator">
+              <svg v-if="step.statusClass === 'done'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <svg v-else-if="step.statusClass === 'running'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="spin-svg">
+                <line x1="12" y1="2" x2="12" y2="6"></line>
+                <line x1="12" y1="18" x2="12" y2="22"></line>
+                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                <line x1="2" y1="12" x2="6" y2="12"></line>
+                <line x1="18" y1="12" x2="22" y2="12"></line>
+                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+              </svg>
+              <svg v-else-if="step.statusClass === 'failed'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              <span v-else class="step-index">{{ index + 1 }}</span>
+            </div>
             <div class="step-content-h">
               <span class="step-name-h">{{ step.name }}</span>
               <span class="step-agent-h">{{ step.statusLabel }}</span>
@@ -67,16 +90,20 @@ import { getTask, startTask } from '../../api/task.js'
 import { getWorkflowRun, cancelWorkflow, retryWorkflow } from '../../api/workflow.js'
 
 const props = defineProps({
-  taskId: { type: Number, default: null }
+  taskId: { type: Number, default: null },
+  mockRun: { type: Object, default: null },
+  embedded: { type: Boolean, default: false },
+  collapsed: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['refresh'])
+const emit = defineEmits(['refresh', 'run-update', 'step-select'])
 
 const task = ref(null)
 const run = ref(null)
 const loading = ref(false)
 const error = ref(null)
 const actionLoading = ref(false)
+const selectedStepId = ref(null)
 
 const STATUS_CLASS = {
   DONE: 'done',
@@ -100,23 +127,32 @@ const STATUS_LABEL = {
   PENDING: '待执行'
 }
 
+const activeRun = computed(() => props.mockRun || run.value)
+
 const workflowName = computed(() => {
-  return run.value?.workflow_template_snapshot?.name
-    || run.value?.workflow_id
+  return activeRun.value?.workflow_template_snapshot?.name
+    || activeRun.value?.workflow_id
     || null
 })
 
 const steps = computed(() => {
-  const list = run.value?.steps || []
+  const list = activeRun.value?.steps || []
   return list.map((step, index) => ({
-    id: step.step_id || index,
+    id: step.step_id || step.id || index,
+    step_id: step.step_id,
     name: step.name || step.step_id || `步骤 ${index + 1}`,
     statusClass: STATUS_CLASS[step.status] || 'pending',
-    statusLabel: STATUS_LABEL[step.status] || step.status || '待执行'
+    statusLabel: STATUS_LABEL[step.status] || step.status || '待执行',
+    session_id: step.session_id || null,
+    provider_session_id: step.provider_session_id || null,
+    status: step.status,
+    assembled_prompt: step.assembled_prompt || '',
+    agent_id: step.agent_id || null,
+    raw: step
   }))
 })
 
-const runStatus = computed(() => run.value?.status || null)
+const runStatus = computed(() => activeRun.value?.status || null)
 const isTerminal = computed(() => {
   const s = runStatus.value
   return s === 'COMPLETED' || s === 'FAILED' || s === 'CANCELLED'
@@ -124,7 +160,6 @@ const isTerminal = computed(() => {
 
 const startDisabled = computed(() => {
   if (!task.value) return true
-  // Task not yet started - no run attached
   return Boolean(task.value.workflow_run_id) && !isTerminal.value
 })
 const startTooltip = computed(() => {
@@ -153,6 +188,11 @@ const cancelTooltip = computed(() => {
   return ''
 })
 
+function handleStepClick(step) {
+  selectedStepId.value = step.id
+  emit('step-select', step)
+}
+
 async function loadTask(id) {
   if (!id) {
     task.value = null
@@ -164,9 +204,7 @@ async function loadTask(id) {
       task.value = resp.data || null
       return task.value
     }
-  } catch (e) {
-    // swallow; error surfaces via run load
-  }
+  } catch (e) {}
   return null
 }
 
@@ -271,9 +309,17 @@ async function handleRefresh() {
   emit('refresh')
 }
 
+// Emit run-update whenever the active run changes so the parent can derive session info
+watch(activeRun, (newRun) => {
+  emit('run-update', newRun)
+}, { immediate: true })
+
 watch(() => props.taskId, () => {
+  selectedStepId.value = null
   load()
 }, { immediate: true })
+
+defineExpose({ workflowName })
 </script>
 
 <style scoped>
@@ -282,6 +328,10 @@ watch(() => props.taskId, () => {
   flex-direction: column;
   background: var(--bg-primary);
   flex-shrink: 0;
+}
+
+.current-workflow-section.is-embedded {
+  background: transparent;
 }
 
 .panel-header {
@@ -312,9 +362,10 @@ watch(() => props.taskId, () => {
 }
 
 .workflow-timeline {
-  padding: 8px 16px 6px;
+  padding: 12px 16px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
 }
 
 .workflow-empty {
@@ -329,7 +380,7 @@ watch(() => props.taskId, () => {
   align-items: center;
   gap: 0;
   overflow-x: auto;
-  padding: 2px 0;
+  padding: 4px 0;
 }
 
 .workflow-step-h {
@@ -342,9 +393,14 @@ watch(() => props.taskId, () => {
   width: 28px;
   height: 2px;
   background: var(--border-color);
-  margin: 0 2px;
+  margin: 0 4px;
   flex-shrink: 0;
   position: relative;
+  transition: background 0.2s;
+}
+
+.step-connector-h.active {
+  background: var(--accent-color);
 }
 
 .step-connector-h::after {
@@ -353,78 +409,112 @@ watch(() => props.taskId, () => {
   right: -3px;
   top: 50%;
   transform: translateY(-50%);
-  border-left: 5px solid var(--border-color);
+  border-left: 5px solid currentColor;
   border-top: 3px solid transparent;
   border-bottom: 3px solid transparent;
+  color: var(--border-color);
+}
+
+.step-connector-h.active::after {
+  color: var(--accent-color);
 }
 
 .step-node-h {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  padding: 6px 12px 6px 8px;
+  border-radius: 20px;
   background: var(--bg-secondary);
   white-space: nowrap;
-  border: 1px solid transparent;
-  transition: all 0.2s;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.step-node-h:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .step-node-h.done {
-  background: var(--done-soft);
-  border-color: var(--teal-border-soft);
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .step-node-h.running {
-  background: var(--in-progress-soft);
-  border-color: var(--teal-active-border);
-  box-shadow: 0 0 0 3px var(--teal-active-shadow);
+  background: rgba(37, 198, 201, 0.1);
+  border-color: rgba(37, 198, 201, 0.4);
+  box-shadow: 0 0 0 3px rgba(37, 198, 201, 0.08);
 }
 
 .step-node-h.failed {
-  background: var(--danger-soft);
-  border-color: var(--danger-strong);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
 }
 
 .step-node-h.pending {
   background: var(--bg-secondary);
   border-color: var(--border-color);
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
-.step-dot-h {
-  width: 8px;
-  height: 8px;
+.step-node-h.selected {
+  box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.step-indicator {
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  background: var(--bg-primary);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
 }
 
-.step-dot-h.done {
-  background: var(--done-strong);
+.step-node-h.done .step-indicator {
+  background: #10b981;
+  color: #fff;
 }
 
-.step-dot-h.running {
-  background: var(--in-progress-strong);
-  box-shadow: 0 0 6px var(--green-shadow-soft);
+.step-node-h.running .step-indicator {
+  background: var(--accent-color);
+  color: #fff;
 }
 
-.step-dot-h.failed {
-  background: var(--danger-strong);
+.step-node-h.failed .step-indicator {
+  background: #ef4444;
+  color: #fff;
 }
 
-.step-dot-h.pending {
-  background: var(--text-muted);
-  opacity: 0.4;
+.step-index {
+  display: inline-block;
+  line-height: 1;
+}
+
+.spin-svg {
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .step-content-h {
   display: flex;
   flex-direction: column;
+  line-height: 1.3;
 }
 
 .step-name-h {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
@@ -433,11 +523,29 @@ watch(() => props.taskId, () => {
   color: var(--text-muted);
 }
 
+.step-node-h.done .step-agent-h {
+  color: #10b981;
+}
+
+.step-node-h.running .step-agent-h {
+  color: var(--accent-color);
+}
+
+.step-node-h.failed .step-agent-h {
+  color: #ef4444;
+}
+
 .quick-actions {
   display: flex;
   gap: 6px;
-  padding: 6px 16px 8px;
+  padding: 8px 16px;
   flex-shrink: 0;
   flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.is-collapsed .workflow-timeline {
+  display: none;
 }
 </style>
