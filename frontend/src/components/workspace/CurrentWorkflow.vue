@@ -13,25 +13,29 @@
       <div v-else-if="!steps.length" class="workflow-empty">暂无工作流运行</div>
       <template v-else>
         <!-- Timeline meta row: start / end / duration -->
-        <div v-if="timelineMeta.startText || timelineMeta.endText || timelineMeta.durationText" class="timeline-meta">
+        <div class="timeline-meta">
           <span class="timeline-meta-item">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <circle cx="12" cy="12" r="9"></circle>
               <polyline points="12 7 12 12 15 14"></polyline>
             </svg>
-            <span class="timeline-meta-label" v-if="timelineMeta.startText">开始</span>
-            <span v-if="timelineMeta.startText">{{ timelineMeta.startText }}</span>
+            <span class="timeline-meta-label">开始</span>
+            <span>{{ timelineMeta.startText || '--' }}</span>
           </span>
-          <span v-if="timelineMeta.endText" class="timeline-meta-item">
+          <span class="timeline-meta-item">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
-            <span class="timeline-meta-label">完成于</span>
-            <span>{{ timelineMeta.endText }}</span>
+            <span class="timeline-meta-label">完成</span>
+            <span>{{ timelineMeta.endText || '--' }}</span>
           </span>
-          <span v-if="timelineMeta.durationText" class="timeline-meta-item">
+          <span class="timeline-meta-item">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
             <span class="timeline-meta-label">用时</span>
-            <span>{{ timelineMeta.durationText }}</span>
+            <span>{{ timelineMeta.durationText || '--' }}</span>
           </span>
         </div>
 
@@ -80,71 +84,69 @@
 
     <div class="quick-actions">
       <el-tooltip :content="startTooltip" :disabled="!startDisabled" placement="top">
-        <el-button
-          size="small"
+        <button
+          class="quick-action-btn"
           :disabled="startDisabled || actionLoading"
           @click="handleStart"
         >
-          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="6 4 20 12 6 20 6 4"></polygon>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
           </svg>
           启动
-        </el-button>
+        </button>
       </el-tooltip>
       <el-tooltip content="切换工作流模板" placement="top">
-        <el-button size="small" :disabled="actionLoading" @click="handleTemplate">
-          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="quick-action-btn" :disabled="actionLoading" @click="handleTemplate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
           模板
-        </el-button>
+        </button>
       </el-tooltip>
       <el-tooltip :content="retryTooltip" :disabled="!retryDisabled" placement="top">
-        <el-button
-          size="small"
+        <button
+          class="quick-action-btn quick-action-retry"
           :disabled="retryDisabled || actionLoading"
           @click="handleRetry"
         >
-          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
           </svg>
           重试
-        </el-button>
+        </button>
       </el-tooltip>
       <el-tooltip content="暂未实现" placement="top">
-        <el-button size="small" disabled>
-          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 18h6"></path>
-            <path d="M10 22h4"></path>
-            <path d="M12 2a7 7 0 0 0-4 12.7c.7.6 1 1.2 1 2V18h6v-1.3c0-.8.3-1.4 1-2A7 7 0 0 0 12 2z"></path>
+        <button class="quick-action-btn" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="18" r="3"></circle>
+            <circle cx="6" cy="6" r="3"></circle>
+            <circle cx="18" cy="6" r="3"></circle>
+            <path d="M6 9v3a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V9"></path>
           </svg>
           合入
-        </el-button>
+        </button>
       </el-tooltip>
       <el-tooltip :content="cancelTooltip" :disabled="!cancelDisabled" placement="top">
-        <el-button
-          size="small"
-          class="btn-cancel"
+        <button
+          class="quick-action-btn quick-action-cancel"
           :disabled="cancelDisabled || actionLoading"
           @click="handleCancel"
         >
-          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
-            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
           </svg>
           取消
-        </el-button>
+        </button>
       </el-tooltip>
-      <el-button size="small" :disabled="!taskId || actionLoading" @click="handleRefresh">
-        <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="1 4 1 10 7 10"></polyline>
-          <polyline points="23 20 23 14 17 14"></polyline>
-          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+      <button class="quick-action-btn" :disabled="!taskId || actionLoading" @click="handleRefresh">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
         </svg>
         刷新
-      </el-button>
+      </button>
     </div>
   </div>
 </template>
@@ -636,25 +638,54 @@ defineExpose({ workflowName })
   background: var(--bg-primary);
 }
 
-.quick-actions :deep(.el-button) {
+.quick-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.btn-icon {
-  flex-shrink: 0;
-}
-
-.quick-actions :deep(.btn-cancel:not(:disabled)) {
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.35);
-}
-
-.quick-actions :deep(.btn-cancel:not(:disabled):hover) {
+.quick-action-btn:hover:not(:disabled) {
+  background: var(--accent-color);
+  border-color: var(--accent-color);
   color: #fff;
-  background: #ef4444;
-  border-color: #ef4444;
+}
+
+.quick-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quick-action-btn.quick-action-cancel {
+  color: #dc2626;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.quick-action-btn.quick-action-cancel:hover:not(:disabled) {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.quick-action-btn.quick-action-retry {
+  color: #059669;
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.quick-action-btn.quick-action-retry:hover:not(:disabled) {
+  background: #059669;
+  border-color: #059669;
+  color: #fff;
 }
 
 .is-collapsed .workflow-timeline {
