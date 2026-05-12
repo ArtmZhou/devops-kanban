@@ -11,74 +11,140 @@
       <div v-else-if="loading" class="workflow-empty">加载中...</div>
       <div v-else-if="error" class="workflow-empty">{{ error }}</div>
       <div v-else-if="!steps.length" class="workflow-empty">暂无工作流运行</div>
-      <div v-else class="workflow-steps">
-        <div
-          v-for="(step, index) in steps"
-          :key="step.id || index"
-          class="workflow-step-h"
-        >
-          <div class="step-connector-h" v-if="index > 0" :class="{ active: step.statusClass !== 'pending' }"></div>
+      <template v-else>
+        <!-- Timeline meta row: start / end / duration -->
+        <div v-if="timelineMeta.startText || timelineMeta.endText || timelineMeta.durationText" class="timeline-meta">
+          <span class="timeline-meta-item">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <circle cx="12" cy="12" r="9"></circle>
+              <polyline points="12 7 12 12 15 14"></polyline>
+            </svg>
+            <span class="timeline-meta-label" v-if="timelineMeta.startText">开始</span>
+            <span v-if="timelineMeta.startText">{{ timelineMeta.startText }}</span>
+          </span>
+          <span v-if="timelineMeta.endText" class="timeline-meta-item">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span class="timeline-meta-label">完成于</span>
+            <span>{{ timelineMeta.endText }}</span>
+          </span>
+          <span v-if="timelineMeta.durationText" class="timeline-meta-item">
+            <span class="timeline-meta-label">用时</span>
+            <span>{{ timelineMeta.durationText }}</span>
+          </span>
+        </div>
+
+        <!-- Horizontal step timeline -->
+        <div class="workflow-steps">
           <div
-            class="step-node-h"
-            :class="[step.statusClass, { selected: selectedStepId === step.id }]"
-            @click="handleStepClick(step)"
+            v-for="(step, index) in steps"
+            :key="step.id || index"
+            class="workflow-step-h"
           >
-            <div class="step-indicator">
-              <svg v-if="step.statusClass === 'done'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-              <svg v-else-if="step.statusClass === 'running'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="spin-svg">
-                <line x1="12" y1="2" x2="12" y2="6"></line>
-                <line x1="12" y1="18" x2="12" y2="22"></line>
-                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
-                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
-                <line x1="2" y1="12" x2="6" y2="12"></line>
-                <line x1="18" y1="12" x2="22" y2="12"></line>
-                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
-                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
-              </svg>
-              <svg v-else-if="step.statusClass === 'failed'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-              <span v-else class="step-index">{{ index + 1 }}</span>
-            </div>
-            <div class="step-content-h">
-              <span class="step-name-h">{{ step.name }}</span>
-              <span class="step-agent-h">{{ step.statusLabel }}</span>
+            <div v-if="index > 0" class="step-connector-h" :class="{ active: step.statusClass === 'done' || step.statusClass === 'running' }"></div>
+            <div
+              class="step-node-h"
+              :class="[step.statusClass, { selected: selectedStepId === step.id }]"
+              @click="handleStepClick(step)"
+            >
+              <div class="step-indicator">
+                <svg v-if="step.statusClass === 'done'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <svg v-else-if="step.statusClass === 'running'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="spin-svg">
+                  <line x1="12" y1="2" x2="12" y2="6"></line>
+                  <line x1="12" y1="18" x2="12" y2="22"></line>
+                  <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+                  <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+                  <line x1="2" y1="12" x2="6" y2="12"></line>
+                  <line x1="18" y1="12" x2="22" y2="12"></line>
+                  <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+                  <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+                </svg>
+                <svg v-else-if="step.statusClass === 'failed'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+                <span v-else class="step-index">{{ index + 1 }}</span>
+              </div>
+              <div class="step-content-h">
+                <span class="step-name-h">{{ step.name }}</span>
+                <span class="step-agent-h">{{ step.statusLabel }}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </template>
     </div>
 
     <div class="quick-actions">
       <el-tooltip :content="startTooltip" :disabled="!startDisabled" placement="top">
         <el-button
           size="small"
-          type="primary"
           :disabled="startDisabled || actionLoading"
           @click="handleStart"
-        >启动</el-button>
+        >
+          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="6 4 20 12 6 20 6 4"></polygon>
+          </svg>
+          启动
+        </el-button>
+      </el-tooltip>
+      <el-tooltip content="切换工作流模板" placement="top">
+        <el-button size="small" :disabled="actionLoading" @click="handleTemplate">
+          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          模板
+        </el-button>
       </el-tooltip>
       <el-tooltip :content="retryTooltip" :disabled="!retryDisabled" placement="top">
         <el-button
           size="small"
           :disabled="retryDisabled || actionLoading"
           @click="handleRetry"
-        >重试</el-button>
+        >
+          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          重试
+        </el-button>
       </el-tooltip>
       <el-tooltip content="暂未实现" placement="top">
-        <el-button size="small" disabled>合入</el-button>
+        <el-button size="small" disabled>
+          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 18h6"></path>
+            <path d="M10 22h4"></path>
+            <path d="M12 2a7 7 0 0 0-4 12.7c.7.6 1 1.2 1 2V18h6v-1.3c0-.8.3-1.4 1-2A7 7 0 0 0 12 2z"></path>
+          </svg>
+          合入
+        </el-button>
       </el-tooltip>
       <el-tooltip :content="cancelTooltip" :disabled="!cancelDisabled" placement="top">
         <el-button
           size="small"
+          class="btn-cancel"
           :disabled="cancelDisabled || actionLoading"
           @click="handleCancel"
-        >取消</el-button>
+        >
+          <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+          </svg>
+          取消
+        </el-button>
       </el-tooltip>
-      <el-button size="small" :disabled="!taskId || actionLoading" @click="handleRefresh">刷新</el-button>
+      <el-button size="small" :disabled="!taskId || actionLoading" @click="handleRefresh">
+        <svg class="btn-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="1 4 1 10 7 10"></polyline>
+          <polyline points="23 20 23 14 17 14"></polyline>
+          <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+        </svg>
+        刷新
+      </el-button>
     </div>
   </div>
 </template>
@@ -96,7 +162,7 @@ const props = defineProps({
   collapsed: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['refresh', 'run-update', 'step-select'])
+const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template'])
 
 const task = ref(null)
 const run = ref(null)
@@ -152,6 +218,41 @@ const steps = computed(() => {
   }))
 })
 
+function formatDateTime(input) {
+  if (!input) return ''
+  const d = new Date(input)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function formatDuration(ms) {
+  if (!ms || ms < 0) return ''
+  const totalSeconds = Math.floor(ms / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  const parts = []
+  if (hours) parts.push(`${hours}小时`)
+  if (minutes) parts.push(`${minutes}分`)
+  parts.push(`${seconds}秒`)
+  return parts.join('')
+}
+
+const timelineMeta = computed(() => {
+  const r = activeRun.value
+  if (!r) return { startText: '', endText: '', durationText: '' }
+  const startRaw = r.started_at || r.start_time || r.created_at
+  const endRaw = r.completed_at || r.ended_at || r.finished_at || r.end_time
+  const startText = formatDateTime(startRaw)
+  const endText = formatDateTime(endRaw)
+  let durationText = ''
+  if (startRaw && endRaw) {
+    durationText = formatDuration(new Date(endRaw).getTime() - new Date(startRaw).getTime())
+  }
+  return { startText, endText, durationText }
+})
+
 const runStatus = computed(() => activeRun.value?.status || null)
 const isTerminal = computed(() => {
   const s = runStatus.value
@@ -191,6 +292,10 @@ const cancelTooltip = computed(() => {
 function handleStepClick(step) {
   selectedStepId.value = step.id
   emit('step-select', step)
+}
+
+function handleTemplate() {
+  emit('open-template')
 }
 
 async function loadTask(id) {
@@ -309,7 +414,6 @@ async function handleRefresh() {
   emit('refresh')
 }
 
-// Emit run-update whenever the active run changes so the parent can derive session info
 watch(activeRun, (newRun) => {
   emit('run-update', newRun)
 }, { immediate: true })
@@ -362,7 +466,7 @@ defineExpose({ workflowName })
 }
 
 .workflow-timeline {
-  padding: 12px 16px;
+  padding: 12px 20px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-primary);
@@ -375,12 +479,38 @@ defineExpose({ workflowName })
   text-align: center;
 }
 
+.timeline-meta {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.timeline-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeline-meta-item svg {
+  color: var(--accent-color);
+  flex-shrink: 0;
+}
+
+.timeline-meta-label {
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
 .workflow-steps {
   display: flex;
   align-items: center;
   gap: 0;
   overflow-x: auto;
-  padding: 4px 0;
+  padding: 2px 0;
 }
 
 .workflow-step-h {
@@ -390,12 +520,11 @@ defineExpose({ workflowName })
 }
 
 .step-connector-h {
-  width: 28px;
+  width: 40px;
   height: 2px;
   background: var(--border-color);
-  margin: 0 4px;
+  margin: 0 8px;
   flex-shrink: 0;
-  position: relative;
   transition: background 0.2s;
 }
 
@@ -403,64 +532,26 @@ defineExpose({ workflowName })
   background: var(--accent-color);
 }
 
-.step-connector-h::after {
-  content: '';
-  position: absolute;
-  right: -3px;
-  top: 50%;
-  transform: translateY(-50%);
-  border-left: 5px solid currentColor;
-  border-top: 3px solid transparent;
-  border-bottom: 3px solid transparent;
-  color: var(--border-color);
-}
-
-.step-connector-h.active::after {
-  color: var(--accent-color);
-}
-
 .step-node-h {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px 6px 8px;
-  border-radius: 20px;
-  background: var(--bg-secondary);
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  background: transparent;
   white-space: nowrap;
-  border: 1px solid var(--border-color);
+  border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .step-node-h:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.step-node-h.done {
-  background: rgba(16, 185, 129, 0.08);
-  border-color: rgba(16, 185, 129, 0.3);
-}
-
-.step-node-h.running {
-  background: rgba(37, 198, 201, 0.1);
-  border-color: rgba(37, 198, 201, 0.4);
-  box-shadow: 0 0 0 3px rgba(37, 198, 201, 0.08);
-}
-
-.step-node-h.failed {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.35);
-}
-
-.step-node-h.pending {
   background: var(--bg-secondary);
-  border-color: var(--border-color);
-  opacity: 0.75;
 }
 
 .step-node-h.selected {
-  box-shadow: 0 0 0 2px var(--accent-color);
+  background: var(--bg-secondary);
+  border-color: var(--accent-color);
 }
 
 .step-indicator {
@@ -471,25 +562,29 @@ defineExpose({ workflowName })
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
+  border: 1.5px solid var(--border-color);
 }
 
 .step-node-h.done .step-indicator {
-  background: #10b981;
+  background: var(--accent-color);
   color: #fff;
+  border-color: var(--accent-color);
 }
 
 .step-node-h.running .step-indicator {
-  background: var(--accent-color);
-  color: #fff;
+  background: #fff;
+  color: var(--accent-color);
+  border-color: var(--accent-color);
 }
 
 .step-node-h.failed .step-indicator {
   background: #ef4444;
   color: #fff;
+  border-color: #ef4444;
 }
 
 .step-index {
@@ -513,21 +608,17 @@ defineExpose({ workflowName })
 }
 
 .step-name-h {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-primary);
 }
 
 .step-agent-h {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
 }
 
 .step-node-h.done .step-agent-h {
-  color: #10b981;
-}
-
-.step-node-h.running .step-agent-h {
   color: var(--accent-color);
 }
 
@@ -537,12 +628,33 @@ defineExpose({ workflowName })
 
 .quick-actions {
   display: flex;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: 8px;
+  padding: 10px 20px;
   flex-shrink: 0;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-primary);
+}
+
+.quick-actions :deep(.el-button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-icon {
+  flex-shrink: 0;
+}
+
+.quick-actions :deep(.btn-cancel:not(:disabled)) {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.quick-actions :deep(.btn-cancel:not(:disabled):hover) {
+  color: #fff;
+  background: #ef4444;
+  border-color: #ef4444;
 }
 
 .is-collapsed .workflow-timeline {
