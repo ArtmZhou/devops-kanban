@@ -100,6 +100,7 @@
               ghost-class="ghost-card"
               :data-status="col.status"
               item-key="id"
+              class="task-kanban-column-body"
               @end="onKanbanDragEnd"
             >
               <template #item="{ element: task }">
@@ -1688,10 +1689,11 @@ watch(taskListViewMode, (mode) => {
   font-weight: 600;
 }
 
-.task-kanban-column [draggable] {
+.task-kanban-column-body {
   flex: 1;
   overflow-y: auto;
   padding: 6px;
+  min-height: 100px;
 }
 
 .task-kanban-column .task-card {
