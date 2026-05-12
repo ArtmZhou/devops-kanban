@@ -23,7 +23,7 @@
         </select>
       </div>
       <div class="task-list">
-        <div class="task-status-filter">
+        <div v-if="taskListViewMode === 'list'" class="task-status-filter">
           <button
             class="status-chip"
             :class="{ active: selectedStatus === null }"
