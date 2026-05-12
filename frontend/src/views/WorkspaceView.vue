@@ -1613,10 +1613,12 @@ watch(taskListViewMode, (mode) => {
 }
 
 .task-kanban-column .task-card {
+  height: 80px;
   padding: 10px 12px;
   margin-bottom: 4px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .task-kanban-column .task-card:hover {
