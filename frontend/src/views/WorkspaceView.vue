@@ -50,34 +50,59 @@
             新建
           </el-button>
         </div>
-        <div
-          v-for="task in tasks"
-          :key="task.id"
-          class="task-card"
-          :class="{ 'selected': selectedTask?.id === task.id, 'is-mock': task.id < 0 }"
-          @click="selectTask(task)"
-        >
-          <div class="task-card-header">
-            <span class="task-priority" :class="priorityClass(task.priority)">{{ priorityText(task.priority) }}</span>
-            <span class="task-status" :class="statusClass(task.status)">{{ statusText(task.status) }}</span>
+        <template v-if="taskListViewMode === 'list'">
+          <div
+            v-for="task in tasks"
+            :key="task.id"
+            class="task-card"
+            :class="{ 'selected': selectedTask?.id === task.id, 'is-mock': task.id < 0 }"
+            @click="selectTask(task)"
+          >
+            <div class="task-card-header">
+              <span class="task-priority" :class="priorityClass(task.priority)">{{ priorityText(task.priority) }}</span>
+              <span class="task-status" :class="statusClass(task.status)">{{ statusText(task.status) }}</span>
+            </div>
+            <div class="task-card-title">{{ task.title }}</div>
+            <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
+            <div v-if="task.id > 0" class="task-card-actions" @click.stop>
+              <el-button size="small" text @click="openEditTask(task)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                </svg>
+              </el-button>
+              <el-button size="small" text type="danger" @click="handleDeleteTask(task)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                  <path d="M10 11v6"></path>
+                  <path d="M14 11v6"></path>
+                </svg>
+              </el-button>
+            </div>
           </div>
-          <div class="task-card-title">{{ task.title }}</div>
-          <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
-          <div v-if="task.id > 0" class="task-card-actions" @click.stop>
-            <el-button size="small" text @click="openEditTask(task)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
-              </svg>
-            </el-button>
-            <el-button size="small" text type="danger" @click="handleDeleteTask(task)">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                <path d="M10 11v6"></path>
-                <path d="M14 11v6"></path>
-              </svg>
-            </el-button>
-          </div>
+        </template>
+        <WorkspaceKanbanBoard
+          v-else
+          :tasks="tasks"
+          :selected-task="selectedTask"
+          :running-task-ids="runningTasks"
+          @select-task="selectTask"
+          @drag-end="onKanbanDragEnd"
+        />
+        <div class="task-list-expand-toggle" @click="taskListViewMode = taskListViewMode === 'list' ? 'kanban' : 'list'">
+          <svg v-if="taskListViewMode === 'list'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+          <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 14 10 14 10 20"></polyline>
+            <polyline points="20 10 14 10 14 4"></polyline>
+            <line x1="14" y1="10" x2="21" y2="3"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+          <span>{{ taskListViewMode === 'list' ? '看板视图' : '列表视图' }}</span>
         </div>
       </div>
     </div>
@@ -136,13 +161,6 @@
         </div>
 
         <div class="workspace-section workspace-mid-bottom">
-          <AiSplitCard
-            :suggestion="splitStore.pendingByTask.get(selectedTask?.id)"
-            :task-id="selectedTask?.id"
-            @update="(suggestions) => selectedTask?.id && splitStore.updateSuggestions(selectedTask.id, suggestions)"
-            @confirm="onConfirmSplit"
-            @dismiss="onDismissSplit"
-          />
           <div class="chat-panel">
             <!-- Session info header -->
             <div v-if="activeSession" class="chat-session-header">
@@ -279,20 +297,20 @@
 import { ref, computed, watch, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import AiSplitCard from '../components/workspace/AiSplitCard.vue'
 import PipelineDag from '../components/workspace/PipelineDag.vue'
 import CurrentWorkflow from '../components/workspace/CurrentWorkflow.vue'
 import TaskFileViewer from '../components/workspace/TaskFileViewer.vue'
 import ChangedFilesPanel from '../components/workspace/ChangedFilesPanel.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
-import { useSplitSuggestionsStore } from '../stores/splitSuggestions.js'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
 import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi } from '../api/task.js'
+import WorkspaceKanbanBoard from '../components/kanban/WorkspaceKanbanBoard.vue'
+import { useTaskTimer } from '../composables/kanban/useTaskTimer.js'
 
-const splitStore = useSplitSuggestionsStore()
 const projectStore = useProjectStore()
 const agentStore = useAgentStore()
+const { runningTasks } = useTaskTimer()
 const route = useRoute()
 const router = useRouter()
 
@@ -403,6 +421,18 @@ async function handleDeleteTask(task) {
   }
 }
 
+async function onKanbanDragEnd({ taskId, newStatus }) {
+  try {
+    const resp = await updateTask(taskId, { status: newStatus })
+    if (resp?.success) {
+      await loadTasks()
+      ElMessage.success('任务状态已更新')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '状态更新失败')
+  }
+}
+
 // --- Mock cross-project pipeline demo ---
 // Shows a root task in "DevOps 看板系统" that fans out into children living in other projects.
 const MOCK_ROOT_ID = -1001
@@ -503,6 +533,7 @@ const focusedTaskId = computed(() => focusedNodeId.value ?? selectedTask.value?.
 const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
 
 const selectedStatus = ref(null)
+const taskListViewMode = ref('list') // 'list' | 'kanban'
 const tasks = computed(() => {
   // Prepend the mock root task so users can preview the cross-project DAG
   const mockForCurrent = { ...MOCK_TASK, project_id: selectedProjectId.value ?? MOCK_TASK.project_id }
@@ -634,18 +665,6 @@ function statusClass(status) {
   return map[status] || 'waiting'
 }
 
-async function onConfirmSplit() {
-  if (!selectedTask.value?.id) return
-  await splitStore.doConfirm(selectedTask.value.id)
-  if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
-}
-
-async function onDismissSplit() {
-  if (!selectedTask.value?.id) return
-  await splitStore.doDismiss(selectedTask.value.id)
-  if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
-}
-
 async function onWorkflowRefresh() {
   if (selectedTask.value?.id) {
     await loadPipeline(selectedTask.value.id)
@@ -745,11 +764,6 @@ const runStatusClass = computed(() => {
   return s ? (RUN_STATUS_CLASS[s] || 'pending') : 'pending'
 })
 
-// Load split suggestions when selected task changes
-watch(() => selectedTask.value?.id, async (taskId) => {
-  if (taskId) await splitStore.load(taskId)
-}, { immediate: true })
-
 onMounted(async () => {
   await projectStore.fetchProjects()
   if (!selectedProjectId.value && projects.value.length) {
@@ -760,6 +774,13 @@ onMounted(async () => {
 })
 watch(() => selectedTask.value?.id, async (newId) => {
   if (newId) await loadPipeline(newId)
+})
+watch(taskListViewMode, (mode) => {
+  if (mode === 'kanban') {
+    leftWidth.value = Math.max(leftWidth.value, 900)
+  } else {
+    leftWidth.value = Math.min(leftWidth.value, 360)
+  }
 })
 </script>
 
@@ -1429,5 +1450,32 @@ watch(() => selectedTask.value?.id, async (newId) => {
   color: var(--text-muted);
   font-size: 12px;
   min-height: 60px;
+}
+
+.task-list-expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  margin: 8px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--panel-bg);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.task-list-expand-toggle:hover {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  background: var(--hover-bg);
+}
+
+.task-list-expand-toggle svg {
+  flex-shrink: 0;
 }
 </style>
