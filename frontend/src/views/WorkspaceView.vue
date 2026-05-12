@@ -771,7 +771,10 @@ const runStatusClass = computed(() => {
 })
 
 onMounted(async () => {
-  await projectStore.fetchProjects()
+  await Promise.all([
+    projectStore.fetchProjects(),
+    agentStore.fetchAgents()
+  ])
   if (!selectedProjectId.value && projects.value.length) {
     selectedProjectId.value = projects.value[0].id
     router.replace(`/workspace/${selectedProjectId.value}`)
