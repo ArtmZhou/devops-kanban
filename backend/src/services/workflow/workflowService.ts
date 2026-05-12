@@ -12,6 +12,7 @@ import { ValidationError, NotFoundError, ConflictError, BusinessError } from '..
 import { logger } from '../../utils/logger.js';
 import { NotificationService } from '../notificationService.js';
 import { STORAGE_PATH, BACKEND_ROOT } from '../../config/index.js';
+import { ensureExternalRepo } from '../../utils/git.js';
 import * as path from 'node:path';
 
 
@@ -69,6 +70,13 @@ class WorkflowService {
     this.lifecycle = lifecycle || new WorkflowLifecycle({
       workflowRunRepo: this.workflowRunRepo,
       taskRepo: this.taskRepo,
+      onTaskStatusChange: async (taskId, status) => {
+        // Dynamic import avoids the workflowService → workflowLifecycle → taskService
+        // → workflowService module cycle at load time. By the time this hook fires
+        // (during a running workflow), all modules are fully evaluated.
+        const { taskService } = await import('../taskService.js');
+        await taskService.onTaskStatusChange(taskId, status);
+      },
       onWorkflowNotification: (event) => {
         notificationService.shouldNotify(event.type).then(async (enabled) => {
           if (!enabled) return;
@@ -205,11 +213,6 @@ class WorkflowService {
     }
 
     if (task.target_repo_url) {
-      // Dynamic import: workflowService participates in an ESM cycle with
-      // taskService via workflowLifecycle. Importing utils/git.js statically
-      // here reorders module evaluation and triggers a TDZ error on
-      // `new WorkflowService()` at the bottom of taskService.ts.
-      const { ensureExternalRepo } = await import('../../utils/git.js');
       return await ensureExternalRepo(task.target_repo_url);
     }
 
@@ -398,6 +401,94 @@ class WorkflowService {
     });
 
     return await this.workflowRunRepo.findById(runId);
+  }
+
+  /**
+   * Retry a specific step of a workflow run (e.g. to regenerate a SPLIT_TASK
+   * suggestion). Resets the target step and any subsequent steps, flips the
+   * run back to RUNNING, and drives Mastra via timeTravelStream to re-execute
+   * from that step.
+   *
+   * Mastra can only rewind to a step on an existing run, so the run must
+   * already have a mastra_run_id (i.e. it has started at least once). The
+   * caller is responsible for first clearing any downstream artifacts such
+   * as pending split_suggestion rows.
+   */
+  async retryStep(runId: number, stepId: string): Promise<void> {
+    logger.info('WorkflowService', `retryStep called for runId: ${runId}, stepId: ${stepId}`);
+
+    const run = await this.workflowRunRepo.findById(runId);
+    if (!run) {
+      throw new NotFoundError('未找到工作流运行', 'Workflow run not found', { runId });
+    }
+
+    if (run.status === 'RUNNING' || run.status === 'PENDING') {
+      throw new BusinessError('无法重试正在运行或等待中的工作流', 'Cannot retry a running or pending workflow', { runId, status: run.status });
+    }
+
+    const stepIndex = run.steps.findIndex((s) => s.step_id === stepId);
+    if (stepIndex === -1) {
+      throw new ValidationError('未找到指定步骤', 'Step not found in run', { runId, stepId });
+    }
+
+    // Reset the target step to PENDING and clear all execution artifacts so
+    // onStepStart treats this as a fresh attempt.
+    await this.workflowRunRepo.updateStep(runId, stepId, {
+      status: 'PENDING',
+      started_at: null,
+      completed_at: null,
+      error: null,
+      summary: null,
+      assembled_prompt: null,
+      provider_session_id: null,
+      suspend_reason: null,
+      confirmation_note: null,
+      confirmed_at: null,
+      ask_user_question: null,
+      ask_user_answer: null,
+      early_exit: null,
+      early_exit_reason: null,
+    });
+
+    // Reset every subsequent step as well — they must re-run after the
+    // retried step emits new output. Leave earlier steps untouched so their
+    // completed outputs remain visible to the user.
+    for (let i = stepIndex + 1; i < run.steps.length; i++) {
+      const downstream = run.steps[i];
+      if (!downstream) continue;
+      await this.workflowRunRepo.updateStep(runId, downstream.step_id, {
+        status: 'PENDING',
+        started_at: null,
+        completed_at: null,
+        error: null,
+        summary: null,
+        assembled_prompt: null,
+        provider_session_id: null,
+        suspend_reason: null,
+        confirmation_note: null,
+        confirmed_at: null,
+        ask_user_question: null,
+        ask_user_answer: null,
+        early_exit: null,
+        early_exit_reason: null,
+      });
+    }
+
+    await this.workflowRunRepo.update(runId, { status: 'RUNNING', current_step: stepId });
+
+    const { task, executionPath, mastraRun } = await this.getMastraRunContext(runId);
+    if (!mastraRun) {
+      throw new ValidationError('未找到 Mastra 运行实例', 'Mastra run instance not found', { runId });
+    }
+
+    const project = await this.projectRepo.findById(task.project_id);
+    const projectEnv = project?.env || {};
+
+    // Fire-and-forget — timeTravelStream.result resolves when the (re-run)
+    // workflow finishes or suspends. Lifecycle callbacks drive state updates.
+    this.executeRetry(runId, mastraRun, stepId, task, executionPath, projectEnv).catch((err) => {
+      logger.error('WorkflowService', `Fatal error in retryStep run #${runId}: ${err instanceof Error ? err.message : String(err)}`);
+    });
   }
 
   async retryWorkflow(runId: number) {
