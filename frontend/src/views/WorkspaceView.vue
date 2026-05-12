@@ -178,7 +178,7 @@
                   {{ activeAgent.name }}
                 </span>
                 <span v-if="activeAgent?.role" class="chat-session-sep">·</span>
-                <span v-if="activeAgent?.role" class="chat-session-role-tag">{{ activeAgent.role }}</span>
+                <span v-if="activeAgent?.role" class="chat-session-role-tag">{{ roleDisplayName(activeAgent.role) }}</span>
                 <span v-if="displaySessionId" class="chat-session-sep">·</span>
                 <span v-if="displaySessionId" class="chat-session-id" :title="'Session: ' + displaySessionId">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -305,6 +305,7 @@ import ChangedFilesPanel from '../components/workspace/ChangedFilesPanel.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
+import { getRoleConfig } from '../constants/agent.js'
 import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi } from '../api/task.js'
 import WorkspaceKanbanBoard from '../components/kanban/WorkspaceKanbanBoard.vue'
 import { useTaskTimer } from '../composables/kanban/useTaskTimer.js'
@@ -745,6 +746,10 @@ const STEP_STATUS_TEXT = {
 
 function statusText(status) {
   return STEP_STATUS_TEXT[status] || status || '未知'
+}
+
+function roleDisplayName(role) {
+  return getRoleConfig(role)?.name || role
 }
 
 const workflowDisplayName = computed(() => {
