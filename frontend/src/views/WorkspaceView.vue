@@ -169,16 +169,14 @@
                 <span v-if="activeSession.status" class="chat-session-status" :class="'status-' + (activeSession.status || '').toLowerCase()">
                   {{ statusText(activeSession.status) }}
                 </span>
-                <span v-if="activeAgent" class="chat-session-sep">·</span>
-                <span v-if="activeAgent" class="chat-session-badge">
+                <span v-if="activeAgent?.role" class="chat-session-sep">·</span>
+                <span v-if="activeAgent?.role" class="chat-session-role-tag">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 2a7 7 0 0 1 7 7c0 3-2 5.5-3.5 7L12 22l-3.5-6C7 14.5 5 12 5 9a7 7 0 0 1 7-7z"/>
                     <circle cx="12" cy="9" r="2.5"/>
                   </svg>
-                  {{ activeAgent.name }}
+                  {{ roleDisplayName(activeAgent.role) }}
                 </span>
-                <span v-if="activeAgent?.role" class="chat-session-sep">·</span>
-                <span v-if="activeAgent?.role" class="chat-session-role-tag">{{ roleDisplayName(activeAgent.role) }}</span>
                 <span v-if="displaySessionId" class="chat-session-sep">·</span>
                 <span v-if="displaySessionId" class="chat-session-id" :title="'Session: ' + displaySessionId">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
