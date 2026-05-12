@@ -15,6 +15,12 @@
                   failed: node.status === 'BLOCKED' || node.status === 'FAILED'
                 }"
               >
+                <!-- Animated arrow above the current node -->
+                <div v-if="node.id === currentTaskId" class="dag-current-arrow" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#111827" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
+                    <path d="M12 20 L4 8 L9 8 L9 2 L15 2 L15 8 L20 8 Z"></path>
+                  </svg>
+                </div>
                 <div class="dag-node" @click="emit('select', node)">
                   <span class="dag-node-status">{{ statusIcon(node.status) }}</span>
                   <span class="dag-node-title">{{ node.title }}</span>
@@ -83,7 +89,7 @@ const dagLayers = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 16px;
+  padding: 26px 16px 12px;
   min-height: 60px;
   overflow: auto;
   background: var(--bg-secondary);
@@ -100,6 +106,28 @@ const dagLayers = computed(() => {
 
 .pipeline-inline .dag-node span {
   font-size: 11px;
+}
+
+.dag-current-arrow {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: dag-arrow-bounce 1.2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.dag-current-arrow svg {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+}
+
+@keyframes dag-arrow-bounce {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -4px); }
 }
 
 .pipeline-dag-dialog {

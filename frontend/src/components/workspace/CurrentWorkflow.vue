@@ -48,12 +48,6 @@
           >
             <div v-if="index > 0" class="step-connector-h" :class="{ active: step.statusClass === 'done' || step.statusClass === 'running' }"></div>
             <div class="step-node-wrap">
-              <!-- Animated arrow above the selected step -->
-              <div v-if="selectedStepId === step.id" class="current-arrow" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="#111827" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
-                  <path d="M12 20 L4 8 L9 8 L9 2 L15 2 L15 8 L20 8 Z"></path>
-                </svg>
-              </div>
               <div
                 class="step-node-h"
                 :class="[step.statusClass, { selected: selectedStepId === step.id }]"
@@ -226,21 +220,6 @@ const steps = computed(() => {
     agent_id: step.agent_id || null,
     raw: step
   }))
-})
-
-// "Current" step used for default selection:
-// running > failed > first pending > last step.
-const currentStepIndex = computed(() => {
-  const list = steps.value
-  if (!list.length) return -1
-  const runningIdx = list.findIndex(s => s.statusClass === 'running')
-  if (runningIdx !== -1) return runningIdx
-  const failedIdx = list.findIndex(s => s.statusClass === 'failed')
-  if (failedIdx !== -1) return failedIdx
-  for (let i = 0; i < list.length; i++) {
-    if (list[i].statusClass === 'pending') return i
-  }
-  return list.length - 1
 })
 
 function formatDateTime(input) {
@@ -441,17 +420,6 @@ async function handleRefresh() {
 
 watch(activeRun, (newRun) => {
   emit('run-update', newRun)
-  // Auto-select the current step (running > failed > first pending > last done)
-  // so the arrow points at a sensible default. User clicks can override.
-  const list = steps.value
-  if (list.length) {
-    const idx = currentStepIndex.value >= 0 ? currentStepIndex.value : list.length - 1
-    const target = list[idx]
-    if (target) {
-      selectedStepId.value = target.id
-      emit('step-select', target)
-    }
-  }
 }, { immediate: true })
 
 watch(() => props.taskId, () => {
@@ -546,8 +514,7 @@ defineExpose({ workflowName })
   align-items: center;
   gap: 0;
   overflow-x: auto;
-  overflow-y: visible;
-  padding: 22px 0 4px;
+  padding: 2px 0;
 }
 
 .workflow-step-h {
@@ -572,28 +539,6 @@ defineExpose({ workflowName })
 .step-node-wrap {
   position: relative;
   display: inline-block;
-}
-
-.current-arrow {
-  position: absolute;
-  top: -20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: arrow-bounce 1.2s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.current-arrow svg {
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
-}
-
-@keyframes arrow-bounce {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, -4px); }
 }
 
 .step-node-h {
