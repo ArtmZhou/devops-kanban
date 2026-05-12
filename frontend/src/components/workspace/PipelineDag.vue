@@ -7,13 +7,7 @@
             <div class="dag-column">
               <div
                 class="dag-node-wrapper"
-                :class="{
-                  current: node.id === currentTaskId,
-                  'is-done': node.status === 'DONE',
-                  running: node.status === 'IN_PROGRESS',
-                  waiting: node.status === 'WAITING',
-                  failed: node.status === 'BLOCKED' || node.status === 'FAILED'
-                }"
+                :class="nodeStatusClass(node)"
               >
                 <!-- Animated arrow above the current node -->
                 <div v-if="node.id === currentTaskId" class="dag-current-arrow" aria-hidden="true">
@@ -22,7 +16,7 @@
                   </svg>
                 </div>
                 <div class="dag-node" @click="emit('select', node)">
-                  <span class="dag-node-status">{{ statusIcon(node.status) }}</span>
+                  <span class="dag-node-status">{{ statusIcon(node) }}</span>
                   <span class="dag-node-title">{{ node.title }}</span>
                 </div>
               </div>
@@ -45,9 +39,28 @@ const props = defineProps({
 
 const emit = defineEmits(['select'])
 
-function statusIcon(status) {
-  const icons = { DONE: '✓', IN_PROGRESS: '▶', WAITING: '○', BLOCKED: '✗', FAILED: '✗', TODO: '○', CANCELLED: '✗' }
-  return icons[status] || '○'
+// Map a node to its workflow-status class. Prefer workflow_run_status
+// when available; otherwise fall back to task status (for mock/legacy data).
+function nodeStatusClass(node) {
+  const wf = node.workflow_run_status
+  if (wf === 'COMPLETED' || wf === 'DONE') return 'is-done'
+  if (wf === 'RUNNING' || wf === 'IN_PROGRESS' || wf === 'SUSPENDED') return 'running'
+  if (wf === 'FAILED' || wf === 'CANCELLED') return 'failed'
+  if (wf === 'PENDING') return 'pending'
+  // Fallback: no workflow run yet — use task status as a rough signal
+  if (!wf) {
+    if (node.status === 'DONE') return 'is-done'
+    if (node.status === 'IN_PROGRESS') return 'running'
+    if (node.status === 'BLOCKED' || node.status === 'FAILED') return 'failed'
+    return 'pending'
+  }
+  return 'pending'
+}
+
+function statusIcon(node) {
+  const cls = nodeStatusClass(node)
+  const icons = { 'is-done': '✓', running: '▶', failed: '✗', pending: '○' }
+  return icons[cls] || '○'
 }
 
 const dagLayers = computed(() => {
@@ -160,28 +173,6 @@ const dagLayers = computed(() => {
   position: relative;
 }
 
-.dag-node-wrapper.current::before {
-  content: '';
-  position: absolute;
-  top: -3px;
-  left: -3px;
-  right: -3px;
-  bottom: -3px;
-  border: 2px solid var(--accent-color);
-  border-radius: 8px;
-  pointer-events: none;
-  animation: current-pulse 2s ease-in-out infinite;
-}
-
-@keyframes current-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(37, 198, 201, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 4px rgba(37, 198, 201, 0);
-  }
-}
-
 .dag-arrow-h {
   font-size: 14px;
   color: var(--text-muted);
@@ -228,27 +219,28 @@ const dagLayers = computed(() => {
 }
 
 .dag-node-wrapper.is-done .dag-node {
-  background: var(--done-soft);
-  border-color: var(--teal-border-soft);
-  color: var(--done-strong);
+  background: rgba(37, 198, 201, 0.12);
+  border-color: rgba(37, 198, 201, 0.5);
+  color: #0891a4;
 }
 
 .dag-node-wrapper.running .dag-node {
-  background: var(--in-progress-soft);
-  border-color: var(--teal-active-border);
-  color: var(--in-progress-strong);
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.55);
+  color: #b45309;
 }
 
+.dag-node-wrapper.pending .dag-node,
 .dag-node-wrapper.waiting .dag-node {
-  background: var(--neutral-soft);
+  background: #ffffff;
   border-color: var(--border-color);
-  color: var(--neutral-strong);
+  color: var(--text-secondary);
 }
 
 .dag-node-wrapper.failed .dag-node {
-  background: var(--danger-soft);
-  border-color: var(--danger-strong);
-  color: var(--danger-strong);
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #b91c1c;
 }
 
 .dag-node-status {

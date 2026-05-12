@@ -362,7 +362,7 @@ class TaskService {
     };
   }
 
-  async getPipeline(taskId: number): Promise<{ root: TaskEntity; nodes: TaskEntity[] }> {
+  async getPipeline(taskId: number): Promise<{ root: TaskEntity; nodes: Array<TaskEntity & { workflow_run_status?: string | null }> }> {
     // Walk up to root
     let current = await this.taskRepo.findById(taskId);
     if (!current) {
@@ -390,7 +390,22 @@ class TaskService {
       }
     }
 
-    return { root, nodes };
+    // Enrich each node with its latest workflow run status so the frontend
+    // can color DAG nodes by workflow status instead of task status.
+    const enriched = await Promise.all(nodes.map(async (n) => {
+      let workflow_run_status: string | null = null;
+      if (n.workflow_run_id) {
+        try {
+          const run = await this.workflowService.workflowRunRepo.findById(n.workflow_run_id);
+          workflow_run_status = run?.status || null;
+        } catch {
+          workflow_run_status = null;
+        }
+      }
+      return { ...n, workflow_run_status };
+    }));
+
+    return { root, nodes: enriched };
   }
 
   async getDependents(taskId: number): Promise<TaskEntity[]> {
