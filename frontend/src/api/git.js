@@ -11,6 +11,12 @@ export const commit = (projectId, taskId, { message, addAll = true, files = [], 
   api.post(`/git/worktrees/${taskId}/commit`, { message, addAll, files, authorName, authorEmail }, { params: { projectId } })
 
 /**
+ * Push committed changes to remote
+ */
+export const pushWorktree = (projectId, taskId, { remote = 'origin', setUpstream = true } = {}) =>
+  api.post(`/git/worktrees/${taskId}/push`, { remote, setUpstream }, { params: { projectId } })
+
+/**
  * Get uncommitted changes in a worktree
  */
 export const getUncommittedChanges = (projectId, taskId) =>

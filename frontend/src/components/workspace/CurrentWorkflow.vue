@@ -118,17 +118,6 @@
           重试
         </button>
       </el-tooltip>
-      <el-tooltip :content="mergeTooltip" :disabled="!mergeDisabled" placement="top">
-        <button class="quick-action-btn" :disabled="mergeDisabled || actionLoading" @click="handleMerge">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="18" r="3"></circle>
-            <circle cx="6" cy="6" r="3"></circle>
-            <circle cx="18" cy="6" r="3"></circle>
-            <path d="M6 9v3a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V9"></path>
-          </svg>
-          合入
-        </button>
-      </el-tooltip>
       <el-tooltip :content="cancelTooltip" :disabled="!cancelDisabled" placement="top">
         <button
           class="quick-action-btn quick-action-cancel"
@@ -166,7 +155,7 @@ const props = defineProps({
   collapsed: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template', 'merge'])
+const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template'])
 
 const task = ref(null)
 const run = ref(null)
@@ -300,24 +289,6 @@ const cancelTooltip = computed(() => {
   if (isTerminal.value) return '工作流已结束'
   return ''
 })
-
-const mergeDisabled = computed(() => {
-  if (!task.value?.worktree_branch) return true
-  return false
-})
-const mergeTooltip = computed(() => {
-  if (!task.value?.worktree_branch) return '任务尚未创建 worktree'
-  return ''
-})
-
-function handleMerge() {
-  if (!task.value) return
-  emit('merge', {
-    taskId: task.value.id,
-    projectId: task.value.project_id,
-    worktreeBranch: task.value.worktree_branch,
-  })
-}
 
 function handleStepClick(step) {
   selectedStepId.value = step.id

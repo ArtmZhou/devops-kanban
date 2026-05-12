@@ -53,6 +53,46 @@
         <span class="stat-untracked">{{ untrackedCount }} 未跟踪</span>
       </div>
 
+      <!-- Action buttons -->
+      <div class="worktree-actions">
+        <el-button
+          size="small"
+          type="primary"
+          :disabled="!changes.length"
+          @click="showCommitDialog = true"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
+            <circle cx="12" cy="12" r="4"></circle>
+            <line x1="1.05" y1="12" x2="7" y2="12"></line>
+            <line x1="17.01" y1="12" x2="22.96" y2="12"></line>
+          </svg>
+          提交
+        </el-button>
+        <el-button
+          size="small"
+          :loading="pushing"
+          @click="handlePush"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
+            <path d="M12 19V5"></path>
+            <polyline points="5 12 12 5 19 12"></polyline>
+          </svg>
+          推送
+        </el-button>
+        <el-button
+          size="small"
+          type="success"
+          @click="handleMerge"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 4px;">
+            <circle cx="18" cy="18" r="3"></circle>
+            <circle cx="6" cy="6" r="3"></circle>
+            <path d="M6 21V9a9 9 0 0 0 9 9"></path>
+          </svg>
+          合入
+        </el-button>
+      </div>
+
       <!-- File list -->
       <div class="changed-file-list">
         <div
@@ -104,14 +144,34 @@
       </div>
       <el-empty v-else description="无 diff 信息" />
     </el-dialog>
+
+    <CommitDialog
+      v-if="showCommitDialog && task?.project_id && taskId > 0"
+      :project-id="task.project_id"
+      :task-id="taskId"
+      :current-branch="task.worktree_branch"
+      @close="showCommitDialog = false"
+      @committed="onCommitted"
+    />
+
+    <MergeDialog
+      v-if="showMergeDialog && task?.project_id && taskId > 0"
+      :project-id="task.project_id"
+      :task-id="taskId"
+      :source-branch="task.worktree_branch"
+      @close="showMergeDialog = false"
+      @merged="onMerged"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getUncommittedChanges, getDiff } from '../../api/git.js'
+import { getUncommittedChanges, getDiff, pushWorktree } from '../../api/git.js'
 import { createTaskWorktree, deleteTaskWorktree } from '../../api/taskWorktree.js'
+import CommitDialog from '../CommitDialog.vue'
+import MergeDialog from '../MergeDialog.vue'
 
 const props = defineProps({
   taskId: { type: Number, default: null },
@@ -128,6 +188,9 @@ const fileDiffContent = ref(null)
 const diffLoading = ref(null)
 const creating = ref(false)
 const deleting = ref(false)
+const pushing = ref(false)
+const showCommitDialog = ref(false)
+const showMergeDialog = ref(false)
 const loadError = ref(null)
 const LOAD_TIMEOUT = 10000
 
@@ -271,6 +334,53 @@ async function handleDeleteWorktree() {
   }
 }
 
+async function handlePush() {
+  if (!props.task?.project_id || !props.taskId || props.taskId < 0) return
+  try {
+    await ElMessageBox.confirm(
+      `将推送分支 ${props.task.worktree_branch || ''} 到远程仓库，确定继续？`,
+      '确认推送',
+      { confirmButtonText: '推送', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  pushing.value = true
+  try {
+    const resp = await pushWorktree(props.task.project_id, props.taskId)
+    if (resp?.success) {
+      ElMessage.success('推送成功')
+    } else {
+      ElMessage.error(resp?.message || '推送失败')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '推送失败')
+  } finally {
+    pushing.value = false
+  }
+}
+
+function handleMerge() {
+  if (!props.task?.project_id || !props.taskId || props.taskId < 0) {
+    ElMessage.warning('当前任务无法合入')
+    return
+  }
+  showMergeDialog.value = true
+}
+
+async function onCommitted() {
+  showCommitDialog.value = false
+  ElMessage.success('提交成功')
+  await loadChanges()
+  emit('refresh')
+}
+
+async function onMerged() {
+  showMergeDialog.value = false
+  ElMessage.success('合并成功')
+  emit('refresh')
+}
+
 const emit = defineEmits(['refresh'])
 
 watch(() => [props.taskId, props.projectId, props.task?.worktree_path], () => {
@@ -354,6 +464,18 @@ watch(() => [props.taskId, props.projectId, props.task?.worktree_path], () => {
 .stat-added { color: var(--done-strong); }
 .stat-deleted { color: var(--danger-strong); }
 .stat-untracked { color: var(--text-muted); }
+
+.worktree-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.worktree-actions .el-button svg {
+  vertical-align: -1px;
+}
 
 /* File list */
 .changed-file-list {
