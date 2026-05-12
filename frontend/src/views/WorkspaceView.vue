@@ -1621,7 +1621,27 @@ watch(taskListViewMode, (mode) => {
   padding: 8px;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.task-kanban-board::-webkit-scrollbar {
+  height: 10px;
+}
+
+.task-kanban-board::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 5px;
+}
+
+.task-kanban-board::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 5px;
+  transition: background 0.15s;
+}
+
+.task-kanban-board::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color);
 }
 
 .task-kanban-column {
