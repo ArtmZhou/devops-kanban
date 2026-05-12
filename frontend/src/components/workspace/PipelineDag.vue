@@ -24,7 +24,6 @@
                 <div class="dag-node" @click="emit('select', node)">
                   <span class="dag-node-status">{{ statusIcon(node.status) }}</span>
                   <span class="dag-node-title">{{ node.title }}</span>
-                  <span v-if="node.id === currentTaskId" class="current-badge">当前</span>
                 </div>
               </div>
             </div>
@@ -261,15 +260,5 @@ const dagLayers = computed(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.current-badge {
-  font-size: 9px;
-  color: var(--accent-color);
-  background: var(--accent-color-soft);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-weight: 600;
-  flex-shrink: 0;
 }
 </style>
