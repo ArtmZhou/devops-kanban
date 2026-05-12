@@ -19,6 +19,13 @@ type StatusBody = { status?: string };
 type ReorderRequestBody = { updates?: Array<{ id?: number; order?: number }> };
 
 import { splitSuggestionService } from '../services/splitSuggestionService.js';
+import { WorkflowRunRepository } from '../repositories/workflowRunRepository.js';
+import { WorkflowInstanceRepository } from '../repositories/workflowInstanceRepository.js';
+import { WorkflowService } from '../services/workflow/workflowService.js';
+
+const workflowRunRepo = new WorkflowRunRepository();
+const workflowInstanceRepo = new WorkflowInstanceRepository();
+const workflowService = new WorkflowService();
 
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: QueryWithTaskFilters }>('/', async (request) => {
@@ -207,17 +214,41 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  fastify.post<{ Params: IdParams }>('/:id/regenerate-split', async (req) => {
-    // NOTE: true regeneration would require re-running the SPLIT_TASK step
-    // of the latest workflow run. That requires a step-retry primitive
-    // (e.g. workflowService.retryStep(runId, stepId)) which is not yet
-    // implemented — workflowService.retryWorkflow retries from the last
-    // running/suspended step, not an arbitrary one. Until that primitive
-    // exists this endpoint only dismisses the pending suggestion so the
-    // user can manually re-trigger the step from the workflow panel.
-    const existing = await splitSuggestionService.getPendingByTask(parseNumber(req.params.id));
-    if (existing) await splitSuggestionService.dismiss(existing.id);
-    return successResponse({ dismissed: !!existing });
+  fastify.post<{ Params: IdParams }>('/:id/regenerate-split', async (req, reply) => {
+    try {
+      const taskId = parseNumber(req.params.id);
+
+      // Dismiss the current pending suggestion (if any) so the user doesn't
+      // see a stale record while the step re-runs.
+      const existing = await splitSuggestionService.getPendingByTask(taskId);
+      if (existing) await splitSuggestionService.dismiss(existing.id);
+
+      // Find the task's latest workflow run and look up the SPLIT_TASK step
+      // on its frozen instance. If either is missing we can't regenerate.
+      const run = await workflowRunRepo.findLatestByTaskId(taskId);
+      if (!run) {
+        return successResponse({ dismissed: !!existing, regenerated: false, reason: 'no workflow run for task' });
+      }
+
+      const instance = await workflowInstanceRepo.findByInstanceId(run.workflow_instance_id);
+      const splitStepBinding = instance?.steps.find((s) => s.type === 'SPLIT_TASK');
+      if (!splitStepBinding) {
+        return successResponse({ dismissed: !!existing, regenerated: false, reason: 'no SPLIT_TASK step in instance' });
+      }
+
+      try {
+        await workflowService.retryStep(run.id, splitStepBinding.id);
+        return successResponse({ dismissed: !!existing, regenerated: true, runId: run.id, stepId: splitStepBinding.id });
+      } catch (err) {
+        logError(err, req);
+        reply.code(getStatusCode(err));
+        return errorResponse(getErrorMessage(err, 'Failed to regenerate split'));
+      }
+    } catch (err) {
+      logError(err, req);
+      reply.code(getStatusCode(err));
+      return errorResponse(getErrorMessage(err, 'Failed to regenerate split'));
+    }
   });
 
   // Worktree routes
