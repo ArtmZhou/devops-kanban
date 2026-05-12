@@ -50,8 +50,8 @@
             <div class="step-node-wrap">
               <!-- Animated arrow above the selected step -->
               <div v-if="selectedStepId === step.id" class="current-arrow" aria-hidden="true">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="#111827" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
-                  <polygon points="12 4 20 18 12 15 4 18"></polygon>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#111827" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
+                  <path d="M12 20 L4 8 L9 8 L9 2 L15 2 L15 8 L20 8 Z"></path>
                 </svg>
               </div>
               <div
@@ -546,7 +546,8 @@ defineExpose({ workflowName })
   align-items: center;
   gap: 0;
   overflow-x: auto;
-  padding: 2px 0;
+  overflow-y: visible;
+  padding: 22px 0 4px;
 }
 
 .workflow-step-h {
@@ -575,7 +576,7 @@ defineExpose({ workflowName })
 
 .current-arrow {
   position: absolute;
-  top: -18px;
+  top: -20px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -584,6 +585,10 @@ defineExpose({ workflowName })
   animation: arrow-bounce 1.2s ease-in-out infinite;
   pointer-events: none;
   z-index: 2;
+}
+
+.current-arrow svg {
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
 }
 
 @keyframes arrow-bounce {
