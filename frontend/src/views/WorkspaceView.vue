@@ -848,6 +848,7 @@ watch(() => selectedTask.value?.id, async (newId) => {
 watch(taskListViewMode, (mode) => {
   if (mode === 'kanban') {
     leftWidth.value = Math.max(leftWidth.value, 900)
+    rightWidth.value = RIGHT_MIN
   } else {
     leftWidth.value = Math.min(leftWidth.value, 360)
   }
