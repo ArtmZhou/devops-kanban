@@ -241,10 +241,10 @@
         </div>
       </div>
 
-      <div class="resize-handle" @mousedown="(e) => handleMouseDown(e, 'right')"></div>
+      <div v-if="taskListViewMode === 'list'" class="resize-handle" @mousedown="(e) => handleMouseDown(e, 'right')"></div>
 
       <!-- Right column: file viewer (top) / changed files (bottom), independent vertical split -->
-      <div class="workspace-col workspace-right-col" :style="{ width: rightWidth + 'px' }">
+      <div v-if="taskListViewMode === 'list'" class="workspace-col workspace-right-col" :style="{ width: rightWidth + 'px' }">
         <div class="workspace-section workspace-right-top" :style="{ height: rightTopHeight + 'px' }">
           <div class="panel-header">
             <h4>文件查看</h4>
@@ -848,7 +848,6 @@ watch(() => selectedTask.value?.id, async (newId) => {
 watch(taskListViewMode, (mode) => {
   if (mode === 'kanban') {
     leftWidth.value = Math.max(leftWidth.value, 900)
-    rightWidth.value = RIGHT_MIN
   } else {
     leftWidth.value = Math.min(leftWidth.value, 360)
   }
