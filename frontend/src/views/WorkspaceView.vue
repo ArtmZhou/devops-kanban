@@ -176,8 +176,9 @@
                     <circle cx="12" cy="9" r="2.5"/>
                   </svg>
                   {{ activeAgent.name }}
-                  <span v-if="activeAgent.role" class="chat-session-role">{{ activeAgent.role }}</span>
                 </span>
+                <span v-if="activeAgent?.role" class="chat-session-sep">·</span>
+                <span v-if="activeAgent?.role" class="chat-session-role-tag">{{ activeAgent.role }}</span>
                 <span v-if="displaySessionId" class="chat-session-sep">·</span>
                 <span v-if="displaySessionId" class="chat-session-id" :title="'Session: ' + displaySessionId">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1279,6 +1280,18 @@ watch(taskListViewMode, (mode) => {
   color: var(--text-muted);
   font-weight: 400;
   margin-left: 2px;
+}
+
+.chat-session-role-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--accent-color);
+  background: var(--accent-color-soft);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
 }
 
 .chat-session-id {

@@ -246,8 +246,16 @@ function formatDuration(ms) {
 const timelineMeta = computed(() => {
   const r = activeRun.value
   if (!r) return { startText: '', endText: '', durationText: '' }
-  const startRaw = r.started_at || r.start_time || r.created_at
+  // Start time: prefer run-level started_at, else earliest step started_at, else created_at.
+  const stepStarts = (r.steps || []).map(s => s.started_at).filter(Boolean)
+  const startRaw = r.started_at || r.start_time
+    || (stepStarts.length ? stepStarts.sort()[0] : null)
+    || r.created_at
+  // End time: prefer run-level completed_at, else last step's completed_at when the run is terminal.
+  const isTerminalStatus = ['COMPLETED', 'DONE', 'FAILED', 'CANCELLED'].includes(r.status)
+  const stepEnds = (r.steps || []).map(s => s.completed_at).filter(Boolean)
   const endRaw = r.completed_at || r.ended_at || r.finished_at || r.end_time
+    || (isTerminalStatus && stepEnds.length ? stepEnds.sort().slice(-1)[0] : null)
   const startText = formatDateTime(startRaw)
   const endText = formatDateTime(endRaw)
   let durationText = ''
