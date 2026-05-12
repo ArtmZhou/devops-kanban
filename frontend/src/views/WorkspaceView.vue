@@ -1612,7 +1612,21 @@ watch(taskListViewMode, (mode) => {
 }
 
 .task-kanban-column .task-card {
+  padding: 10px 12px;
   margin-bottom: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.task-kanban-column .task-card:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.task-kanban-column .task-card.selected {
+  background: var(--teal-accent-mid);
+  border-color: var(--teal-active-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .task-kanban-column .task-card:last-child {
