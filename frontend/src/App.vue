@@ -40,16 +40,6 @@
             </svg>
             <span v-if="!isSidebarCollapsed" class="nav-text">{{ $t('nav.workspace') }}</span>
           </router-link>
-
-          <router-link to="/kanban" class="nav-item" :class="{ 'router-link-active': $route.path.startsWith('/kanban') }" :title="$t('nav.kanban')">
-            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="7" height="7"></rect>
-              <rect x="14" y="3" width="7" height="7"></rect>
-              <rect x="14" y="14" width="7" height="7"></rect>
-              <rect x="3" y="14" width="7" height="7"></rect>
-            </svg>
-            <span v-if="!isSidebarCollapsed" class="nav-text">{{ $t('nav.kanban') }}</span>
-          </router-link>
         </div>
 
         <div class="nav-group">

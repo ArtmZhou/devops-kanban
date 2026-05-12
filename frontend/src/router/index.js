@@ -12,11 +12,6 @@ const routes = [
     component: () => import('../views/WorkspaceView.vue')
   },
   {
-    path: '/kanban/:projectId?',
-    name: 'KanbanView',
-    component: () => import('../views/KanbanView.vue')
-  },
-  {
     path: '/agents',
     name: 'AgentConfig',
     component: () => import('../views/AgentConfig.vue')
