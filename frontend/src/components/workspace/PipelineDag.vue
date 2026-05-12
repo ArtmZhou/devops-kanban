@@ -139,7 +139,7 @@ const dagLayers = computed(() => {
   align-items: center;
   gap: 10px;
   flex-wrap: nowrap;
-  padding: 4px 0;
+  padding: 24px 0 4px;
 }
 
 .dag-column {
