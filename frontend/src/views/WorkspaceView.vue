@@ -676,7 +676,8 @@ function handleMouseDown(e, side) {
   function onMove(ev) {
     if (side === 'left') {
       const delta = ev.clientX - startX
-      leftWidth.value = Math.max(LEFT_MIN, Math.min(LEFT_MAX, startLeft + delta))
+      const leftMax = taskListViewMode.value === 'kanban' ? 1500 : LEFT_MAX
+      leftWidth.value = Math.max(LEFT_MIN, Math.min(leftMax, startLeft + delta))
     } else if (side === 'right') {
       const delta = startX - ev.clientX
       rightWidth.value = Math.max(RIGHT_MIN, Math.min(RIGHT_MAX, startRight + delta))
