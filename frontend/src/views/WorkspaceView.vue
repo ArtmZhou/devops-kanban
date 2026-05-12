@@ -475,12 +475,22 @@ async function handleDeleteTask(task) {
 }
 
 async function onKanbanDragEnd(event) {
-  const newStatus = event.to?.dataset?.status
+  const newStatus = event.to?.closest('.task-kanban-column')?.getAttribute('data-status')
+    || event.to?.getAttribute?.('data-status')
   if (!newStatus) return
   const taskId = event.item?.getAttribute('data-id')
   if (!taskId) return
+  const numericId = Number(taskId)
+  if (!numericId || numericId < 0) {
+    // Mock tasks can't be updated — reload to revert
+    await loadTasks()
+    return
+  }
+  const oldStatus = event.from?.closest('.task-kanban-column')?.getAttribute('data-status')
+    || event.from?.getAttribute?.('data-status')
+  if (oldStatus === newStatus) return
   try {
-    const resp = await updateTask(Number(taskId), { status: newStatus })
+    const resp = await updateTask(numericId, { status: newStatus })
     if (resp?.success) {
       await loadTasks()
       ElMessage.success('任务状态已更新')
