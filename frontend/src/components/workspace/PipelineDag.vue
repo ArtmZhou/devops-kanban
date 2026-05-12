@@ -17,7 +17,10 @@
                 </div>
                 <div class="dag-node" @click="emit('select', node)">
                   <span class="dag-node-status">{{ statusIcon(node) }}</span>
-                  <span class="dag-node-title">{{ node.title }}</span>
+                  <div class="dag-node-texts">
+                    <span class="dag-node-title">{{ node.title }}</span>
+                    <span v-if="node.project_name" class="dag-node-project">{{ node.project_name }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -113,10 +116,14 @@ const dagLayers = computed(() => {
 }
 
 .pipeline-inline .dag-node {
-  padding: 5px 10px;
+  padding: 6px 12px;
 }
 
-.pipeline-inline .dag-node span {
+.pipeline-inline .dag-node-title {
+  font-size: 13px;
+}
+
+.pipeline-inline .dag-node-project {
   font-size: 11px;
 }
 
@@ -160,7 +167,7 @@ const dagLayers = computed(() => {
   flex-direction: column;
   align-items: stretch;
   flex-shrink: 0;
-  width: 140px;
+  width: 160px;
   gap: 4px;
 }
 
@@ -200,22 +207,32 @@ const dagLayers = computed(() => {
 .dag-node {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
   border: 1px solid;
   cursor: pointer;
   user-select: none;
   transition: opacity 0.15s;
   width: 100%;
-  justify-content: center;
+  justify-content: flex-start;
   white-space: nowrap;
+  text-align: left;
 }
 
 .dag-node:hover {
   opacity: 0.85;
+}
+
+.dag-node-texts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.25;
+  min-width: 0;
+  flex: 1;
 }
 
 .dag-node-wrapper.is-done .dag-node {
@@ -246,11 +263,27 @@ const dagLayers = computed(() => {
 .dag-node-status {
   font-size: 12px;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .dag-node-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  width: 100%;
+}
+
+.dag-node-project {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
 }
 </style>
