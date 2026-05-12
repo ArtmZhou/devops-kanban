@@ -19,30 +19,34 @@
     <div v-else class="panel-body">
       <!-- Worktree info bar -->
       <div class="worktree-info">
-        <span class="info-item">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="6" y1="3" x2="6" y2="15"></line>
-            <circle cx="18" cy="6" r="3"></circle>
-            <circle cx="6" cy="18" r="3"></circle>
-            <path d="M18 9a9 9 0 0 1-9 9"></path>
-          </svg>
-          {{ task.worktree_branch }}
-        </span>
-        <span class="info-item truncate" :title="task.worktree_path">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-          </svg>
-          {{ shortPath(task.worktree_path) }}
-        </span>
-        <el-button
-          size="small"
-          type="danger"
-          text
-          :loading="deleting"
-          @click="handleDeleteWorktree"
-        >
-          删除
-        </el-button>
+        <div class="worktree-info-row">
+          <span class="info-item">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="6" y1="3" x2="6" y2="15"></line>
+              <circle cx="18" cy="6" r="3"></circle>
+              <circle cx="6" cy="18" r="3"></circle>
+              <path d="M18 9a9 9 0 0 1-9 9"></path>
+            </svg>
+            {{ task.worktree_branch }}
+          </span>
+          <el-button
+            size="small"
+            type="danger"
+            text
+            :loading="deleting"
+            @click="handleDeleteWorktree"
+          >
+            删除
+          </el-button>
+        </div>
+        <div class="worktree-info-row">
+          <span class="info-item truncate" :title="task.worktree_path">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            {{ shortPath(task.worktree_path) }}
+          </span>
+        </div>
       </div>
 
       <!-- Change stats -->
@@ -422,14 +426,22 @@ watch(() => [props.taskId, props.projectId, props.task?.worktree_path], () => {
 /* Worktree info bar */
 .worktree-info {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   padding: 8px 12px;
   font-size: 11px;
   color: var(--text-secondary);
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
+}
+
+.worktree-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
 }
 
 .info-item {
