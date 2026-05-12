@@ -81,14 +81,59 @@
             </div>
           </div>
         </template>
-        <WorkspaceKanbanBoard
-          v-else
-          :tasks="tasks"
-          :selected-task="selectedTask"
-          :running-task-ids="runningTasks"
-          @select-task="selectTask"
-          @drag-end="onKanbanDragEnd"
-        />
+        <div v-if="taskListViewMode === 'kanban'" class="task-kanban-board">
+          <div
+            v-for="col in kanbanColumns"
+            :key="col.status"
+            class="task-kanban-column"
+            :data-status="col.status"
+          >
+            <div class="task-kanban-column-header">
+              <span class="task-kanban-column-title">{{ col.title }}</span>
+              <span class="task-kanban-column-count">{{ col.tasks.length }}</span>
+            </div>
+            <draggable
+              :list="col.tasks"
+              group="workspace-tasks"
+              :animation="200"
+              ghost-class="ghost-card"
+              :data-status="col.status"
+              item-key="id"
+              @end="onKanbanDragEnd"
+            >
+              <template #item="{ element: task }">
+                <div
+                  :data-id="task.id"
+                  class="task-card"
+                  :class="{ 'selected': selectedTask?.id === task.id, 'is-mock': task.id < 0 }"
+                  @click="selectTask(task)"
+                >
+                  <div class="task-card-header">
+                    <span class="task-priority" :class="priorityClass(task.priority)">{{ priorityText(task.priority) }}</span>
+                    <span class="task-status" :class="statusClass(task.status)">{{ statusText(task.status) }}</span>
+                  </div>
+                  <div class="task-card-title">{{ task.title }}</div>
+                  <div v-if="task.description" class="task-card-desc">{{ task.description }}</div>
+                  <div v-if="task.id > 0" class="task-card-actions" @click.stop>
+                    <el-button size="small" text @click="openEditTask(task)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"></path>
+                      </svg>
+                    </el-button>
+                    <el-button size="small" text type="danger" @click="handleDeleteTask(task)">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                        <path d="M10 11v6"></path>
+                        <path d="M14 11v6"></path>
+                      </svg>
+                    </el-button>
+                  </div>
+                </div>
+              </template>
+            </draggable>
+          </div>
+        </div>
         <div class="task-list-expand-toggle" @click="taskListViewMode = taskListViewMode === 'list' ? 'kanban' : 'list'">
           <svg v-if="taskListViewMode === 'list'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="15 3 21 3 21 9"></polyline>
@@ -305,7 +350,7 @@ import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
 import { getRoleConfig } from '../constants/agent.js'
 import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi } from '../api/task.js'
-import WorkspaceKanbanBoard from '../components/kanban/WorkspaceKanbanBoard.vue'
+import draggable from 'vuedraggable'
 import { useTaskTimer } from '../composables/kanban/useTaskTimer.js'
 
 const projectStore = useProjectStore()
@@ -421,9 +466,13 @@ async function handleDeleteTask(task) {
   }
 }
 
-async function onKanbanDragEnd({ taskId, newStatus }) {
+async function onKanbanDragEnd(event) {
+  const newStatus = event.to?.dataset?.status
+  if (!newStatus) return
+  const taskId = event.item?.getAttribute('data-id')
+  if (!taskId) return
   try {
-    const resp = await updateTask(taskId, { status: newStatus })
+    const resp = await updateTask(Number(taskId), { status: newStatus })
     if (resp?.success) {
       await loadTasks()
       ElMessage.success('任务状态已更新')
@@ -541,6 +590,20 @@ const tasks = computed(() => {
   if (!selectedStatus.value) return all
   return all.filter(t => t.status === selectedStatus.value)
 })
+
+const KANBAN_COLUMNS = [
+  { status: 'TODO', title: '待处理' },
+  { status: 'IN_PROGRESS', title: '处理中' },
+  { status: 'DONE', title: '已完成' },
+  { status: 'BLOCKED', title: '阻塞' }
+]
+
+const kanbanColumns = computed(() =>
+  KANBAN_COLUMNS.map(col => ({
+    ...col,
+    tasks: tasks.value.filter(t => t.status === col.status)
+  }))
+)
 
 async function loadTasks() {
   try {
@@ -1496,5 +1559,63 @@ watch(taskListViewMode, (mode) => {
 
 .task-list-expand-toggle svg {
   flex-shrink: 0;
+}
+
+/* Kanban board */
+.task-kanban-board {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.task-kanban-column {
+  flex: 1;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.task-kanban-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.task-kanban-column-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.task-kanban-column-count {
+  font-size: 11px;
+  color: var(--accent-color);
+  background: var(--accent-color-soft);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.task-kanban-column [draggable] {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.task-kanban-column .task-card {
+  margin-bottom: 4px;
+}
+
+.task-kanban-column .task-card:last-child {
+  margin-bottom: 0;
 }
 </style>
