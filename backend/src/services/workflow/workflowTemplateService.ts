@@ -354,6 +354,16 @@ const LEGACY_SPLIT_PROMPT_SIGNATURES = [
   'task splitter assistant',
 ];
 
+const NEW_SPLIT_PROMPT_TEMPLATE = `使用 task-splitter Skill 将当前任务拆分为若干子任务。
+
+## 上下文
+- 任务：{{task_title}} — {{task_description}}
+- 项目：{{project_name}}（仓库：{{project_repo_url}}）
+- 上游产出：{{last_step_output}}
+- 可选项目列表：{{available_projects}}
+
+按 Skill 约定的 JSON schema 输出结果。`;
+
 function isLegacySplitPrompt(prompt: string): boolean {
   const lower = prompt.toLowerCase();
   return LEGACY_SPLIT_PROMPT_SIGNATURES.some(sig => lower.includes(sig.toLowerCase()));
@@ -369,19 +379,22 @@ export async function migrateSplitTaskPrompts(): Promise<void> {
     const steps = tpl.steps as Array<{ type?: string; instructionPrompt?: string }>;
     let changed = false;
     for (const step of steps) {
-      if (step.type === 'SPLIT_TASK' && typeof step.instructionPrompt === 'string' && step.instructionPrompt.length > 0) {
-        if (isLegacySplitPrompt(step.instructionPrompt)) {
-          step.instructionPrompt = '';
+      if (step.type !== 'SPLIT_TASK') continue;
+      const prompt = step.instructionPrompt ?? '';
+      // Replace legacy long prompt OR empty prompt (from earlier broken migration) with the new short one
+      if (prompt === '' || isLegacySplitPrompt(prompt)) {
+        if (prompt !== NEW_SPLIT_PROMPT_TEMPLATE) {
+          step.instructionPrompt = NEW_SPLIT_PROMPT_TEMPLATE;
           changed = true;
-        } else {
-          preserved++;
         }
+      } else {
+        preserved++;
       }
     }
     if (changed) {
       await repo.update(tpl.id, { steps: tpl.steps });
       migrated++;
-      console.log(`[MigrateSplitPrompts] Cleared legacy SPLIT_TASK prompt for template "${tpl.name}"`);
+      console.log(`[MigrateSplitPrompts] Updated SPLIT_TASK prompt for template "${tpl.name}"`);
     }
   }
 

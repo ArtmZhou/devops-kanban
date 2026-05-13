@@ -1,12 +1,12 @@
-export const DEFAULT_SPLIT_PROMPT = `Use the task-splitter skill to split this task into sub-tasks.
+export const DEFAULT_SPLIT_PROMPT = `使用 task-splitter Skill 将当前任务拆分为若干子任务。
 
-## Context
-- Task: {{task_title}} — {{task_description}}
-- Project: {{project_name}} (repo: {{project_repo_url}})
-- Upstream output: {{last_step_output}}
-- Available projects: {{available_projects}}
+## 上下文
+- 任务：{{task_title}} — {{task_description}}
+- 项目：{{project_name}}（仓库：{{project_repo_url}}）
+- 上游产出：{{last_step_output}}
+- 可选项目列表：{{available_projects}}
 
-Output a JSON array wrapped in a \`\`\`json code block.`;
+按 Skill 约定的 JSON schema 输出结果。`;
 
 export function renderSplitPrompt(
   template: string,

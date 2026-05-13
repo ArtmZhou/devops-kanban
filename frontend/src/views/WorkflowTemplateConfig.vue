@@ -357,6 +357,9 @@
               <div class="editor-field editor-field--full editor-field--prompt">
                 <label>{{ $t('workflowTemplate.instructionPrompt') }}</label>
                 <div class="editor-field__hint">{{ $t('workflowTemplate.deliveryPromptGuidance') }}</div>
+                <div v-if="selectedStep.type === 'SPLIT_TASK'" class="editor-field__hint split-prompt-hint">
+                  AI 拆分逻辑由内置的 task-splitter Skill 提供详细规则；此处 prompt 用于引导 Agent 调用该 Skill 并传入上下文。
+                </div>
                 <el-input
                   v-model="selectedStep.instructionPrompt"
                   type="textarea"
@@ -505,7 +508,15 @@ function onToggleAiSplit(enabled) {
     steps.push({
       ...createEmptyWorkflowStep(t('workflowTemplate.aiSplitDefaultStepName', 'AI 拆分')),
       type: 'SPLIT_TASK',
-      instructionPrompt: '',
+      instructionPrompt: `使用 task-splitter Skill 将当前任务拆分为若干子任务。
+
+## 上下文
+- 任务：{{task_title}} — {{task_description}}
+- 项目：{{project_name}}（仓库：{{project_repo_url}}）
+- 上游产出：{{last_step_output}}
+- 可选项目列表：{{available_projects}}
+
+按 Skill 约定的 JSON schema 输出结果。`,
     })
   } else {
     if (!hasSplit) return
