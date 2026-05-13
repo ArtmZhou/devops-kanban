@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { mount, shallowMount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 
-import TaskColumn from '../../../src/components/kanban/TaskColumn.vue'
+import KanbanColumn from '../../../src/components/kanban/KanbanColumn.vue'
 
 // vuedraggable stub — renders #item slot for each element in :list
 const DraggableStub = defineComponent({
@@ -68,7 +68,7 @@ const mountTaskColumn = (props = {}, options = {}) => {
     ...props
   }
 
-  return mount(TaskColumn, {
+  return mount(KanbanColumn, {
     global: {
       stubs: {
         draggable: DraggableStub,
@@ -83,7 +83,7 @@ const mountTaskColumn = (props = {}, options = {}) => {
   })
 }
 
-describe('TaskColumn', () => {
+describe('KanbanColumn', () => {
   it('renders column with title and task count', () => {
     const wrapper = mountTaskColumn({
       title: '进行中',

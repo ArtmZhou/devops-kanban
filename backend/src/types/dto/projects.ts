@@ -8,6 +8,7 @@ export interface CreateProjectInput {
   /** @maxLength 2000 */
   local_path?: string;
   env?: Record<string, string>;
+  default_template_id?: string | null;
 }
 
 export interface UpdateProjectInput {
@@ -20,4 +21,5 @@ export interface UpdateProjectInput {
   /** @maxLength 2000 */
   local_path?: string | null;
   env?: Record<string, string>;
+  default_template_id?: string | null;
 }

@@ -100,6 +100,170 @@ export function buildWorkflowFromInstance(
     const previousStepId = index > 0 ? workflowInstance.steps[index - 1]?.id : null;
     const requiresConfirmation = templateStep.requiresConfirmation ?? false;
 
+    // SPLIT_TASK steps use a different execution path — they call an AI agent to produce split suggestions,
+    // rather than running code in the worktree with the normal workflow prompt.
+    if (templateStep.type === 'SPLIT_TASK') {
+      return createStep({
+        id: templateStep.id,
+        inputSchema: isFirst ? firstStepInputSchema : stepOutputSchema,
+        outputSchema: stepOutputSchema,
+        stateSchema: sharedStateSchema,
+        execute: async ({ inputData, state, abortSignal, abort }) => {
+          const signalAlreadyAborted = abortSignal?.aborted ?? false;
+          if (signalAlreadyAborted) {
+            logger.warn('Workflows', `SPLIT_TASK step ${templateStep.id} received stale abort signal, ignoring. workflowRun: ${options.runId}`);
+          }
+
+          logger.info('Workflows', `SPLIT_TASK step ${templateStep.id} starting, workflowRun: ${options.runId}`);
+
+          try {
+            await options.lifecycle.onStepStart(options.runId, templateStep.id, options.task);
+
+            const { renderSplitPrompt, DEFAULT_SPLIT_PROMPT } = await import('./defaultSplitPrompt.js');
+            const { extractJsonBlock } = await import('./parseJsonBlock.js');
+            const { matchProject } = await import('./projectMatcher.js');
+            const { splitSuggestionRepository } = await import('../../repositories/splitSuggestionRepository.js');
+            const { ProjectRepository } = await import('../../repositories/projectRepository.js');
+            const { TaskRepository } = await import('../../repositories/taskRepository.js');
+            const { AgentRepository } = await import('../../repositories/agentRepository.js');
+            const { AgentExecutorRegistry } = await import('./agentExecutorRegistry.js');
+            const { adaptStepResult } = await import('./stepResultAdapter.js');
+
+            const taskRepo = new TaskRepository();
+            const task = await taskRepo.findById(options.task.id);
+            if (!task) throw new Error(`Task ${options.task.id} not found`);
+
+            if (task.parent_task_id != null) {
+              logger.info('Workflows', `skip: task ${options.task.id} is a child task`);
+              await options.lifecycle.onStepComplete(options.runId, templateStep.id, { summary: 'Skipped: child task' });
+              return { summary: 'Skipped: this is a child task, not splitting further.' };
+            }
+
+            const projectRepo = new ProjectRepository();
+            const project = await projectRepo.findById(task.project_id);
+            if (!project) throw new Error(`Project ${task.project_id} not found`);
+
+            const allProjects = await projectRepo.findAll();
+            const availableProjectsBlock = allProjects
+              .filter(p => p.id !== project.id)
+              .map(p => `- ${p.name} (id=${p.id}) → ${p.git_url ?? '(no git_url)'}`)
+              .join('\n');
+
+            // inputData can be firstStepInputSchema or stepOutputSchema — summary only on stepOutputSchema
+            const lastStepOutput = 'summary' in (inputData as Record<string, unknown>)
+              ? (inputData as { summary: string }).summary
+              : '';
+
+            const splitPrompt = renderSplitPrompt(templateStep.instructionPrompt || DEFAULT_SPLIT_PROMPT, {
+              task_title: state.taskTitle,
+              task_description: state.taskDescription,
+              project_name: project.name,
+              project_repo_url: project.git_url ?? '',
+              last_step_output: lastStepOutput,
+              available_projects: availableProjectsBlock || '(no other projects)',
+            });
+
+            // Execute agent with split prompt
+            const agentRepo = new AgentRepository();
+            const agent = await agentRepo.findById(templateStep.agentId);
+            if (!agent) throw new Error(`Agent ${templateStep.agentId} not found`);
+
+            const registry = new AgentExecutorRegistry();
+            const executor = registry.getExecutor(agent.executorType);
+
+            if (!Array.isArray(agent.skills) || agent.skills.some((skill: any) => typeof skill !== 'number')) {
+              throw new Error(`Agent ${agent.id} has invalid skills configuration`);
+            }
+            if (!Array.isArray(agent.mcpServers) || agent.mcpServers.some((id: any) => typeof id !== 'number')) {
+              throw new Error(`Agent ${agent.id} has invalid MCP servers configuration`);
+            }
+
+            const executionResult = await executor.execute({
+              prompt: splitPrompt,
+              worktreePath: state.worktreePath,
+              executorConfig: {
+                type: agent.executorType,
+                skills: [...agent.skills],
+                mcpServers: [...agent.mcpServers],
+                env: agent.env ? { ...agent.env } : undefined,
+                settingsPath: agent.settingsPath || undefined,
+              },
+              abortSignal: signalAlreadyAborted ? undefined : abortSignal,
+            });
+
+            // Check for fresh abort signal after execution
+            if (abortSignal?.aborted && !signalAlreadyAborted) {
+              abort();
+              return { summary: '' };
+            }
+
+            const adaptedResult = adaptStepResult(agent.executorType, executionResult);
+
+            let rawSuggestions;
+            try {
+              rawSuggestions = extractJsonBlock(adaptedResult.summary);
+            } catch (e) {
+              throw new Error(`AI 输出未包含有效的 JSON 代码块: ${(e as Error).message}`);
+            }
+
+            if (!Array.isArray(rawSuggestions)) {
+              throw new Error('AI 输出必须是 JSON 数组');
+            }
+
+            const suggestions = rawSuggestions.map((raw: any) => {
+              const linkedId = raw.linked_project_id ?? matchProject(
+                { title: raw.title ?? '', target_repo_url: raw.target_repo_url ?? null },
+                allProjects,
+              );
+              const matchedProject = linkedId ? allProjects.find(p => p.id === linkedId) : null;
+              const templateId = raw.template_id ?? matchedProject?.default_template_id ?? null;
+              return {
+                title: String(raw.title ?? '未命名任务'),
+                description: String(raw.description ?? ''),
+                template_id: templateId,
+                linked_project_id: linkedId,
+                target_repo_url: linkedId ? null : (raw.target_repo_url ?? null),
+                depends_on_indices: Array.isArray(raw.depends_on_indices) ? raw.depends_on_indices : [],
+                enabled: raw.enabled !== false,
+              };
+            });
+
+            const splitEntity = {
+              parent_task_id: options.task.id,
+              workflow_run_id: options.runId,
+              status: 'PENDING',
+              suggestions,
+              confirmed_at: null,
+            } as {
+              parent_task_id: number;
+              workflow_run_id: number;
+              status: 'PENDING';
+              suggestions: Array<{
+                title: string;
+                description: string;
+                template_id: string | null;
+                linked_project_id: number | null;
+                target_repo_url: string | null;
+                depends_on_indices: number[];
+                enabled: boolean;
+              }>;
+              confirmed_at: string | null;
+            };
+            await splitSuggestionRepository.create(splitEntity);
+
+            const summary = `已生成 ${suggestions.length} 条拆分建议，等待用户审核。`;
+            await options.lifecycle.onStepComplete(options.runId, templateStep.id, { summary });
+
+            return { summary };
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            await options.lifecycle.onStepError(options.runId, templateStep.id, errorMessage);
+            throw err;
+          }
+        },
+      });
+    }
+
     return createStep({
       id: templateStep.id,
       inputSchema: isFirst ? firstStepInputSchema : stepOutputSchema,

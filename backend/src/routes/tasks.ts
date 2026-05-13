@@ -18,6 +18,15 @@ type QueryWithTaskFilters = ProjectIdQuery & { iteration_id?: string };
 type StatusBody = { status?: string };
 type ReorderRequestBody = { updates?: Array<{ id?: number; order?: number }> };
 
+import { splitSuggestionService } from '../services/splitSuggestionService.js';
+import { WorkflowRunRepository } from '../repositories/workflowRunRepository.js';
+import { WorkflowInstanceRepository } from '../repositories/workflowInstanceRepository.js';
+import { WorkflowService } from '../services/workflow/workflowService.js';
+
+const workflowRunRepo = new WorkflowRunRepository();
+const workflowInstanceRepo = new WorkflowInstanceRepository();
+const workflowService = new WorkflowService();
+
 export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: QueryWithTaskFilters }>('/', async (request) => {
     try {
@@ -168,6 +177,77 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
       logError(error, request);
       reply.code(getStatusCode(error));
       return errorResponse(getErrorMessage(error, 'Failed to reorder tasks'));
+    }
+  });
+
+  // Batch create, pipeline, dependents, regenerate-split
+  fastify.post<{ Body: { parent_task_id: number; suggestions: any[] } }>(
+    '/batch-create',
+    async (req, reply) => {
+      try {
+        const tasks = await taskService.batchCreate(req.body);
+        return successResponse(tasks);
+      } catch (e) {
+        reply.code(400);
+        return errorResponse(getErrorMessage(e, 'Failed to batch create tasks'));
+      }
+    },
+  );
+
+  fastify.get<{ Params: IdParams }>('/:id/dependents', async (req) => {
+    const dependents = await taskService.getDependents(parseNumber(req.params.id));
+    return successResponse(dependents);
+  });
+
+  fastify.get<{ Params: IdParams }>('/:id/pipeline', async (req, reply) => {
+    try {
+      const pipeline = await taskService.getPipeline(parseNumber(req.params.id));
+      return successResponse(pipeline);
+    } catch (e) {
+      const statusCode = getStatusCode(e);
+      if (statusCode === 404) {
+        reply.code(404);
+        return errorResponse(getErrorMessage(e, 'Task not found'));
+      }
+      reply.code(statusCode);
+      return errorResponse(getErrorMessage(e, 'Failed to get pipeline'));
+    }
+  });
+
+  fastify.post<{ Params: IdParams }>('/:id/regenerate-split', async (req, reply) => {
+    try {
+      const taskId = parseNumber(req.params.id);
+
+      // Dismiss the current pending suggestion (if any) so the user doesn't
+      // see a stale record while the step re-runs.
+      const existing = await splitSuggestionService.getPendingByTask(taskId);
+      if (existing) await splitSuggestionService.dismiss(existing.id);
+
+      // Find the task's latest workflow run and look up the SPLIT_TASK step
+      // on its frozen instance. If either is missing we can't regenerate.
+      const run = await workflowRunRepo.findLatestByTaskId(taskId);
+      if (!run) {
+        return successResponse({ dismissed: !!existing, regenerated: false, reason: 'no workflow run for task' });
+      }
+
+      const instance = await workflowInstanceRepo.findByInstanceId(run.workflow_instance_id);
+      const splitStepBinding = instance?.steps.find((s) => s.type === 'SPLIT_TASK');
+      if (!splitStepBinding) {
+        return successResponse({ dismissed: !!existing, regenerated: false, reason: 'no SPLIT_TASK step in instance' });
+      }
+
+      try {
+        await workflowService.retryStep(run.id, splitStepBinding.id);
+        return successResponse({ dismissed: !!existing, regenerated: true, runId: run.id, stepId: splitStepBinding.id });
+      } catch (err) {
+        logError(err, req);
+        reply.code(getStatusCode(err));
+        return errorResponse(getErrorMessage(err, 'Failed to regenerate split'));
+      }
+    } catch (err) {
+      logError(err, req);
+      reply.code(getStatusCode(err));
+      return errorResponse(getErrorMessage(err, 'Failed to regenerate split'));
     }
   });
 

@@ -76,6 +76,9 @@ class ProjectService {
       git_url: projectData.git_url,
       local_path: projectData.local_path,
       env: projectData.env || {},
+      ...(projectData.default_template_id !== undefined
+        ? { default_template_id: projectData.default_template_id }
+        : {}),
     });
   }
 
@@ -118,6 +121,9 @@ class ProjectService {
         }
       }
       updateData.env = projectData.env;
+    }
+    if (projectData.default_template_id !== undefined) {
+      updateData.default_template_id = projectData.default_template_id;
     }
     return await this.projectRepo.update(projectId, updateData);
   }

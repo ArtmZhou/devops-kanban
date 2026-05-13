@@ -7,6 +7,7 @@ export interface ProjectEntity {
   git_url: string | undefined;
   local_path: string | undefined;
   env: Record<string, string>;
+  default_template_id?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +33,9 @@ export interface TaskEntity {
   labels?: string[];
   auto_execute?: number;
   auto_execute_template_id?: string | null;
+  parent_task_id?: number | null;
+  depends_on: number[];
+  target_repo_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -120,6 +124,7 @@ export interface WorkflowTemplateStepEntity {
   requiresConfirmation?: boolean;
   // Early exit configuration
   canEarlyExit?: boolean;
+  type?: string;
 }
 
 export interface WorkflowRunEntity {
@@ -235,5 +240,28 @@ export interface McpServerEntity {
 export interface SettingEntity {
   key: string;
   value: string;
+  updated_at: string;
+}
+
+export interface Suggestion {
+  title: string;
+  description: string;
+  template_id: string | null;
+  linked_project_id: number | null;
+  target_repo_url: string | null;
+  depends_on_indices: number[];
+  enabled: boolean;
+}
+
+export type SplitSuggestionStatus = 'PENDING' | 'CONFIRMED' | 'DISMISSED';
+
+export interface SplitSuggestionEntity {
+  id: number;
+  parent_task_id: number;
+  workflow_run_id: number | null;
+  status: SplitSuggestionStatus;
+  suggestions: Suggestion[];
+  confirmed_at: string | null;
+  created_at: string;
   updated_at: string;
 }

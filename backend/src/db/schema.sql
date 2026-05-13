@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS projects (
   git_url TEXT,
   local_path TEXT,
   env TEXT NOT NULL DEFAULT '{}',
+  default_template_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -140,6 +141,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   worktree_status TEXT DEFAULT 'none',
   auto_execute INTEGER NOT NULL DEFAULT 0,
   auto_execute_template_id TEXT,
+  parent_task_id INTEGER,
+  depends_on TEXT NOT NULL DEFAULT '[]',
+  target_repo_url TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -148,6 +152,22 @@ CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_iteration_id ON tasks(iteration_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_external_id ON tasks(external_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_parent_task_id ON tasks(parent_task_id);
+
+-- split_suggestions: AI 拆分建议表
+CREATE TABLE IF NOT EXISTS split_suggestions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  parent_task_id INTEGER NOT NULL,
+  workflow_run_id INTEGER,
+  status TEXT NOT NULL DEFAULT 'PENDING',
+  suggestions TEXT NOT NULL DEFAULT '[]',
+  confirmed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_split_suggestions_parent_task_id ON split_suggestions(parent_task_id);
+CREATE INDEX IF NOT EXISTS idx_split_suggestions_status ON split_suggestions(status);
 
 -- sessions: 会话表
 CREATE TABLE IF NOT EXISTS sessions (

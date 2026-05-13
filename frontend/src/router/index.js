@@ -7,9 +7,9 @@ const routes = [
     component: () => import('../views/ProjectListView.vue')
   },
   {
-    path: '/kanban/:projectId?',
-    name: 'KanbanView',
-    component: () => import('../views/KanbanView.vue')
+    path: '/workspace/:projectId?',
+    name: 'WorkspaceView',
+    component: () => import('../views/WorkspaceView.vue')
   },
   {
     path: '/agents',

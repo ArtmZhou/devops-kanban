@@ -178,6 +178,7 @@ class TaskSourceService {
           status: 'TODO',
           priority: 'MEDIUM',
           source: source.type,
+          depends_on: [],
         });
         createdTasks.push(newTask);
       }
@@ -257,6 +258,7 @@ class TaskSourceService {
               status: 'TODO',
               priority: 'MEDIUM',
               source: source.type,
+              depends_on: [],
             });
           }
         }
@@ -544,6 +546,7 @@ class TaskSourceService {
           priority: 'MEDIUM',
           source: source.type,
           external_url: item.external_url ?? '',
+          depends_on: [],
         });
         created++;
         // Match template by AI scenario tag, fallback to source default
@@ -598,6 +601,7 @@ class TaskSourceService {
         source: source.type,
         labels: item.labels || [],
         iteration_id: iterationId || null,
+        depends_on: [],
       });
       created++;
     }

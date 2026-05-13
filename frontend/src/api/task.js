@@ -2,6 +2,13 @@ import api from './index.js'
 
 // Task API - named exports only
 // Note: Backend expects 'project_id' (snake_case), not 'projectId' (camelCase)
+// Accepts either a bare projectId (number/string) for back-compat or a params object.
+const toTaskListParams = (arg) => {
+  if (arg === undefined || arg === null) return undefined
+  if (typeof arg === 'object') return arg
+  return { project_id: arg }
+}
+export const listTasks = (arg) => api.get('/tasks', { params: toTaskListParams(arg) })
 export const getTasks = (projectId) => api.get('/tasks', { params: { project_id: projectId } })
 export const getTask = (id) => api.get(`/tasks/${id}`)
 
@@ -39,3 +46,8 @@ export const reorderTasks = async (tasks) => {
 
   return api.put('/tasks/reorder', { updates })
 }
+
+export const batchCreateTasks = (payload) => api.post('/tasks/batch-create', payload)
+export const getTaskPipeline = (taskId) => api.get(`/tasks/${taskId}/pipeline`)
+export const getTaskDependents = (taskId) => api.get(`/tasks/${taskId}/dependents`)
+export const regenerateTaskSplit = (taskId) => api.post(`/tasks/${taskId}/regenerate-split`)

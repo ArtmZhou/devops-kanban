@@ -158,7 +158,7 @@ const handleDelete = async (project) => {
 
 const openProject = (project) => {
   projectStore.setCurrentProject(project)
-  router.push(`/kanban/${project.id}`)
+  router.push(`/workspace/${project.id}`)
 }
 
 watch(() => dialogVisible.value, (newValue) => {

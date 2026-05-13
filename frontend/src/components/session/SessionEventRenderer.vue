@@ -11,6 +11,7 @@
     >
       <div class="event-message-wrapper" :class="messageAlignmentClass">
         <div v-if="messageTime" class="event-time">{{ messageTime }}</div>
+        <div class="event-role-label" :class="messageAlignmentClass">{{ roleLabel }}</div>
         <div class="event-message" :class="messageBubbleClass">
           <div class="event-content" v-html="formattedMessageContent"></div>
         </div>
@@ -303,6 +304,10 @@ const messageBubbleClass = computed(() => {
   return props.event?.role === 'user' ? 'bubble-user' : 'bubble-assistant'
 })
 
+const roleLabel = computed(() => {
+  return props.event?.role === 'user' ? '用户' : 'Agent'
+})
+
 const messageTime = computed(() => {
   if (props.event?.kind !== 'message' || !props.event?.created_at) return ''
   return new Date(props.event.created_at).toLocaleTimeString('zh-CN', {
@@ -374,6 +379,23 @@ const askQuestionOptions = computed(() => {
   color: #9ca3af;
   padding: 0 4px;
   margin-bottom: 2px;
+}
+
+.event-role-label {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 0 4px;
+  margin-bottom: 3px;
+}
+
+.event-role-label.align-right {
+  text-align: right;
+  color: #9ca3af;
+}
+
+.event-role-label.align-left {
+  text-align: left;
+  color: #6b7280;
 }
 
 .event-chat-message.align-right,

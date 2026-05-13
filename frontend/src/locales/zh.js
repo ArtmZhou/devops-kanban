@@ -28,6 +28,7 @@ export default {
     groupPlatformConfig: '平台配置',
     projects: '项目列表',
     kanban: '工作台',
+    workspace: '工作台视图',
     taskSources: '任务源',
     agents: '我的团队',
     workflowTemplate: '工作流模板',
@@ -95,7 +96,10 @@ export default {
     modeManual: '未配置',
     statusReady: '可直接使用',
     statusConfigPending: '待补充配置',
-    openWorkspace: '打开看板'
+    openWorkspace: '打开看板',
+    defaultTemplate: '默认工作流模板',
+    defaultTemplateHint: '选定后，该项目下新任务将默认使用此工作流模板',
+    defaultTemplateNone: '无默认模板'
   },
   task: {
     title: '任务',
@@ -322,6 +326,10 @@ export default {
     newTemplateDefaultName: '新建模版',
     defaultTemplateHint: '默认模板可编辑，但不能删除。',
     stepName: '步骤名称',
+    stepType: '步骤类型',
+    stepTypeDefault: '默认（AI 执行任务）',
+    stepTypeSplit: 'AI 拆分（SPLIT_TASK）',
+    stepTypeSplitHint: '此步骤将调用 AI 拆分当前任务为子任务',
     stepId: '步骤 ID',
     executor: '角色',
     instructionPrompt: '步骤提示词',

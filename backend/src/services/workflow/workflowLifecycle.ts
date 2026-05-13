@@ -17,6 +17,16 @@ import { logger } from '../../utils/logger.js';
 import { resolve } from 'node:path';
 import { type StepSnapshot, WorkflowNotificationEvent } from '../notificationEvents.js';
 
+// NOTE: do not statically import `../taskService.js` here. The module graph
+// forms a cycle: workflowService → workflowLifecycle → taskService → workflowService,
+// and taskService exports a module-level singleton `new TaskService()` that
+// constructs a WorkflowService during its own module evaluation. A static
+// import would cause a TDZ error whenever any consumer imports workflowService
+// (e.g. tests) in isolation. The task-status notify callback is injected via
+// the constructor (see `onTaskStatusChange` option below).
+
+type TaskStatusChangeHandler = (taskId: number, status: string) => void | Promise<void>;
+
 class WorkflowLifecycle {
   workflowRunRepo: WorkflowRunRepository;
   taskRepo: TaskRepository;
@@ -27,6 +37,7 @@ class WorkflowLifecycle {
   instanceRepo: WorkflowInstanceRepository;
   _stepAttemptSegmentIds: Map<string, number | null>;
   private onWorkflowNotification?: (event: WorkflowNotificationEvent) => void;
+  private onTaskStatusChange?: TaskStatusChangeHandler;
 
   constructor({
     workflowRunRepo,
@@ -37,6 +48,7 @@ class WorkflowLifecycle {
     sessionEventRepo,
     instanceRepo,
     onWorkflowNotification,
+    onTaskStatusChange,
   }: {
     workflowRunRepo?: WorkflowRunRepository;
     taskRepo?: TaskRepository;
@@ -46,6 +58,7 @@ class WorkflowLifecycle {
     sessionEventRepo?: SessionEventRepository;
     instanceRepo?: WorkflowInstanceRepository;
     onWorkflowNotification?: (event: WorkflowNotificationEvent) => void;
+    onTaskStatusChange?: TaskStatusChangeHandler;
   } = {}) {
     this.workflowRunRepo = workflowRunRepo || new WorkflowRunRepository();
     this.taskRepo = taskRepo || new TaskRepository();
@@ -57,6 +70,22 @@ class WorkflowLifecycle {
     this._stepAttemptSegmentIds = new Map();
     if (onWorkflowNotification !== undefined) {
       this.onWorkflowNotification = onWorkflowNotification;
+    }
+    if (onTaskStatusChange !== undefined) {
+      this.onTaskStatusChange = onTaskStatusChange;
+    }
+  }
+
+  setOnTaskStatusChange(handler: TaskStatusChangeHandler) {
+    this.onTaskStatusChange = handler;
+  }
+
+  private async _notifyTaskStatusChange(taskId: number, status: string) {
+    if (!this.onTaskStatusChange) return;
+    try {
+      await this.onTaskStatusChange(taskId, status);
+    } catch (err) {
+      logger.warn('WorkflowLifecycle', `onTaskStatusChange hook failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -564,6 +593,7 @@ class WorkflowLifecycle {
       });
       if (run.task_id) {
         await this.taskRepo.update(run.task_id, { status: 'DONE' });
+        await this._notifyTaskStatusChange(run.task_id, 'DONE');
       }
       await this._emitNotification('COMPLETED', runId, run.task_id, {
         currentStepId: stepId,
@@ -868,6 +898,7 @@ class WorkflowLifecycle {
 
     if (run.task_id) {
       await this.taskRepo.update(run.task_id, { status: 'DONE' });
+      await this._notifyTaskStatusChange(run.task_id, 'DONE');
     }
 
     // Emit notification hook

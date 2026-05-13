@@ -89,6 +89,7 @@ test.test('TaskSourceService sync refreshes source-owned task fields without ove
       workflow_run_id: 123,
       worktree_path: '/tmp/worktree',
       worktree_branch: 'feature/keep-me',
+      depends_on: [],
     });
 
     TestSyncAdapter.tasks = [
