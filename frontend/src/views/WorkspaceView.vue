@@ -447,6 +447,7 @@ import WorkflowStartEditorDialog from '../components/workflow/WorkflowStartEdito
 import WorkflowProgressDialog from '../components/WorkflowProgressDialog.vue'
 import TaskSourcePanel from '../components/taskSource/TaskSourcePanel.vue'
 import { getWorkflowTemplateById } from '../api/workflowTemplate.js'
+import { resumeWorkflow } from '../api/workflow.js'
 import { normalizeWorkflowTemplate } from '../components/workflow/templateEditorShared.js'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
@@ -964,10 +965,18 @@ async function onWorkflowRefresh() {
   }
 }
 
-function onWorkflowConfirm({ workflowRunId, taskId }) {
-  workflowProgressRunId.value = workflowRunId
-  workflowProgressTaskId.value = taskId
-  showWorkflowProgressDialog.value = true
+async function onWorkflowConfirm({ workflowRunId, taskId }) {
+  try {
+    const resp = await resumeWorkflow(workflowRunId, { approved: true })
+    if (resp?.success) {
+      ElMessage.success('已确认通过')
+      await onWorkflowRefresh()
+    } else {
+      ElMessage.error(resp?.message || '确认失败')
+    }
+  } catch (e) {
+    ElMessage.error(e?.message || '确认失败')
+  }
 }
 
 function onWorkflowCompleted() {
