@@ -179,7 +179,7 @@
                 <polyline points="4 6 4 4 20 4 20 20 4 20 4 18"></polyline>
               </svg>
             </span>
-            <h4>工作流</h4>
+            <h4>AgentTeam</h4>
             <span v-if="workflowDisplayName" class="workflow-name-badge">{{ workflowDisplayName }}</span>
           </div>
           <button class="collapse-btn" @click="midCollapsed = !midCollapsed" :title="midCollapsed ? '展开链路' : '折叠链路'">
