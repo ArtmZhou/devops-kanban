@@ -791,7 +791,7 @@ function kanbanColumnStyle(status) {
 
 function getCurrentColumnWidth(status) {
   const el = document.querySelector(`.task-kanban-column[data-status="${status}"]`)
-  return el ? el.getBoundingClientRect().width : 240
+  return el ? el.getBoundingClientRect().width : 288
 }
 
 function startColumnResize(e, status) {
@@ -1905,7 +1905,7 @@ watch(taskListViewMode, (mode) => {
 
 .task-kanban-column {
   flex: 1;
-  min-width: 240px;
+  min-width: 288px;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
@@ -1945,9 +1945,9 @@ watch(taskListViewMode, (mode) => {
 }
 
 .task-kanban-column .task-card {
-  height: 120px;
-  min-height: 120px;
-  max-height: 120px;
+  height: 150px;
+  min-height: 150px;
+  max-height: 150px;
   padding: 10px 12px;
   margin-bottom: 4px;
   border: 1px solid transparent;
