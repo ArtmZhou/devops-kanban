@@ -132,13 +132,6 @@
           取消
         </button>
       </el-tooltip>
-      <button class="quick-action-btn" :disabled="actionLoading" @click="handleCreateTask">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-        新建任务
-      </button>
       <button class="quick-action-btn" :disabled="!taskId || actionLoading" @click="handleRefresh">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
@@ -162,7 +155,7 @@ const props = defineProps({
   collapsed: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template', 'create-task'])
+const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template'])
 
 const task = ref(null)
 const run = ref(null)
@@ -304,10 +297,6 @@ function handleStepClick(step) {
 
 function handleTemplate() {
   emit('open-template', 'switch')
-}
-
-function handleCreateTask() {
-  emit('create-task')
 }
 
 async function loadTask(id) {
