@@ -4,10 +4,13 @@
   </span>
 </template>
 
+<script>
+const TASK_PRIORITY = { CRITICAL: 'CRITICAL', HIGH: 'HIGH', MEDIUM: 'MEDIUM', LOW: 'LOW' }
+</script>
+
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { TASK_PRIORITY } from '../../constants/task'
 
 const props = defineProps({
   priority: {

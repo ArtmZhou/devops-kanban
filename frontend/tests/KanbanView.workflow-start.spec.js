@@ -167,7 +167,10 @@ const WorkflowStartEditorDialogStub = defineComponent({
               template_id: 'quick-fix-v1-custom',
               steps: props.draftTemplate?.steps?.map((step, index) => ({
                 ...step,
-                instructionPrompt: index === 0 ? '先确认问题范围，并记录复现条件。' : step.instructionPrompt
+                instructionPrompt: index === 0 ? '先确认问题范围，并记录复现条件。' : step.instructionPrompt,
+                requiresConfirmation: step.requiresConfirmation ?? false,
+                canEarlyExit: false,
+                type: 'DEFAULT'
               })) || []
             })
           }, 'confirm workflow edit')
@@ -412,14 +415,18 @@ describe('KanbanView workflow start entrypoint', () => {
             name: '问题定位',
             instructionPrompt: '先确认问题范围，并记录复现条件。',
             agentId: 11,
-            requiresConfirmation: false
+            requiresConfirmation: false,
+            canEarlyExit: false,
+            type: 'DEFAULT'
           },
           {
             id: 'fix',
             name: '实施修复',
             instructionPrompt: '完成最小修复。',
             agentId: 12,
-            requiresConfirmation: false
+            requiresConfirmation: false,
+            canEarlyExit: false,
+            type: 'DEFAULT'
           }
         ]
       }
@@ -469,14 +476,18 @@ describe('KanbanView workflow start entrypoint', () => {
             name: '问题定位',
             instructionPrompt: '先确认问题范围，并记录复现条件。',
             agentId: 11,
-            requiresConfirmation: false
+            requiresConfirmation: false,
+            canEarlyExit: false,
+            type: 'DEFAULT'
           },
           {
             id: 'fix',
             name: '实施修复',
             instructionPrompt: '完成最小修复。',
             agentId: 12,
-            requiresConfirmation: false
+            requiresConfirmation: false,
+            canEarlyExit: false,
+            type: 'DEFAULT'
           }
         ]
       }

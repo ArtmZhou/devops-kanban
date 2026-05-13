@@ -55,7 +55,7 @@
             v-for="task in tasks"
             :key="task.id"
             class="task-card"
-            :class="{ 'selected': selectedTask?.id === task.id, 'is-mock': task.id < 0 }"
+            :class="{ 'selected': selectedTask?.id === task.id }"
             @click="selectTask(task)"
           >
             <div class="task-card-header">
@@ -107,7 +107,7 @@
                 <div
                   :data-id="task.id"
                   class="task-card"
-                  :class="{ 'selected': selectedTask?.id === task.id, 'is-mock': task.id < 0 }"
+                  :class="{ 'selected': selectedTask?.id === task.id }"
                   @click="selectTask(task)"
                 >
                   <div class="task-card-header">
@@ -205,13 +205,14 @@
           <!-- Current workflow steps -->
           <CurrentWorkflow
             :task-id="focusedTaskId"
-            :mock-run="mockRunForSelected"
             :embedded="true"
             :collapsed="midCollapsed"
+            :pending-split-count="pendingSplitCount"
             @refresh="onWorkflowRefresh"
             @run-update="onRunUpdate"
             @step-select="onStepSelect"
             @open-template="onOpenTemplateDialog"
+            @show-split-suggestions="showSplitSuggestionsDialog = true"
           />
         </div>
 
@@ -258,13 +259,32 @@
         <div class="workspace-section workspace-right-top" :style="{ height: rightTopHeight + 'px' }">
           <div class="panel-header">
             <h4>文件查看</h4>
+            <button
+              v-if="fileViewerEnabled"
+              class="panel-header-action"
+              title="收起文件查看"
+              @click="fileViewerEnabled = false"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+            </button>
           </div>
           <TaskFileViewer
+            v-if="fileViewerEnabled"
             :task-id="selectedTask?.id ?? null"
             :project-id="selectedProjectId ?? null"
             :task="selectedTask"
             @refresh="onWorkflowRefresh"
           />
+          <div v-else class="file-viewer-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <button class="file-viewer-load-btn" @click="fileViewerEnabled = true">加载文件树</button>
+            <span class="file-viewer-hint">加载完整文件树会消耗一定资源，按需打开</span>
+          </div>
         </div>
 
         <div class="resize-handle resize-handle-h" @mousedown="(e) => handleMouseDown(e, 'right-vertical')"></div>
@@ -349,6 +369,33 @@
       v-model="showWorkflowTemplateDialog"
       @confirm="handleWorkflowTemplateConfirm"
     />
+
+    <WorkflowStartEditorDialog
+      v-model="showWorkflowStartEditorDialog"
+      :draft-template="workflowStartDraftTemplate"
+      :task-title="selectedTask?.title || ''"
+      :task-description="selectedTask?.description || ''"
+      :task-external-id="selectedTask?.external_id || ''"
+      :project-env="currentProjectEnv"
+      @confirm="handleWorkflowStartEditorConfirm"
+    />
+
+    <el-dialog
+      v-model="showSplitSuggestionsDialog"
+      title="AI 拆分建议"
+      width="720px"
+      align-center
+      :destroy-on-close="true"
+    >
+      <AiSplitCard
+        :suggestion="splitStore.pendingByTask.get(selectedTask?.id)"
+        :task-id="selectedTask?.id"
+        :embedded="true"
+        @update="(suggestions) => selectedTask?.id && splitStore.updateSuggestions(selectedTask.id, suggestions)"
+        @confirm="onConfirmSplitDialog"
+        @dismiss="showSplitSuggestionsDialog = false"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -361,9 +408,14 @@ import CurrentWorkflow from '../components/workspace/CurrentWorkflow.vue'
 import TaskFileViewer from '../components/workspace/TaskFileViewer.vue'
 import ChangedFilesPanel from '../components/workspace/ChangedFilesPanel.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
+import AiSplitCard from '../components/workspace/AiSplitCard.vue'
 import WorkflowTemplateSelectDialog from '../components/workflow/WorkflowTemplateSelectDialog.vue'
+import WorkflowStartEditorDialog from '../components/workflow/WorkflowStartEditorDialog.vue'
+import { getWorkflowTemplateById } from '../api/workflowTemplate.js'
+import { normalizeWorkflowTemplate } from '../components/workflow/templateEditorShared.js'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
+import { useSplitSuggestionsStore } from '../stores/splitSuggestions.js'
 import { getRoleConfig } from '../constants/agent.js'
 import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi, startTask } from '../api/task.js'
 import draggable from 'vuedraggable'
@@ -371,6 +423,7 @@ import { useTaskTimer } from '../composables/kanban/useTaskTimer.js'
 
 const projectStore = useProjectStore()
 const agentStore = useAgentStore()
+const splitStore = useSplitSuggestionsStore()
 const { runningTasks } = useTaskTimer()
 const route = useRoute()
 const router = useRouter()
@@ -508,99 +561,12 @@ async function onKanbanDragEnd(event) {
   }
 }
 
-// --- Mock cross-project pipeline demo ---
-// Shows a root task in "DevOps 看板系统" that fans out into children living in other projects.
-const MOCK_ROOT_ID = -1001
-const MOCK_TASK = {
-  id: MOCK_ROOT_ID,
-  title: '设计任务依赖 DAG 架构（示例）',
-  status: 'DONE',
-  priority: 'HIGH',
-  project_id: null, // filled in at load time with the current project id
-  parent_task_id: null,
-  depends_on: []
-}
-const MOCK_PIPELINE_NODES = [
-  { id: -1001, title: '设计任务依赖 DAG 架构', status: 'DONE', workflow_run_status: 'COMPLETED', priority: 'HIGH', parent_task_id: null, depends_on: [], project_name: 'DevOps 看板系统' },
-  { id: -1002, title: '用户服务开发', status: 'IN_PROGRESS', workflow_run_status: 'RUNNING', priority: 'HIGH', parent_task_id: -1001, depends_on: [-1001], project_name: '用户服务' },
-  { id: -1003, title: '订单服务开发', status: 'IN_PROGRESS', workflow_run_status: 'RUNNING', priority: 'HIGH', parent_task_id: -1001, depends_on: [-1001], project_name: '订单服务' },
-  { id: -1004, title: '前端集成', status: 'TODO', workflow_run_status: null, priority: 'MEDIUM', parent_task_id: -1001, depends_on: [-1001], project_name: '前端项目' },
-  { id: -1005, title: '集成测试', status: 'TODO', workflow_run_status: null, priority: 'MEDIUM', parent_task_id: -1001, depends_on: [-1002, -1003, -1004], project_name: '集成测试' }
-]
-
-// Per-node mock workflow runs — shown when user clicks a DAG node
-const MOCK_RUNS = {
-  [-1001]: {
-    workflow_template_snapshot: { name: '架构设计工作流' },
-    status: 'COMPLETED',
-    created_at: '2026-05-11T09:00:00+08:00',
-    updated_at: '2026-05-11T11:30:00+08:00',
-    steps: [
-      { step_id: 's1', name: '需求分析', status: 'DONE', started_at: '2026-05-11T09:00:00+08:00', completed_at: '2026-05-11T09:45:00+08:00' },
-      { step_id: 's2', name: '架构设计', status: 'DONE', started_at: '2026-05-11T09:45:00+08:00', completed_at: '2026-05-11T10:55:00+08:00' },
-      { step_id: 's3', name: 'AI 拆分子任务', status: 'DONE', started_at: '2026-05-11T10:55:00+08:00', completed_at: '2026-05-11T11:30:00+08:00' }
-    ]
-  },
-  [-1002]: {
-    workflow_template_snapshot: { name: '用户服务开发工作流' },
-    status: 'RUNNING',
-    created_at: '2026-05-11T12:00:00+08:00',
-    updated_at: '2026-05-12T09:30:00+08:00',
-    steps: [
-      { step_id: 's1', name: 'API 设计', status: 'DONE', started_at: '2026-05-11T12:00:00+08:00', completed_at: '2026-05-11T13:15:00+08:00' },
-      { step_id: 's2', name: '实体建模', status: 'DONE', started_at: '2026-05-11T13:15:00+08:00', completed_at: '2026-05-11T15:00:00+08:00' },
-      { step_id: 's3', name: '接口实现', status: 'IN_PROGRESS', started_at: '2026-05-11T15:00:00+08:00', completed_at: null },
-      { step_id: 's4', name: '单元测试', status: 'PENDING', started_at: null, completed_at: null }
-    ]
-  },
-  [-1003]: {
-    workflow_template_snapshot: { name: '订单服务开发工作流' },
-    status: 'RUNNING',
-    created_at: '2026-05-11T12:00:00+08:00',
-    updated_at: '2026-05-12T09:30:00+08:00',
-    steps: [
-      { step_id: 's1', name: 'API 设计', status: 'DONE', started_at: '2026-05-11T12:00:00+08:00', completed_at: '2026-05-11T14:00:00+08:00' },
-      { step_id: 's2', name: '实体建模', status: 'IN_PROGRESS', started_at: '2026-05-11T14:00:00+08:00', completed_at: null },
-      { step_id: 's3', name: '接口实现', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's4', name: '单元测试', status: 'PENDING', started_at: null, completed_at: null }
-    ]
-  },
-  [-1004]: {
-    workflow_template_snapshot: { name: '前端开发工作流' },
-    status: 'PENDING',
-    created_at: '2026-05-11T12:00:00+08:00',
-    updated_at: '2026-05-11T12:00:00+08:00',
-    steps: [
-      { step_id: 's1', name: '页面设计', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's2', name: '组件开发', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's3', name: '联调', status: 'PENDING', started_at: null, completed_at: null }
-    ]
-  },
-  [-1005]: {
-    workflow_template_snapshot: { name: '集成测试工作流' },
-    status: 'PENDING',
-    created_at: '2026-05-11T12:00:00+08:00',
-    updated_at: '2026-05-11T12:00:00+08:00',
-    steps: [
-      { step_id: 's1', name: '环境准备', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's2', name: '端到端测试', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's3', name: '发布验收', status: 'PENDING', started_at: null, completed_at: null }
-    ]
-  }
-}
-
 const realTasks = ref([])
 const pipeline = ref({ root: null, nodes: [] })
 const selectedTask = ref(null)
 // Currently "focused" DAG node id — what the CurrentWorkflow panel displays.
 // Defaults to selectedTask.id but can be switched by clicking any node in the DAG.
 const focusedNodeId = ref(null)
-
-const mockRunForSelected = computed(() => {
-  const id = focusedNodeId.value ?? selectedTask.value?.id
-  if (id != null && id < 0) return MOCK_RUNS[id] || null
-  return null
-})
 
 // The task id whose workflow is shown below — follows DAG clicks, falls back to selectedTask
 const focusedTaskId = computed(() => focusedNodeId.value ?? selectedTask.value?.id ?? null)
@@ -610,11 +576,47 @@ const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
 const selectedStatus = ref(null)
 const taskListViewMode = ref('list') // 'list' | 'kanban'
 const showWorkflowTemplateDialog = ref(false)
+const showSplitSuggestionsDialog = ref(false)
+
+const pendingSplitCount = computed(() => {
+  const id = selectedTask.value?.id
+  if (!id) return 0
+  const pending = splitStore.pendingByTask.get(id)
+  return pending?.suggestions?.length || 0
+})
+const showWorkflowStartEditorDialog = ref(false)
+const workflowStartDraftTemplate = ref(null)
+const selectedWorkflowTemplateId = ref('')
 const templateDialogIntent = ref('switch') // 'switch' | 'start'
 
+const currentProjectEnv = computed(() => {
+  const project = projects.value.find(p => String(p.id) === String(selectedProjectId.value))
+  return project?.env || {}
+})
+
 function onOpenTemplateDialog(intent = 'switch') {
-  templateDialogIntent.value = intent
+  // start-with-template: task already has a template; skip picker, go straight to editor
+  if (intent === 'start-with-template' && selectedTask.value?.auto_execute_template_id) {
+    openStartEditorForConfiguredTemplate(selectedTask.value.auto_execute_template_id)
+    return
+  }
+  templateDialogIntent.value = intent === 'start' ? 'start' : 'switch'
   showWorkflowTemplateDialog.value = true
+}
+
+async function openStartEditorForConfiguredTemplate(templateId) {
+  try {
+    const tplResp = await getWorkflowTemplateById(templateId)
+    if (!tplResp?.success) {
+      ElMessage.error(tplResp?.message || '加载工作流模板失败')
+      return
+    }
+    selectedWorkflowTemplateId.value = templateId
+    workflowStartDraftTemplate.value = normalizeWorkflowTemplate(tplResp.data)
+    showWorkflowStartEditorDialog.value = true
+  } catch (e) {
+    ElMessage.error(e?.message || '加载工作流模板失败')
+  }
 }
 
 async function handleWorkflowTemplateConfirm({ templateId }) {
@@ -622,40 +624,75 @@ async function handleWorkflowTemplateConfirm({ templateId }) {
     showWorkflowTemplateDialog.value = false
     return
   }
+
+  if (templateDialogIntent.value === 'switch') {
+    // Switch mode: persist template on task and close
+    try {
+      const resp = await updateTask(selectedTask.value.id, {
+        auto_execute: 1,
+        auto_execute_template_id: templateId,
+      })
+      if (resp?.success) {
+        showWorkflowTemplateDialog.value = false
+        await loadTasks()
+        ElMessage.success('模板已切换')
+        onWorkflowRefresh()
+      } else {
+        ElMessage.error(resp?.message || '切换失败')
+      }
+    } catch (e) {
+      ElMessage.error(e?.message || '切换失败')
+    }
+    return
+  }
+
+  // Start mode: load template, save on task, then open editor for review
   try {
-    const resp = await updateTask(selectedTask.value.id, {
+    const tplResp = await getWorkflowTemplateById(templateId)
+    if (!tplResp?.success) {
+      ElMessage.error(tplResp?.message || '加载工作流模板失败')
+      return
+    }
+    await updateTask(selectedTask.value.id, {
       auto_execute: 1,
       auto_execute_template_id: templateId,
     })
+    selectedWorkflowTemplateId.value = templateId
+    workflowStartDraftTemplate.value = normalizeWorkflowTemplate(tplResp.data)
+    showWorkflowTemplateDialog.value = false
+    showWorkflowStartEditorDialog.value = true
+  } catch (e) {
+    ElMessage.error(e?.message || '加载工作流模板失败')
+  }
+}
+
+async function handleWorkflowStartEditorConfirm(draftTemplate) {
+  if (!selectedTask.value?.id || !selectedWorkflowTemplateId.value) {
+    showWorkflowStartEditorDialog.value = false
+    return
+  }
+  try {
+    const resp = await startTask(selectedTask.value.id, {
+      workflow_template_id: selectedWorkflowTemplateId.value,
+      workflow_template_snapshot: normalizeWorkflowTemplate(draftTemplate)
+    })
     if (resp?.success) {
-      showWorkflowTemplateDialog.value = false
-      await loadTasks()
-      if (templateDialogIntent.value === 'start') {
-        try {
-          const startResp = await startTask(selectedTask.value.id)
-          if (startResp?.success) {
-            ElMessage.success('任务已启动')
-            onWorkflowRefresh()
-          } else {
-            ElMessage.error(startResp?.message || '启动失败')
-          }
-        } catch (err) {
-          ElMessage.error(err?.message || '启动失败')
-        }
-      } else {
-        ElMessage.success('模板已切换')
-        onWorkflowRefresh()
-      }
+      ElMessage.success('任务已启动')
+      showWorkflowStartEditorDialog.value = false
+      workflowStartDraftTemplate.value = null
+      selectedWorkflowTemplateId.value = ''
       templateDialogIntent.value = 'switch'
+      await loadTasks()
+      onWorkflowRefresh()
+    } else {
+      ElMessage.error(resp?.message || '启动失败')
     }
   } catch (e) {
-    ElMessage.error(e?.message || '操作失败')
+    ElMessage.error(e?.message || '启动失败')
   }
 }
 const tasks = computed(() => {
-  // Prepend the mock root task so users can preview the cross-project DAG
-  const mockForCurrent = { ...MOCK_TASK, project_id: selectedProjectId.value ?? MOCK_TASK.project_id }
-  const all = [mockForCurrent, ...realTasks.value]
+  const all = realTasks.value
   if (!selectedStatus.value) return all
   return all.filter(t => t.status === selectedStatus.value)
 })
@@ -744,11 +781,6 @@ async function handleProjectChange() {
 }
 
 async function loadPipeline(taskId) {
-  if (taskId < 0) {
-    // Mock pipeline for demo task
-    pipeline.value = { root: MOCK_PIPELINE_NODES[0], nodes: MOCK_PIPELINE_NODES }
-    return
-  }
   try {
     const resp = await getTaskPipeline(taskId)
     if (resp?.success) {
@@ -771,6 +803,7 @@ const leftWidth = ref(310)
 const rightWidth = ref(380)
 const rightTopHeight = ref(380)
 const midCollapsed = ref(false)   // middle upper section folded (only header + steps + actions visible)
+const fileViewerEnabled = ref(false) // lazy-load file tree only when user opts in
 const LEFT_MIN = 220
 const LEFT_MAX = 500
 const RIGHT_MIN = 260
@@ -840,6 +873,24 @@ function priorityClass(priority) {
 function statusClass(status) {
   const map = { DONE: 'done', IN_PROGRESS: 'running', TODO: 'waiting' }
   return map[status] || 'waiting'
+}
+
+async function onConfirmSplit() {
+  if (!selectedTask.value?.id) return
+  await splitStore.doConfirm(selectedTask.value.id)
+  if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
+  await loadTasks()
+}
+
+async function onConfirmSplitDialog() {
+  await onConfirmSplit()
+  showSplitSuggestionsDialog.value = false
+}
+
+async function onDismissSplit() {
+  if (!selectedTask.value?.id) return
+  await splitStore.doDismiss(selectedTask.value.id)
+  if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
 }
 
 async function onWorkflowRefresh() {
@@ -957,7 +1008,10 @@ onMounted(async () => {
   await loadTasks()
 })
 watch(() => selectedTask.value?.id, async (newId) => {
-  if (newId) await loadPipeline(newId)
+  if (newId) {
+    await loadPipeline(newId)
+    await splitStore.load(newId)
+  }
 })
 watch(taskListViewMode, (mode) => {
   if (mode === 'kanban') {
@@ -1156,12 +1210,6 @@ watch(taskListViewMode, (mode) => {
   margin-bottom: 4px;
   border: 1px solid transparent;
   background: var(--bg-secondary);
-}
-
-.task-card.is-mock {
-  border-style: dashed;
-  border-color: rgba(37, 198, 201, 0.25);
-  background: rgba(37, 198, 201, 0.02);
 }
 
 .task-card:hover {
@@ -1646,6 +1694,68 @@ watch(taskListViewMode, (mode) => {
   color: var(--text-muted);
   font-size: 12px;
   min-height: 60px;
+}
+
+.file-viewer-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  min-height: 0;
+}
+
+.file-viewer-placeholder svg {
+  opacity: 0.35;
+}
+
+.file-viewer-load-btn {
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent-color);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.file-viewer-load-btn:hover {
+  filter: brightness(1.08);
+}
+
+.file-viewer-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 220px;
+  line-height: 1.5;
+}
+
+.panel-header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-left: auto;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.panel-header-action:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
 }
 
 .task-list-expand-toggle {

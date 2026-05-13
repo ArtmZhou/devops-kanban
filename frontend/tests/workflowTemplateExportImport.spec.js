@@ -4,34 +4,6 @@ import api from '../src/api/index.js'
 import * as workflowTemplateApi from '../src/api/workflowTemplate.js'
 
 describe('workflow template export api helpers', () => {
-  it('exports a single template by id', async () => {
-    expect(typeof workflowTemplateApi.exportWorkflowTemplate).toBe('function')
-
-    const seen = []
-    const interceptor = api.interceptors.request.use((config) => {
-      seen.push({
-        url: config.url,
-        method: config.method,
-        responseType: config.responseType
-      })
-      return Promise.reject(new Error('stop request'))
-    })
-
-    try {
-      await expect(workflowTemplateApi.exportWorkflowTemplate('my-template')).rejects.toThrow('stop request')
-    } finally {
-      api.interceptors.request.eject(interceptor)
-    }
-
-    expect(seen).toEqual([
-      {
-        url: '/workflow-template/export/my-template',
-        method: 'get',
-        responseType: 'json'
-      }
-    ])
-  })
-
   it('batch exports templates by ids', async () => {
     expect(typeof workflowTemplateApi.exportWorkflowTemplates).toBe('function')
 

@@ -736,7 +736,7 @@ import { normalizeWorkflowTemplate } from '../components/workflow/templateEditor
 import { formatTaskDescription } from '../utils/taskDescriptionFormatter'
 import { useToast } from '../composables/ui/useToast'
 import { useWorktree } from '../composables/useWorktree'
-import { agentConfig, roleConfig } from '../constants/workflowPresentation.js'
+import { agentConfig } from '../constants/workflowPresentation.js'
 
 const { t } = useI18n()
 const route = useRoute()

@@ -13,12 +13,6 @@ export const getLatestChatSession = (agentId) =>
   api.get(`/agents/${agentId}/chat/sessions`)
 
 /**
- * Get all messages for a chat session.
- */
-export const getChatMessages = (agentId, chatId) =>
-  api.get(`/agents/${agentId}/chat/sessions/${chatId}/messages`)
-
-/**
  * Delete (end) a chat session.
  */
 export const deleteChatSession = (agentId, chatId) =>

@@ -379,14 +379,18 @@ describe('WorkflowStartEditorDialog', () => {
             name: '需求设计',
             instructionPrompt: '先完成需求分析。',
             agentId: 1,
-            requiresConfirmation: false
+            requiresConfirmation: false,
+            canEarlyExit: false,
+            type: 'DEFAULT'
           },
           {
             id: 'code-development',
             name: '代码开发',
             instructionPrompt: '根据上游摘要完成代码实现。',
             agentId: 2,
-            requiresConfirmation: false
+            requiresConfirmation: false,
+            canEarlyExit: false,
+            type: 'DEFAULT'
           }
         ]
       },

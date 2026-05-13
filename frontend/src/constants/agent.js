@@ -2,7 +2,7 @@
  * Agent role constants
  * These roles correspond to workflow node roles
  */
-export const AGENT_ROLES = {
+const AGENT_ROLES = {
   ARCHITECT: 'ARCHITECT',           // 架构师
   TECH_LEAD: 'TECH_LEAD',           // 技术负责人
   BACKEND_DEV: 'BACKEND_DEV',       // 后端开发
