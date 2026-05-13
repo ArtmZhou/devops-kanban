@@ -240,6 +240,7 @@
             @open-template="onOpenTemplateDialog"
             @show-split-suggestions="showSplitSuggestionsDialog = true"
             @confirm="onWorkflowConfirm"
+            @workflow-completed="onWorkflowCompleted"
           />
         </div>
 

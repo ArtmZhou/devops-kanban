@@ -180,7 +180,7 @@ const props = defineProps({
   pendingSplitCount: { type: Number, default: 0 }
 })
 
-const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template', 'show-split-suggestions', 'confirm'])
+const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template', 'show-split-suggestions', 'confirm', 'workflow-completed'])
 
 const task = ref(null)
 const run = ref(null)
@@ -474,9 +474,10 @@ watch(() => props.taskId, () => {
   load()
 }, { immediate: true })
 
-watch(isWorkflowTerminal, (terminal) => {
-  if (terminal) {
+watch(isWorkflowTerminal, (terminal, prevTerminal) => {
+  if (terminal && !prevTerminal) {
     stopPolling()
+    emit('workflow-completed')
   }
 })
 
