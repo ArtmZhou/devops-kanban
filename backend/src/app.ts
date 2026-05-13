@@ -8,6 +8,7 @@ import errorHandlerPlugin from './middleware/errorHandler.js';
 import { initWorkflows } from './services/workflow/workflows.js';
 import { initDatabase, seedSampleData } from './db/index.js';
 import { bootstrapBuiltinTemplates } from './services/workflow/workflowTemplateService.js';
+import { bootstrapBuiltinTaskSplitAgent } from './services/workflow/builtinTaskSplitAgent.js';
 import {
   agentRoutes,
   agentChatRoutes,
@@ -51,6 +52,9 @@ export async function buildApp() {
 
   // Bootstrap built-in workflow templates
   await bootstrapBuiltinTemplates();
+
+  // Bootstrap built-in task split agent and skill
+  await bootstrapBuiltinTaskSplitAgent();
 
   // Initialize scheduler for automated task source sync
   const schedulerService = new SchedulerService();
