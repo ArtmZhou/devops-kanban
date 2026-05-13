@@ -4,13 +4,16 @@ import { SkillService } from '../skillService.js';
 import { ExecutorType } from '../../types/executors.js';
 import { STORAGE_PATH } from '../../config/index.js';
 import { copyFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const BUILTIN_SKILL_NAME = 'task-splitter';
-const BUILTIN_AGENT_ROLE = 'TASK_SPLITTER';
+const BUILTIN_AGENT_ROLE = 'TASK_SPLITPER';
 const BUILTIN_AGENT_NAME = '任务拆分助手';
 const BUILTIN_AGENT_DESCRIPTION = '专用于将任务拆分为子任务的AI代理';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const SOURCE_SKILL_DIR = resolve(__dirname, '..', '..', 'resources', 'skills', BUILTIN_SKILL_NAME);
 
 export async function bootstrapBuiltinTaskSplitAgent(): Promise<void> {
