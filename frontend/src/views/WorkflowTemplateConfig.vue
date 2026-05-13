@@ -234,6 +234,9 @@
                             <span v-if="previewSteps[index]?.requiresConfirmation" class="workflow-chip workflow-chip--warning">
                               {{ $t('workflowTemplate.requiresConfirmation') }}
                             </span>
+                            <span v-if="previewSteps[index]?.maxRetries > 0" class="workflow-chip workflow-chip--info">
+                              重试{{ previewSteps[index].maxRetries }}
+                            </span>
                           </div>
                           <div v-if="previewSteps[index]?.skillNames?.length" class="workflow-step-card__skills">
                             <span v-for="skill in previewSteps[index].skillNames" :key="skill.name" class="workflow-skill-tag">{{ skill.name }}</span>
@@ -315,6 +318,16 @@
                       v-model="selectedStep.canEarlyExit"
                       :active-text="$t('workflowTemplate.canEarlyExit')"
                     />
+                    <span class="meta-label" style="min-width: auto;">最大重试</span>
+                    <el-input-number
+                      v-model="selectedStep.maxRetries"
+                      :min="0"
+                      :max="3"
+                      :step="1"
+                      size="small"
+                      style="width: 80px"
+                    />
+                    <span class="meta-hint">失败自动重试（0=不重试）</span>
                   </div>
                 </div>
 

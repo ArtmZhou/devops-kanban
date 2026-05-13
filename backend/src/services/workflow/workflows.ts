@@ -116,6 +116,9 @@ export function buildWorkflowFromInstance(
 
           logger.info('Workflows', `SPLIT_TASK step ${templateStep.id} starting, workflowRun: ${options.runId}`);
 
+          const maxRetries = Math.min(templateStep.maxRetries ?? 0, 3);
+
+          for (let attempt = 0; ; attempt++) {
           try {
             const sessionInfo = await options.lifecycle.onStepStart(options.runId, templateStep.id, options.task);
             if (!sessionInfo) {
@@ -282,9 +285,39 @@ export function buildWorkflowFromInstance(
             return { summary };
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
+
+            // Check for auto-retry
+            const currentRetryCount = attempt;
+            if (currentRetryCount < maxRetries) {
+              const sessionInfo = await options.lifecycle.onStepStart(options.runId, templateStep.id, options.task);
+              if (sessionInfo?.sessionId && sessionInfo?.segmentId) {
+                await options.lifecycle.sessionEventRepo.append({
+                  session_id: sessionInfo.sessionId,
+                  segment_id: sessionInfo.segmentId,
+                  kind: 'status',
+                  role: 'system',
+                  content: `SPLIT_TASK步骤失败，准备第 ${currentRetryCount + 1} 次重试`,
+                  payload: { retry_count: currentRetryCount + 1, max_retries: maxRetries },
+                }).catch(() => {});
+              }
+              logger.info('Workflows', `Auto-retrying SPLIT_TASK step ${templateStep.id} (attempt ${currentRetryCount + 1}/${maxRetries}), workflowRun: ${options.runId}`);
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              if (sessionInfo) {
+                await options.lifecycle.workflowRunRepo.updateStep(options.runId, templateStep.id, {
+                  status: 'PENDING',
+                  started_at: null,
+                  completed_at: null,
+                  error: null,
+                  summary: null,
+                });
+              }
+              continue;
+            }
+
             await options.lifecycle.onStepError(options.runId, templateStep.id, errorMessage);
             throw err;
           }
+          } // end for loop
         },
       });
     }
@@ -549,6 +582,36 @@ export function buildWorkflowFromInstance(
                 payload: {},
               }).catch(() => {});
             }
+
+            // Check for auto-retry
+            const maxRetries = Math.min(templateStep.maxRetries ?? 0, 3);
+            const currentRun = await options.lifecycle.workflowRunRepo.findById(options.runId);
+            const currentStep = currentRun?.steps.find(s => s.step_id === templateStep.id);
+            const currentRetryCount = currentStep?.retry_count ?? 0;
+
+            if (currentRetryCount < maxRetries) {
+              if (sessionId && segmentId) {
+                await options.lifecycle.sessionEventRepo.append({
+                  session_id: sessionId,
+                  segment_id: segmentId,
+                  kind: 'status',
+                  role: 'system',
+                  content: `步骤失败，准备第 ${currentRetryCount + 1} 次重试`,
+                  payload: { retry_count: currentRetryCount + 1, max_retries: maxRetries },
+                }).catch(() => {});
+              }
+              logger.info('Workflows', `Auto-retrying step ${templateStep.id} (attempt ${currentRetryCount + 1}/${maxRetries}), workflowRun: ${options.runId}`);
+              await new Promise(resolve => setTimeout(resolve, 1500));
+              await options.lifecycle.workflowRunRepo.updateStep(options.runId, templateStep.id, {
+                status: 'PENDING',
+                started_at: null,
+                completed_at: null,
+                error: null,
+                summary: null,
+              });
+              continue;
+            }
+
             await options.lifecycle.onStepError(options.runId, templateStep.id, errorMessage);
             throw err;
           }

@@ -125,6 +125,8 @@ export interface WorkflowTemplateStepEntity {
   // Early exit configuration
   canEarlyExit?: boolean;
   type?: string;
+  // Auto-retry configuration
+  maxRetries?: number;
 }
 
 export interface WorkflowRunEntity {
