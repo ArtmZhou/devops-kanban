@@ -400,7 +400,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CopyDocument, Delete, Plus } from '@element-plus/icons-vue'
@@ -488,6 +488,7 @@ function onToggleAutoConfirmSplit(enabled) {
     steps.push({
       ...createEmptyWorkflowStep(t('workflowTemplate.confirmSplitDefaultStepName', '自动确认拆分')),
       type: 'CONFIRM_SPLIT_TASK',
+      instructionPrompt: t('workflowTemplate.confirmSplitDefaultPrompt'),
     })
   } else {
     if (!lastIsConfirm) return
@@ -495,6 +496,16 @@ function onToggleAutoConfirmSplit(enabled) {
   }
   template.value = { ...template.value, steps }
 }
+
+// When user manually switches a step to CONFIRM_SPLIT_TASK and its prompt is empty,
+// prefill the default prompt so they don't have to write it from scratch.
+watch(() => [selectedStepIndex.value, template.value?.steps?.[selectedStepIndex.value]?.type], ([, type]) => {
+  const step = template.value?.steps?.[selectedStepIndex.value]
+  if (!step) return
+  if (type === 'CONFIRM_SPLIT_TASK' && !step.instructionPrompt?.trim?.()) {
+    step.instructionPrompt = t('workflowTemplate.confirmSplitDefaultPrompt')
+  }
+})
 
 const canDeleteStep = computed(() => {
   return (template.value?.steps?.length || 0) > MIN_WORKFLOW_TEMPLATE_STEPS
