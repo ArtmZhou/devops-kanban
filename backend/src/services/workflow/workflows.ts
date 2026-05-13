@@ -133,7 +133,7 @@ export function buildWorkflowFromInstance(
             const task = await taskRepo.findById(options.task.id);
             if (!task) throw new Error(`Task ${options.task.id} not found`);
 
-            if (task.parent_task_id != null) {
+            if (task.parent_task_id != null && task.parent_task_id > 0) {
               logger.info('Workflows', `skip: task ${options.task.id} is a child task`);
               await options.lifecycle.onStepComplete(options.runId, templateStep.id, { summary: 'Skipped: child task' });
               return { summary: 'Skipped: this is a child task, not splitting further.' };
