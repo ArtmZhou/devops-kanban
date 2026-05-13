@@ -988,28 +988,43 @@ function onWorkflowCompleted() {
 // Extract the active step's session info from a workflow run
 function onRunUpdate(run) {
   currentRun.value = run || null
-  // Clear manual step selection when run data changes
-  userSelectedStep.value = null
   if (!run?.steps) {
+    userSelectedStep.value = null
     activeSession.value = null
     return
   }
-  // Priority: running step first, then suspended, then last step with session
-  const running = run.steps.find(s => s.session_id && (s.status === 'RUNNING' || s.status === 'IN_PROGRESS'))
-  const suspended = run.steps.find(s => s.session_id && s.status === 'SUSPENDED')
-  const lastWithSession = [...run.steps].reverse().find(s => s.session_id)
-  const active = running || suspended || lastWithSession
-  if (active) {
-    activeSession.value = {
-      session_id: active.session_id,
-      provider_session_id: active.provider_session_id || null,
-      step_name: active.name || active.step_id || '',
-      assembled_prompt: active.assembled_prompt || '',
-      status: active.status,
-      agent_id: active.agent_id || null
+  // Preserve manual step selection; only auto-select on first run or no manual selection
+  if (!userSelectedStep.value) {
+    // Priority: running step first, then suspended, then last step with session
+    const running = run.steps.find(s => s.session_id && (s.status === 'RUNNING' || s.status === 'IN_PROGRESS'))
+    const suspended = run.steps.find(s => s.session_id && s.status === 'SUSPENDED')
+    const lastWithSession = [...run.steps].reverse().find(s => s.session_id)
+    const active = running || suspended || lastWithSession
+    if (active) {
+      activeSession.value = {
+        session_id: active.session_id,
+        provider_session_id: active.provider_session_id || null,
+        step_name: active.name || active.step_id || '',
+        assembled_prompt: active.assembled_prompt || '',
+        status: active.status,
+        agent_id: active.agent_id || null
+      }
+    } else {
+      activeSession.value = null
     }
   } else {
-    activeSession.value = null
+    // Update session info for the manually selected step if it exists in the new run data
+    const updated = run.steps.find(s => s.step_id === userSelectedStep.value.step_id)
+    if (updated?.session_id) {
+      activeSession.value = {
+        session_id: updated.session_id,
+        provider_session_id: updated.provider_session_id || null,
+        step_name: updated.name || updated.step_id || '',
+        assembled_prompt: updated.assembled_prompt || '',
+        status: updated.status,
+        agent_id: updated.agent_id || null
+      }
+    }
   }
 }
 

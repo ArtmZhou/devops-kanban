@@ -10,7 +10,7 @@
       <div v-if="!taskId" class="workflow-empty">请选择任务</div>
       <div v-else-if="loading" class="workflow-empty">加载中...</div>
       <div v-else-if="error" class="workflow-empty">{{ error }}</div>
-      <div v-else-if="!steps.length" class="workflow-empty">暂无工作流运行</div>
+      <div v-else-if="!steps.length" class="workflow-empty">暂无AgentTeam运行</div>
       <template v-else>
         <!-- Timeline meta row: start / end / duration -->
         <div class="timeline-meta">
@@ -314,7 +314,7 @@ const retryDisabled = computed(() => {
   return runStatus.value !== 'FAILED' && runStatus.value !== 'CANCELLED'
 })
 const retryTooltip = computed(() => {
-  if (!run.value) return '暂无工作流运行'
+  if (!run.value) return '暂无AgentTeam运行'
   if (!retryDisabled.value) return ''
   return '仅失败或已取消的工作流可重试'
 })
@@ -324,7 +324,7 @@ const cancelDisabled = computed(() => {
   return isTerminal.value
 })
 const cancelTooltip = computed(() => {
-  if (!run.value) return '暂无工作流运行'
+  if (!run.value) return '暂无AgentTeam运行'
   if (isTerminal.value) return '工作流已结束'
   return ''
 })
@@ -334,7 +334,7 @@ const confirmDisabled = computed(() => {
   return runStatus.value !== 'SUSPENDED'
 })
 const confirmTooltip = computed(() => {
-  if (!run.value) return '暂无工作流运行'
+  if (!run.value) return '暂无AgentTeam运行'
   if (runStatus.value === 'SUSPENDED') return ''
   return '仅暂停状态的工作流可确认'
 })
