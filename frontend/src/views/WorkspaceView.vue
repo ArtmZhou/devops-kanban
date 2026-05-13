@@ -349,6 +349,16 @@
       v-model="showWorkflowTemplateDialog"
       @confirm="handleWorkflowTemplateConfirm"
     />
+
+    <WorkflowStartEditorDialog
+      v-model="showWorkflowStartEditorDialog"
+      :draft-template="workflowStartDraftTemplate"
+      :task-title="selectedTask?.title || ''"
+      :task-description="selectedTask?.description || ''"
+      :task-external-id="selectedTask?.external_id || ''"
+      :project-env="currentProjectEnv"
+      @confirm="handleWorkflowStartEditorConfirm"
+    />
   </div>
 </template>
 
@@ -362,6 +372,9 @@ import TaskFileViewer from '../components/workspace/TaskFileViewer.vue'
 import ChangedFilesPanel from '../components/workspace/ChangedFilesPanel.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
 import WorkflowTemplateSelectDialog from '../components/workflow/WorkflowTemplateSelectDialog.vue'
+import WorkflowStartEditorDialog from '../components/workflow/WorkflowStartEditorDialog.vue'
+import { getWorkflowTemplateById } from '../api/workflowTemplate.js'
+import { normalizeWorkflowTemplate } from '../components/workflow/templateEditorShared.js'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
 import { getRoleConfig } from '../constants/agent.js'
@@ -610,11 +623,39 @@ const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
 const selectedStatus = ref(null)
 const taskListViewMode = ref('list') // 'list' | 'kanban'
 const showWorkflowTemplateDialog = ref(false)
+const showWorkflowStartEditorDialog = ref(false)
+const workflowStartDraftTemplate = ref(null)
+const selectedWorkflowTemplateId = ref('')
 const templateDialogIntent = ref('switch') // 'switch' | 'start'
 
+const currentProjectEnv = computed(() => {
+  const project = projects.value.find(p => String(p.id) === String(selectedProjectId.value))
+  return project?.env || {}
+})
+
 function onOpenTemplateDialog(intent = 'switch') {
-  templateDialogIntent.value = intent
+  // start-with-template: task already has a template; skip picker, go straight to editor
+  if (intent === 'start-with-template' && selectedTask.value?.auto_execute_template_id) {
+    openStartEditorForConfiguredTemplate(selectedTask.value.auto_execute_template_id)
+    return
+  }
+  templateDialogIntent.value = intent === 'start' ? 'start' : 'switch'
   showWorkflowTemplateDialog.value = true
+}
+
+async function openStartEditorForConfiguredTemplate(templateId) {
+  try {
+    const tplResp = await getWorkflowTemplateById(templateId)
+    if (!tplResp?.success) {
+      ElMessage.error(tplResp?.message || '加载工作流模板失败')
+      return
+    }
+    selectedWorkflowTemplateId.value = templateId
+    workflowStartDraftTemplate.value = normalizeWorkflowTemplate(tplResp.data)
+    showWorkflowStartEditorDialog.value = true
+  } catch (e) {
+    ElMessage.error(e?.message || '加载工作流模板失败')
+  }
 }
 
 async function handleWorkflowTemplateConfirm({ templateId }) {
@@ -622,34 +663,71 @@ async function handleWorkflowTemplateConfirm({ templateId }) {
     showWorkflowTemplateDialog.value = false
     return
   }
+
+  if (templateDialogIntent.value === 'switch') {
+    // Switch mode: persist template on task and close
+    try {
+      const resp = await updateTask(selectedTask.value.id, {
+        auto_execute: 1,
+        auto_execute_template_id: templateId,
+      })
+      if (resp?.success) {
+        showWorkflowTemplateDialog.value = false
+        await loadTasks()
+        ElMessage.success('模板已切换')
+        onWorkflowRefresh()
+      } else {
+        ElMessage.error(resp?.message || '切换失败')
+      }
+    } catch (e) {
+      ElMessage.error(e?.message || '切换失败')
+    }
+    return
+  }
+
+  // Start mode: load template, save on task, then open editor for review
   try {
-    const resp = await updateTask(selectedTask.value.id, {
+    const tplResp = await getWorkflowTemplateById(templateId)
+    if (!tplResp?.success) {
+      ElMessage.error(tplResp?.message || '加载工作流模板失败')
+      return
+    }
+    await updateTask(selectedTask.value.id, {
       auto_execute: 1,
       auto_execute_template_id: templateId,
     })
+    selectedWorkflowTemplateId.value = templateId
+    workflowStartDraftTemplate.value = normalizeWorkflowTemplate(tplResp.data)
+    showWorkflowTemplateDialog.value = false
+    showWorkflowStartEditorDialog.value = true
+  } catch (e) {
+    ElMessage.error(e?.message || '加载工作流模板失败')
+  }
+}
+
+async function handleWorkflowStartEditorConfirm(draftTemplate) {
+  if (!selectedTask.value?.id || !selectedWorkflowTemplateId.value) {
+    showWorkflowStartEditorDialog.value = false
+    return
+  }
+  try {
+    const resp = await startTask(selectedTask.value.id, {
+      workflow_template_id: selectedWorkflowTemplateId.value,
+      workflow_template_snapshot: normalizeWorkflowTemplate(draftTemplate)
+    })
     if (resp?.success) {
-      showWorkflowTemplateDialog.value = false
-      await loadTasks()
-      if (templateDialogIntent.value === 'start') {
-        try {
-          const startResp = await startTask(selectedTask.value.id)
-          if (startResp?.success) {
-            ElMessage.success('任务已启动')
-            onWorkflowRefresh()
-          } else {
-            ElMessage.error(startResp?.message || '启动失败')
-          }
-        } catch (err) {
-          ElMessage.error(err?.message || '启动失败')
-        }
-      } else {
-        ElMessage.success('模板已切换')
-        onWorkflowRefresh()
-      }
+      ElMessage.success('任务已启动')
+      showWorkflowStartEditorDialog.value = false
+      workflowStartDraftTemplate.value = null
+      selectedWorkflowTemplateId.value = ''
       templateDialogIntent.value = 'switch'
+      await loadTasks()
+      onWorkflowRefresh()
+    } else {
+      ElMessage.error(resp?.message || '启动失败')
     }
   } catch (e) {
-    ElMessage.error(e?.message || '操作失败')
+    ElMessage.error(e?.message || '启动失败')
   }
 }
 const tasks = computed(() => {

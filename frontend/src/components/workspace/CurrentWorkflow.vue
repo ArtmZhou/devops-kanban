@@ -353,28 +353,10 @@ async function load() {
 
 async function handleStart() {
   if (!props.taskId) return
-  // If task has no workflow template, open template picker first with 'start' intent
-  if (!task.value?.auto_execute_template_id) {
-    emit('open-template', 'start')
-    return
-  }
-  actionLoading.value = true
-  try {
-    const resp = await startTask(props.taskId, {
-      workflow_template_id: task.value.auto_execute_template_id
-    })
-    if (resp?.success) {
-      ElMessage.success('任务已启动')
-      await load()
-      emit('refresh')
-    } else {
-      ElMessage.error(resp?.message || '启动失败')
-    }
-  } catch (e) {
-    ElMessage.error(e?.message || '启动失败')
-  } finally {
-    actionLoading.value = false
-  }
+  // Always go through the parent to open the workflow start editor:
+  // - If task has no template, parent shows template picker first.
+  // - Otherwise parent loads the configured template and opens the editor for review.
+  emit('open-template', task.value?.auto_execute_template_id ? 'start-with-template' : 'start')
 }
 
 async function handleRetry() {
