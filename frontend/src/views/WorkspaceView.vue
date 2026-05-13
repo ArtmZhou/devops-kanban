@@ -216,6 +216,13 @@
         </div>
 
         <div class="workspace-section workspace-mid-bottom">
+          <AiSplitCard
+            :suggestion="splitStore.pendingByTask.get(selectedTask?.id)"
+            :task-id="selectedTask?.id"
+            @update="(suggestions) => selectedTask?.id && splitStore.updateSuggestions(selectedTask.id, suggestions)"
+            @confirm="onConfirmSplit"
+            @dismiss="onDismissSplit"
+          />
           <div class="chat-panel">
             <!-- Session info header -->
             <div v-if="activeSession" class="chat-session-header">
@@ -390,12 +397,14 @@ import CurrentWorkflow from '../components/workspace/CurrentWorkflow.vue'
 import TaskFileViewer from '../components/workspace/TaskFileViewer.vue'
 import ChangedFilesPanel from '../components/workspace/ChangedFilesPanel.vue'
 import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
+import AiSplitCard from '../components/workspace/AiSplitCard.vue'
 import WorkflowTemplateSelectDialog from '../components/workflow/WorkflowTemplateSelectDialog.vue'
 import WorkflowStartEditorDialog from '../components/workflow/WorkflowStartEditorDialog.vue'
 import { getWorkflowTemplateById } from '../api/workflowTemplate.js'
 import { normalizeWorkflowTemplate } from '../components/workflow/templateEditorShared.js'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
+import { useSplitSuggestionsStore } from '../stores/splitSuggestions.js'
 import { getRoleConfig } from '../constants/agent.js'
 import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi, startTask } from '../api/task.js'
 import draggable from 'vuedraggable'
@@ -403,6 +412,7 @@ import { useTaskTimer } from '../composables/kanban/useTaskTimer.js'
 
 const projectStore = useProjectStore()
 const agentStore = useAgentStore()
+const splitStore = useSplitSuggestionsStore()
 const { runningTasks } = useTaskTimer()
 const route = useRoute()
 const router = useRouter()
@@ -940,6 +950,19 @@ function statusClass(status) {
   return map[status] || 'waiting'
 }
 
+async function onConfirmSplit() {
+  if (!selectedTask.value?.id) return
+  await splitStore.doConfirm(selectedTask.value.id)
+  if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
+  await loadTasks()
+}
+
+async function onDismissSplit() {
+  if (!selectedTask.value?.id) return
+  await splitStore.doDismiss(selectedTask.value.id)
+  if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
+}
+
 async function onWorkflowRefresh() {
   if (selectedTask.value?.id) {
     await loadPipeline(selectedTask.value.id)
@@ -1055,7 +1078,10 @@ onMounted(async () => {
   await loadTasks()
 })
 watch(() => selectedTask.value?.id, async (newId) => {
-  if (newId) await loadPipeline(newId)
+  if (newId) {
+    await loadPipeline(newId)
+    await splitStore.load(newId)
+  }
 })
 watch(taskListViewMode, (mode) => {
   if (mode === 'kanban') {
