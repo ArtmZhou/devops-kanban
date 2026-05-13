@@ -148,16 +148,6 @@
                   />
                 </el-select>
               </div>
-              <div class="meta-row">
-                <span class="meta-label">{{ $t('workflowTemplate.autoConfirmSplitLabel', '自动确认拆分') }}</span>
-                <el-switch
-                  :model-value="autoConfirmSplitEnabled"
-                  size="small"
-                  data-testid="auto-confirm-split-switch"
-                  @update:model-value="onToggleAutoConfirmSplit"
-                />
-                <span class="meta-hint">{{ $t('workflowTemplate.autoConfirmSplitHint', '工作流完成时在末尾追加一个自动确认拆分的步骤') }}</span>
-              </div>
             </div>
           </div>
 
@@ -324,13 +314,9 @@
                     <el-select v-model="selectedStep.type" size="small" style="flex: 0 0 280px">
                       <el-option :label="$t('workflowTemplate.stepTypeDefault')" value="DEFAULT" />
                       <el-option :label="$t('workflowTemplate.stepTypeSplit')" value="SPLIT_TASK" />
-                      <el-option :label="$t('workflowTemplate.stepTypeConfirmSplit')" value="CONFIRM_SPLIT_TASK" />
                     </el-select>
                     <span v-if="selectedStep.type === 'SPLIT_TASK'" class="step-type-hint">
                       {{ $t('workflowTemplate.stepTypeSplitHint') }}
-                    </span>
-                    <span v-else-if="selectedStep.type === 'CONFIRM_SPLIT_TASK'" class="step-type-hint">
-                      {{ $t('workflowTemplate.stepTypeConfirmSplitHint') }}
                     </span>
                   </div>
                 </div>
@@ -400,7 +386,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { CopyDocument, Delete, Plus } from '@element-plus/icons-vue'
@@ -471,41 +457,6 @@ const canDeleteSelected = computed(() => {
 const isDraftTemplate = computed(() => Boolean(template.value?.isDraft))
 
 const allTags = computed(() => [...new Set(templates.value.flatMap(t => t.tags || []))])
-
-const autoConfirmSplitEnabled = computed(() => {
-  const steps = template.value?.steps || []
-  if (!steps.length) return false
-  return steps[steps.length - 1]?.type === 'CONFIRM_SPLIT_TASK'
-})
-
-function onToggleAutoConfirmSplit(enabled) {
-  if (!template.value) return
-  const steps = Array.isArray(template.value.steps) ? [...template.value.steps] : []
-  const lastIsConfirm = steps.length > 0 && steps[steps.length - 1]?.type === 'CONFIRM_SPLIT_TASK'
-
-  if (enabled) {
-    if (lastIsConfirm) return
-    steps.push({
-      ...createEmptyWorkflowStep(t('workflowTemplate.confirmSplitDefaultStepName', '自动确认拆分')),
-      type: 'CONFIRM_SPLIT_TASK',
-      instructionPrompt: t('workflowTemplate.confirmSplitDefaultPrompt'),
-    })
-  } else {
-    if (!lastIsConfirm) return
-    steps.pop()
-  }
-  template.value = { ...template.value, steps }
-}
-
-// When user manually switches a step to CONFIRM_SPLIT_TASK and its prompt is empty,
-// prefill the default prompt so they don't have to write it from scratch.
-watch(() => [selectedStepIndex.value, template.value?.steps?.[selectedStepIndex.value]?.type], ([, type]) => {
-  const step = template.value?.steps?.[selectedStepIndex.value]
-  if (!step) return
-  if (type === 'CONFIRM_SPLIT_TASK' && !step.instructionPrompt?.trim?.()) {
-    step.instructionPrompt = t('workflowTemplate.confirmSplitDefaultPrompt')
-  }
-})
 
 const canDeleteStep = computed(() => {
   return (template.value?.steps?.length || 0) > MIN_WORKFLOW_TEMPLATE_STEPS

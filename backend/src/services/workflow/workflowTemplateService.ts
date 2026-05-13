@@ -216,7 +216,6 @@ class WorkflowTemplateService {
     const exportedTemplates: ExportedWorkflowTemplate[] = templates.map(t => ({
       template_id: t.template_id,
       name: t.name,
-      ...(t.tags !== undefined ? { tags: t.tags } : {}),
       steps: t.steps.map((step): ExportedWorkflowStep => ({
         id: step.id,
         name: step.name,
@@ -317,7 +316,6 @@ class WorkflowTemplateService {
         const updated = await this.workflowTemplateRepo.update(existing.id, {
           name: tpl.name,
           steps,
-          ...(tpl.tags !== undefined ? { tags: tpl.tags } : {}),
         });
         if (updated) imported.push(updated);
       } else if (!existing || input.strategy === 'copy') {
@@ -325,7 +323,6 @@ class WorkflowTemplateService {
           template_id: finalTemplateId,
           name: input.strategy === 'copy' && existing ? `${tpl.name} (副本)` : tpl.name,
           steps,
-          ...(tpl.tags !== undefined ? { tags: tpl.tags } : {}),
         });
         imported.push(created);
       }
