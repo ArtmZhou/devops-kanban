@@ -117,7 +117,7 @@ export default {
     iteration: '所属迭代',
     selectIteration: '选择迭代',
     iterationHint: '可选，将任务关联到特定迭代',
-    workflowTemplate: '工作流模板',
+    workflowTemplate: 'AgentTeam',
     noTemplate: '无（手动触发）',
     dueDate: '截止日期',
     deleteConfirm: '确定要删除此任务吗？',
