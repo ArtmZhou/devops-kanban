@@ -208,21 +208,16 @@
             :mock-run="mockRunForSelected"
             :embedded="true"
             :collapsed="midCollapsed"
+            :pending-split-count="pendingSplitCount"
             @refresh="onWorkflowRefresh"
             @run-update="onRunUpdate"
             @step-select="onStepSelect"
             @open-template="onOpenTemplateDialog"
+            @show-split-suggestions="showSplitSuggestionsDialog = true"
           />
         </div>
 
         <div class="workspace-section workspace-mid-bottom">
-          <AiSplitCard
-            :suggestion="splitStore.pendingByTask.get(selectedTask?.id)"
-            :task-id="selectedTask?.id"
-            @update="(suggestions) => selectedTask?.id && splitStore.updateSuggestions(selectedTask.id, suggestions)"
-            @confirm="onConfirmSplit"
-            @dismiss="onDismissSplit"
-          />
           <div class="chat-panel">
             <!-- Session info header -->
             <div v-if="activeSession" class="chat-session-header">
@@ -385,6 +380,23 @@
       :project-env="currentProjectEnv"
       @confirm="handleWorkflowStartEditorConfirm"
     />
+
+    <el-dialog
+      v-model="showSplitSuggestionsDialog"
+      title="AI 拆分建议"
+      width="720px"
+      align-center
+      :destroy-on-close="true"
+    >
+      <AiSplitCard
+        :suggestion="splitStore.pendingByTask.get(selectedTask?.id)"
+        :task-id="selectedTask?.id"
+        :embedded="true"
+        @update="(suggestions) => selectedTask?.id && splitStore.updateSuggestions(selectedTask.id, suggestions)"
+        @confirm="onConfirmSplitDialog"
+        @dismiss="onDismissSplitDialog"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -652,6 +664,14 @@ const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE']
 const selectedStatus = ref(null)
 const taskListViewMode = ref('list') // 'list' | 'kanban'
 const showWorkflowTemplateDialog = ref(false)
+const showSplitSuggestionsDialog = ref(false)
+
+const pendingSplitCount = computed(() => {
+  const id = selectedTask.value?.id
+  if (!id) return 0
+  const pending = splitStore.pendingByTask.get(id)
+  return pending?.suggestions?.length || 0
+})
 const showWorkflowStartEditorDialog = ref(false)
 const workflowStartDraftTemplate = ref(null)
 const selectedWorkflowTemplateId = ref('')
@@ -955,6 +975,16 @@ async function onConfirmSplit() {
   await splitStore.doConfirm(selectedTask.value.id)
   if (selectedTask.value.id) await splitStore.load(selectedTask.value.id)
   await loadTasks()
+}
+
+async function onConfirmSplitDialog() {
+  await onConfirmSplit()
+  showSplitSuggestionsDialog.value = false
+}
+
+async function onDismissSplitDialog() {
+  await onDismissSplit()
+  showSplitSuggestionsDialog.value = false
 }
 
 async function onDismissSplit() {

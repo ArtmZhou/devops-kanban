@@ -132,6 +132,18 @@
           取消
         </button>
       </el-tooltip>
+      <el-tooltip v-if="pendingSplitCount > 0" :content="`${pendingSplitCount} 条 AI 拆分建议待确认`" placement="top">
+        <button class="quick-action-btn quick-action-split" :disabled="actionLoading" @click="emit('show-split-suggestions')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"></path>
+            <path d="M8 6a4 4 0 0 1 4-4"></path>
+            <circle cx="18" cy="18" r="3"></circle>
+            <path d="M18 15v-3l2-2"></path>
+          </svg>
+          AI 拆分建议
+          <span class="quick-action-badge">{{ pendingSplitCount }}</span>
+        </button>
+      </el-tooltip>
       <button class="quick-action-btn" :disabled="!taskId || actionLoading" @click="handleRefresh">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 2v6h-6M3 12a9 9 0 0 1 15-6.7L21 8M3 22v-6h6M21 12a9 9 0 0 1-15 6.7L3 16"/>
@@ -152,10 +164,11 @@ const props = defineProps({
   taskId: { type: Number, default: null },
   mockRun: { type: Object, default: null },
   embedded: { type: Boolean, default: false },
-  collapsed: { type: Boolean, default: false }
+  collapsed: { type: Boolean, default: false },
+  pendingSplitCount: { type: Number, default: 0 }
 })
 
-const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template'])
+const emit = defineEmits(['refresh', 'run-update', 'step-select', 'open-template', 'show-split-suggestions'])
 
 const task = ref(null)
 const run = ref(null)
@@ -667,6 +680,38 @@ defineExpose({ workflowName })
   background: #dc2626;
   border-color: #dc2626;
   color: #fff;
+}
+
+.quick-action-btn.quick-action-split {
+  color: var(--accent-color-strong, #25c6c9);
+  border-color: var(--accent-color-soft, rgba(37, 198, 201, 0.3));
+  background: var(--accent-color-soft, rgba(37, 198, 201, 0.08));
+}
+
+.quick-action-btn.quick-action-split:hover:not(:disabled) {
+  background: var(--accent-color, #25c6c9);
+  border-color: var(--accent-color, #25c6c9);
+  color: #fff;
+}
+
+.quick-action-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  background: currentColor;
+  color: #fff !important;
+  border-radius: 8px;
+}
+
+.quick-action-btn.quick-action-split .quick-action-badge {
+  background: var(--accent-color, #25c6c9);
+  color: #fff !important;
 }
 
 .quick-action-btn.quick-action-retry {

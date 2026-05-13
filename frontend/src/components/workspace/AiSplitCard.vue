@@ -1,6 +1,6 @@
 <template>
-  <div class="ai-split-card" :class="{ collapsed: !expanded }">
-    <div class="split-card-header" @click="expanded = !expanded">
+  <div class="ai-split-card" :class="{ collapsed: !expanded, 'is-embedded': embedded }">
+    <div v-if="!embedded" class="split-card-header" @click="expanded = !expanded">
       <div class="split-header-left">
         <svg class="split-ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"></path>
@@ -21,7 +21,7 @@
       </div>
     </div>
 
-    <div class="split-card-body" v-show="expanded">
+    <div class="split-card-body" v-show="embedded || expanded">
       <div class="split-suggestions-list">
         <div
           v-for="(item, index) in suggestions"
@@ -93,7 +93,8 @@ import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   suggestion: { type: Object, default: null },
-  taskId: { type: [String, Number], default: null }
+  taskId: { type: [String, Number], default: null },
+  embedded: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update', 'confirm', 'dismiss'])
@@ -213,6 +214,12 @@ function onDismiss() {
   flex-direction: column;
   max-height: 320px;
   transition: max-height 0.2s ease;
+}
+
+.ai-split-card.is-embedded {
+  border: none;
+  max-height: none;
+  background: transparent;
 }
 
 .ai-split-card.collapsed {
