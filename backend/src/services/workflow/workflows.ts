@@ -117,7 +117,11 @@ export function buildWorkflowFromInstance(
           logger.info('Workflows', `SPLIT_TASK step ${templateStep.id} starting, workflowRun: ${options.runId}`);
 
           try {
-            await options.lifecycle.onStepStart(options.runId, templateStep.id, options.task);
+            const sessionInfo = await options.lifecycle.onStepStart(options.runId, templateStep.id, options.task);
+            if (!sessionInfo) {
+              abort();
+              return { summary: '' };
+            }
 
             const { renderSplitPrompt, DEFAULT_SPLIT_PROMPT } = await import('./defaultSplitPrompt.js');
             const { extractJsonBlock } = await import('./parseJsonBlock.js');
@@ -190,6 +194,27 @@ export function buildWorkflowFromInstance(
               },
               abortSignal: signalAlreadyAborted ? undefined : abortSignal,
             });
+
+            // Write split step events to session so they appear in the chat panel
+            if (sessionInfo.sessionId && sessionInfo.segmentId) {
+              await options.lifecycle.sessionEventRepo.append({
+                session_id: sessionInfo.sessionId,
+                segment_id: sessionInfo.segmentId,
+                kind: 'message',
+                role: 'user',
+                content: splitPrompt,
+                payload: {},
+              }).catch(() => {});
+              const adaptedPreview = adaptStepResult(agent.executorType, executionResult);
+              await options.lifecycle.sessionEventRepo.append({
+                session_id: sessionInfo.sessionId,
+                segment_id: sessionInfo.segmentId,
+                kind: 'message',
+                role: 'assistant',
+                content: adaptedPreview.summary,
+                payload: {},
+              }).catch(() => {});
+            }
 
             // Check for fresh abort signal after execution
             if (abortSignal?.aborted && !signalAlreadyAborted) {
