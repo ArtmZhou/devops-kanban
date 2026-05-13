@@ -394,7 +394,7 @@
         :embedded="true"
         @update="(suggestions) => selectedTask?.id && splitStore.updateSuggestions(selectedTask.id, suggestions)"
         @confirm="onConfirmSplitDialog"
-        @dismiss="onDismissSplitDialog"
+        @dismiss="showSplitSuggestionsDialog = false"
       />
     </el-dialog>
   </div>
@@ -979,11 +979,6 @@ async function onConfirmSplit() {
 
 async function onConfirmSplitDialog() {
   await onConfirmSplit()
-  showSplitSuggestionsDialog.value = false
-}
-
-async function onDismissSplitDialog() {
-  await onDismissSplit()
   showSplitSuggestionsDialog.value = false
 }
 
