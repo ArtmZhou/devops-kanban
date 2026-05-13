@@ -47,6 +47,9 @@
               <div class="step-info">
                 <span class="step-name">{{ step.name }}</span>
                 <span class="step-status-text">{{ stepStatusText(step) }}</span>
+                <span v-if="step.status === 'FAILED' && step.retry_count > 0" class="retry-badge">
+                  (已重试{{ step.retry_count }}次)
+                </span>
                 <span v-if="step.session_id" class="step-session-id">Session #{{ step.session_id }}</span>
               </div>
             </div>
@@ -545,6 +548,7 @@ watch(suspendedStep, (newStep) => {
 .step-name { font-size: 13px; font-weight: 600; color: #0f172a; }
 .step-status-text { font-size: 12px; color: #64748b; }
 .step-session-id { font-size: 11px; color: #25C6C9; font-weight: 500; margin-left: 6px; }
+.retry-badge { font-size: 11px; color: #ef4444; font-weight: 500; }
 
 .suspend-section {
   background: #fffbeb;
