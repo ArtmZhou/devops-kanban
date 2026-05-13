@@ -258,13 +258,32 @@
         <div class="workspace-section workspace-right-top" :style="{ height: rightTopHeight + 'px' }">
           <div class="panel-header">
             <h4>文件查看</h4>
+            <button
+              v-if="fileViewerEnabled"
+              class="panel-header-action"
+              title="收起文件查看"
+              @click="fileViewerEnabled = false"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+            </button>
           </div>
           <TaskFileViewer
+            v-if="fileViewerEnabled"
             :task-id="selectedTask?.id ?? null"
             :project-id="selectedProjectId ?? null"
             :task="selectedTask"
             @refresh="onWorkflowRefresh"
           />
+          <div v-else class="file-viewer-placeholder">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <button class="file-viewer-load-btn" @click="fileViewerEnabled = true">加载文件树</button>
+            <span class="file-viewer-hint">加载完整文件树会消耗一定资源，按需打开</span>
+          </div>
         </div>
 
         <div class="resize-handle resize-handle-h" @mousedown="(e) => handleMouseDown(e, 'right-vertical')"></div>
@@ -849,6 +868,7 @@ const leftWidth = ref(310)
 const rightWidth = ref(380)
 const rightTopHeight = ref(380)
 const midCollapsed = ref(false)   // middle upper section folded (only header + steps + actions visible)
+const fileViewerEnabled = ref(false) // lazy-load file tree only when user opts in
 const LEFT_MIN = 220
 const LEFT_MAX = 500
 const RIGHT_MIN = 260
@@ -1724,6 +1744,68 @@ watch(taskListViewMode, (mode) => {
   color: var(--text-muted);
   font-size: 12px;
   min-height: 60px;
+}
+
+.file-viewer-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  min-height: 0;
+}
+
+.file-viewer-placeholder svg {
+  opacity: 0.35;
+}
+
+.file-viewer-load-btn {
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent-color);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.file-viewer-load-btn:hover {
+  filter: brightness(1.08);
+}
+
+.file-viewer-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 220px;
+  line-height: 1.5;
+}
+
+.panel-header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-left: auto;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.panel-header-action:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
 }
 
 .task-list-expand-toggle {
