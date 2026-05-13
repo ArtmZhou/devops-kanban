@@ -26,14 +26,14 @@ export default {
   nav: {
     groupWorkspace: '工作面板',
     groupPlatformConfig: '平台配置',
-    projects: '项目列表',
+    projects: '需求来源',
     kanban: '工作台',
-    workspace: '工作台视图',
+    workspace: 'Agent指挥中心',
     taskSources: '任务源',
-    agents: '我的团队',
-    workflowTemplate: '工作流模板',
-    skills: '技能管理',
-    mcpServers: 'MCP 服务器',
+    agents: 'Agent角色',
+    workflowTemplate: 'AgentTeam模板',
+    skills: 'Skill管理',
+    mcpServers: 'MCP配置',
     settings: '设置'
   },
   project: {
@@ -63,9 +63,9 @@ export default {
     deleteConfirmTitle: '删除项目',
     deleteConfirmMessage: '确定要删除 "{name}" 吗？这将同时删除该项目关联的所有任务和数据。',
     loadFailed: '加载项目失败',
-    homeDescription: '用于管理项目、查看接入配置，并快速进入对应 Kanban 继续处理任务。',
-    workspaceTitle: '项目列表',
-    workspaceDescription: '按项目查看当前配置，直接进入 Kanban。',
+    homeDescription: '用于管理需求来源、查看接入配置，并快速进入对应 Coplat 继续处理任务。',
+    workspaceTitle: '需求来源',
+    workspaceDescription: '查看当前配置，直接进入 Coplat。',
     workspaceCountSuffix: '个项目',
     emptyTitle: '还没有项目',
     emptyDescription: '先创建一个项目，补充仓库地址或本地目录后，就可以进入看板继续处理任务。',
@@ -315,8 +315,8 @@ export default {
     aiConfirmImport: '确认导入'
   },
   workflowTemplate: {
-    title: '工作流模板',
-    description: '管理工作流模板，支持选择、创建、编辑和删除模板，并配置每个步骤的执行器和提示词。',
+    title: 'AgentTeam模板',
+    description: '管理 AgentTeam 模板，支持选择、创建、编辑和删除模板，并配置每个步骤的执行器和提示词。',
     templateListTitle: '模板列表',
     templateId: '模板 ID',
     name: '模板名称',
@@ -494,7 +494,7 @@ export default {
     stepUnit: '个步骤',
   },
   agent: {
-    title: '我的团队',
+    title: 'Agent角色',
     pageDescription: '管理 AI Agent 团队成员，配置执行器类型、系统提示词和技能，用于工作流步骤执行任务。',
     teamList: '团队列表',
     createAgent: '添加成员',
@@ -711,7 +711,7 @@ export default {
     stages: '阶段'
   },
   skill: {
-    title: '技能管理',
+    title: 'Skill管理',
     pageDescription: '管理 AI 技能配置文件，支持创建、编辑和上传技能，供工作流步骤调用。',
     skillList: '技能列表',
     filterAllTemplates: '按工作流模板筛选',
@@ -750,7 +750,7 @@ export default {
     fileContentPlaceholder: '输入文件内容'
   },
   mcpServer: {
-    title: 'MCP 服务器',
+    title: 'MCP配置',
     pageDescription: '管理 MCP 服务器配置，为 AI Agent 提供外部工具和资源调用能力。',
     serverList: '服务器列表',
     createServer: '创建服务器',

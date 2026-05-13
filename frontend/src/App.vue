@@ -47,7 +47,7 @@
             <span v-if="!isSidebarCollapsed">{{ $t('nav.groupPlatformConfig') }}</span>
             <div v-else class="nav-group-divider"></div>
           </div>
-          <router-link to="/workflow-template" class="nav-item" :title="$t('nav.workflowTemplate')">
+          <router-link to="/template" class="nav-item" :title="$t('nav.workflowTemplate')">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(-90deg)">
               <circle cx="4" cy="4" r="2"></circle>
               <circle cx="20" cy="4" r="2"></circle>
