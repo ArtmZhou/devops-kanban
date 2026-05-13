@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { splitSuggestionService } from '../services/splitSuggestionService.js';
 import { successResponse, errorResponse } from '../utils/response.js';
+import { withRetry } from '../db/retry.js';
 
 const suggestionSchema = z.object({
   title: z.string(),
@@ -31,7 +32,7 @@ const splitSuggestionsRoutes: FastifyPluginAsync = async (fastify) => {
     }
     try {
       const id = Number(request.params.id);
-      const updated = await splitSuggestionService.updateSuggestions(id, parsed.data);
+      const updated = await withRetry(() => splitSuggestionService.updateSuggestions(id, parsed.data));
       return successResponse(updated);
     } catch (error) {
       return reply.code(400).send(errorResponse((error as Error).message));
@@ -41,7 +42,7 @@ const splitSuggestionsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>('/split-suggestions/:id/confirm', async (request, reply) => {
     try {
       const id = Number(request.params.id);
-      const result = await splitSuggestionService.confirm(id);
+      const result = await withRetry(() => splitSuggestionService.confirm(id));
       return successResponse(result);
     } catch (error) {
       return reply.code(400).send(errorResponse((error as Error).message));
@@ -51,7 +52,7 @@ const splitSuggestionsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>('/split-suggestions/:id/dismiss', async (request, reply) => {
     try {
       const id = Number(request.params.id);
-      const result = await splitSuggestionService.dismiss(id);
+      const result = await withRetry(() => splitSuggestionService.dismiss(id));
       return successResponse(result);
     } catch (error) {
       return reply.code(400).send(errorResponse((error as Error).message));
