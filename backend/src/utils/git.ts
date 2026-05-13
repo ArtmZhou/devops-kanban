@@ -2,8 +2,8 @@ import { execSync } from 'node:child_process';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
+import { STORAGE_PATH } from '../config/index.js';
 import { logger } from './logger.js';
 
 type WorktreeStatusItem = {
@@ -27,30 +27,13 @@ export function buildBranchName(taskId: number, taskTitle: string, maxLength = 8
 }
 
 /**
- * Resolve the local data storage root. Mirrors `config/index.ts` STORAGE_PATH,
- * but inlined to avoid introducing a new module-graph edge into `utils/git.ts`,
- * which is imported from services that participate in the
- * `taskService <-> workflowService` ESM cycle.
- */
-function resolveStoragePath(): string {
-  if (process.env.STORAGE_PATH) {
-    return path.resolve(process.env.STORAGE_PATH);
-  }
-  const fileDir = path.dirname(fileURLToPath(import.meta.url));
-  // src/utils/git.ts -> backend/ -> project root -> data/
-  const backendRoot = path.resolve(fileDir, '..', '..');
-  const projectRoot = path.resolve(backendRoot, '..');
-  return path.join(projectRoot, 'data');
-}
-
-/**
  * Compute the deterministic local cache directory for an external repository.
  * Used so callers can locate an already-cloned external repo without re-running
  * network operations. Returns `<STORAGE_PATH>/repos/<sha256(url)[0..16]>`.
  */
 export function getExternalRepoPath(repoUrl: string): string {
   const hash = crypto.createHash('sha256').update(repoUrl).digest('hex').slice(0, 16);
-  return path.join(resolveStoragePath(), 'repos', hash);
+  return path.join(STORAGE_PATH, 'repos', hash);
 }
 
 /**

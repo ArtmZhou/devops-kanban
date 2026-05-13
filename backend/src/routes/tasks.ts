@@ -6,6 +6,7 @@ import { isGitRepository } from '../utils/git.js';
 import { TaskService } from '../services/taskService.js';
 import { ProjectRepository } from '../repositories/projectRepository.js';
 import type { CreateTaskInput, StartTaskInput, UpdateTaskInput } from '../types/dto/tasks.js';
+import type { Suggestion } from '../types/entities.ts';
 import type { IdParams } from '../types/http/params.js';
 import type { ProjectIdQuery } from '../types/http/query.js';
 import { successResponse, errorResponse } from '../utils/response.js';
@@ -181,7 +182,7 @@ export const taskRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Batch create, pipeline, dependents, regenerate-split
-  fastify.post<{ Body: { parent_task_id: number; suggestions: any[] } }>(
+  fastify.post<{ Body: { parent_task_id: number; suggestions: Suggestion[] } }>(
     '/batch-create',
     async (req, reply) => {
       try {
