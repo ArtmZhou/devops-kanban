@@ -49,6 +49,14 @@
             </svg>
             新建
           </el-button>
+          <el-button
+            v-if="selectedProjectId"
+            size="small"
+            text
+            @click="showTaskSourceDialog = true"
+          >
+            任务源
+          </el-button>
         </div>
         <template v-if="taskListViewMode === 'list'">
           <div
@@ -160,6 +168,23 @@
         </div>
       </div>
     </div>
+
+    <el-dialog
+      v-model="showTaskSourceDialog"
+      title="任务源管理"
+      width="960px"
+      align-center
+      :destroy-on-close="true"
+      class="task-source-workspace-dialog"
+    >
+      <TaskSourcePanel
+        v-if="selectedProjectId"
+        :project-id="String(selectedProjectId)"
+        :visible="showTaskSourceDialog"
+        @update:visible="showTaskSourceDialog = $event"
+        @tasks-imported="handleTasksImported"
+      />
+    </el-dialog>
 
     <div class="resize-handle" @mousedown="(e) => handleMouseDown(e, 'left')"></div>
 
@@ -410,11 +435,13 @@ import StepSessionPanel from '../components/workflow/StepSessionPanel.vue'
 import AiSplitCard from '../components/workspace/AiSplitCard.vue'
 import WorkflowTemplateSelectDialog from '../components/workflow/WorkflowTemplateSelectDialog.vue'
 import WorkflowStartEditorDialog from '../components/workflow/WorkflowStartEditorDialog.vue'
+import TaskSourcePanel from '../components/taskSource/TaskSourcePanel.vue'
 import { getWorkflowTemplateById } from '../api/workflowTemplate.js'
 import { normalizeWorkflowTemplate } from '../components/workflow/templateEditorShared.js'
 import { useProjectStore } from '../stores/projectStore.js'
 import { useAgentStore } from '../stores/agentStore.js'
 import { useSplitSuggestionsStore } from '../stores/splitSuggestions.js'
+import { useTaskSourceStore } from '../stores/taskSourceStore.js'
 import { getRoleConfig } from '../constants/agent.js'
 import { listTasks, getTaskPipeline, createTask, updateTask, deleteTask as deleteTaskApi, startTask } from '../api/task.js'
 import draggable from 'vuedraggable'
@@ -423,6 +450,7 @@ import { useTaskTimer } from '../composables/kanban/useTaskTimer.js'
 const projectStore = useProjectStore()
 const agentStore = useAgentStore()
 const splitStore = useSplitSuggestionsStore()
+const taskSourceStore = useTaskSourceStore()
 const { runningTasks } = useTaskTimer()
 const route = useRoute()
 const router = useRouter()
@@ -511,6 +539,11 @@ async function handleSaveTask() {
   }
 }
 
+async function handleTasksImported() {
+  await loadTasks()
+  ElMessage.success('任务已导入')
+}
+
 async function handleDeleteTask(task) {
   if (task.id <= 0) return
   try {
@@ -576,6 +609,7 @@ const selectedStatus = ref(null)
 const taskListViewMode = ref('list') // 'list' | 'kanban'
 const showWorkflowTemplateDialog = ref(false)
 const showSplitSuggestionsDialog = ref(false)
+const showTaskSourceDialog = ref(false)
 
 const pendingSplitCount = computed(() => {
   const id = selectedTask.value?.id
