@@ -1748,11 +1748,37 @@ watch(taskListViewMode, (mode) => {
 
 .task-kanban-column .task-card {
   height: 120px;
+  min-height: 120px;
+  max-height: 120px;
   padding: 10px 12px;
   margin-bottom: 4px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.task-kanban-column .task-card .task-card-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.task-kanban-column .task-card .task-card-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .task-kanban-column .task-card:hover {
