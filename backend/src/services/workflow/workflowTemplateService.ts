@@ -58,7 +58,7 @@ function normalizeTemplate(template: unknown): Omit<WorkflowTemplateEntity, 'id'
     throw new ValidationError('无效的工作流模板', 'Invalid workflow template');
   }
 
-  const { template_id, name, steps, tags } = template;
+  const { template_id, name, steps, tags, auto_confirm_split } = template;
 
   if (typeof template_id !== 'string' || !template_id.trim()) {
     throw new ValidationError('无效的工作流模板 ID', 'Invalid workflow template id');
@@ -82,6 +82,7 @@ function normalizeTemplate(template: unknown): Omit<WorkflowTemplateEntity, 'id'
     name: name.trim(),
     steps: normalizedSteps,
     tags: Array.isArray(tags) ? tags : [],
+    auto_confirm_split: auto_confirm_split === true,
   };
 }
 
@@ -161,6 +162,9 @@ class WorkflowTemplateService {
     if (template.tags !== undefined) {
       updateData.tags = Array.isArray(template.tags) ? template.tags : [];
     }
+    if (template.auto_confirm_split !== undefined) {
+      updateData.auto_confirm_split = template.auto_confirm_split === true;
+    }
 
     return await this.workflowTemplateRepo.update(existing.id, updateData);
   }
@@ -216,6 +220,8 @@ class WorkflowTemplateService {
     const exportedTemplates: ExportedWorkflowTemplate[] = templates.map(t => ({
       template_id: t.template_id,
       name: t.name,
+      ...(t.tags !== undefined ? { tags: t.tags } : {}),
+      auto_confirm_split: t.auto_confirm_split === true,
       steps: t.steps.map((step): ExportedWorkflowStep => ({
         id: step.id,
         name: step.name,
@@ -316,6 +322,8 @@ class WorkflowTemplateService {
         const updated = await this.workflowTemplateRepo.update(existing.id, {
           name: tpl.name,
           steps,
+          ...(tpl.tags !== undefined ? { tags: tpl.tags } : {}),
+          auto_confirm_split: tpl.auto_confirm_split === true,
         });
         if (updated) imported.push(updated);
       } else if (!existing || input.strategy === 'copy') {
@@ -323,6 +331,8 @@ class WorkflowTemplateService {
           template_id: finalTemplateId,
           name: input.strategy === 'copy' && existing ? `${tpl.name} (副本)` : tpl.name,
           steps,
+          ...(tpl.tags !== undefined ? { tags: tpl.tags } : {}),
+          auto_confirm_split: tpl.auto_confirm_split === true,
         });
         imported.push(created);
       }

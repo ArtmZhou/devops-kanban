@@ -11,6 +11,7 @@ class WorkflowInstanceRepository extends BaseRepository<WorkflowInstanceEntity> 
     return {
       ...row,
       steps: row.steps ? JSON.parse(row.steps as string) : [],
+      auto_confirm_split: row.auto_confirm_split === 1 || row.auto_confirm_split === true,
     } as WorkflowInstanceEntity;
   }
 
@@ -18,6 +19,9 @@ class WorkflowInstanceRepository extends BaseRepository<WorkflowInstanceEntity> 
     const result: Record<string, unknown> = { ...entity };
     if (entity.steps !== undefined) {
       result.steps = JSON.stringify(entity.steps);
+    }
+    if (entity.auto_confirm_split !== undefined) {
+      result.auto_confirm_split = entity.auto_confirm_split ? 1 : 0;
     }
     return result;
   }

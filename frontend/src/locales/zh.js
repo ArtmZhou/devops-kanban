@@ -330,6 +330,8 @@ export default {
     stepTypeDefault: '默认（AI 执行任务）',
     stepTypeSplit: 'AI 拆分（SPLIT_TASK）',
     stepTypeSplitHint: '此步骤将调用 AI 拆分当前任务为子任务',
+    autoConfirmSplitLabel: '自动确认拆分',
+    autoConfirmSplitHint: '工作流完成时自动确认待处理的拆分建议',
     stepId: '步骤 ID',
     executor: '角色',
     instructionPrompt: '步骤提示词',

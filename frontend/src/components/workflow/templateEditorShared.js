@@ -20,7 +20,8 @@ export const normalizeWorkflowTemplate = (template, emptyValue = null) => {
 
   return {
     ...template,
-    steps: Array.isArray(template.steps) ? template.steps.map(normalizeWorkflowStep) : []
+    steps: Array.isArray(template.steps) ? template.steps.map(normalizeWorkflowStep) : [],
+    auto_confirm_split: template.auto_confirm_split === true
   }
 }
 
@@ -126,6 +127,7 @@ export const buildWorkflowTemplatePayload = (currentTemplate) => ({
   template_id: currentTemplate?.template_id ?? '',
   name: currentTemplate?.name?.trim?.() || '',
   tags: Array.isArray(currentTemplate?.tags) ? currentTemplate.tags : [],
+  auto_confirm_split: currentTemplate?.auto_confirm_split === true,
   steps: buildWorkflowStepsPayload(currentTemplate?.steps || [])
 })
 

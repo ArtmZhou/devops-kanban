@@ -148,6 +148,15 @@
                   />
                 </el-select>
               </div>
+              <div class="meta-row">
+                <span class="meta-label">{{ $t('workflowTemplate.autoConfirmSplitLabel', '自动确认拆分') }}</span>
+                <el-switch
+                  v-model="template.auto_confirm_split"
+                  size="small"
+                  data-testid="auto-confirm-split-switch"
+                />
+                <span class="meta-hint">{{ $t('workflowTemplate.autoConfirmSplitHint', '工作流完成时自动确认待处理的拆分建议') }}</span>
+              </div>
             </div>
           </div>
 
