@@ -426,11 +426,14 @@ class TaskService {
           await this.taskRepo.update(dep.id, { status: 'TODO' });
           await this.onTaskStatusChange(dep.id, 'TODO', visited);
 
-          if (dep.parent_task_id != null && dep.auto_execute_template_id) {
+          if (dep.source === 'internal' && dep.parent_task_id != null && dep.auto_execute_template_id) {
+            const existingRun = await this.workflowService.workflowRunRepo.findLatestByTaskId(dep.id);
+            const hasActive = existingRun && (existingRun.status === 'RUNNING' || existingRun.status === 'PENDING' || existingRun.status === 'SUSPENDED');
+            if (hasActive) continue;
             try {
               await this.startTask(dep.id, { workflow_template_id: dep.auto_execute_template_id });
             } catch (err) {
-              logger.warn('TaskService', `auto-start failed for task ${dep.id}: ${(err as Error).message}`);
+              logger.warn('TaskService', `auto-start failed for task ${dep.id} (template ${dep.auto_execute_template_id}): ${(err as Error).message}`);
             }
           }
         }

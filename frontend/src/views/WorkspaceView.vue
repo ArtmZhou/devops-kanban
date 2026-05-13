@@ -1129,6 +1129,7 @@ watch(() => selectedTask.value?.id, async (newId) => {
     await splitStore.load(newId)
   } else {
     pipeline.value = { root: null, nodes: [] }
+    focusedNodeId.value = null
   }
 })
 watch(taskListViewMode, (mode) => {
