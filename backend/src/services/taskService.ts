@@ -368,7 +368,7 @@ class TaskService {
     if (!current) {
       throw new NotFoundError('未找到任务', 'Task not found', { taskId });
     }
-    while (current.parent_task_id != null) {
+    while (current.parent_task_id != null && current.parent_task_id > 0) {
       const parent = await this.taskRepo.findById(current.parent_task_id);
       if (!parent) break;
       current = parent;
@@ -425,6 +425,17 @@ class TaskService {
         if (allDone) {
           await this.taskRepo.update(dep.id, { status: 'TODO' });
           await this.onTaskStatusChange(dep.id, 'TODO', visited);
+
+          if (dep.source === 'internal' && dep.parent_task_id != null && dep.parent_task_id > 0 && dep.auto_execute_template_id) {
+            const existingRun = await this.workflowService.workflowRunRepo.findLatestByTaskId(dep.id);
+            const hasActive = existingRun && (existingRun.status === 'RUNNING' || existingRun.status === 'PENDING' || existingRun.status === 'SUSPENDED');
+            if (hasActive) continue;
+            try {
+              await this.startTask(dep.id, { workflow_template_id: dep.auto_execute_template_id });
+            } catch (err) {
+              logger.warn('TaskService', `auto-start failed for task ${dep.id} (template ${dep.auto_execute_template_id}): ${(err as Error).message}`);
+            }
+          }
         }
       }
     } else if (newStatus === 'BLOCKED' || newStatus === 'CANCELLED') {

@@ -3,32 +3,55 @@
     <div class="pipeline-dag-dialog">
       <div class="dag-flow">
         <template v-for="(layer, layerIdx) in dagLayers" :key="layerIdx">
-          <template v-for="node in layer" :key="node.id">
-            <div class="dag-column">
-              <div
-                class="dag-node-wrapper"
-                :class="nodeStatusClass(node)"
-              >
-                <!-- Animated arrow above the current node -->
-                <div v-if="node.id === currentTaskId" class="dag-current-arrow" aria-hidden="true">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#111827" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
-                    <path d="M12 20 L4 8 L9 8 L9 2 L15 2 L15 8 L20 8 Z"></path>
-                  </svg>
-                </div>
-                <div class="dag-node" @click="emit('select', node)">
-                  <span class="dag-node-status">{{ statusIcon(node) }}</span>
-                  <div class="dag-node-texts">
-                    <span class="dag-node-title">{{ node.title }}</span>
-                    <span v-if="node.project_name" class="dag-node-project">{{ node.project_name }}</span>
-                  </div>
+          <div class="dag-layer">
+            <div
+              v-for="node in layer"
+              :key="node.id"
+              class="dag-node-wrapper"
+              :class="nodeStatusClass(node)"
+            >
+              <!-- Animated arrow above the current node -->
+              <div v-if="node.id === currentTaskId" class="dag-current-arrow" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#111827" stroke="#ffffff" stroke-width="2" stroke-linejoin="round">
+                  <path d="M12 20 L4 8 L9 8 L9 2 L15 2 L15 8 L20 8 Z"></path>
+                </svg>
+              </div>
+              <div class="dag-node" @click="emit('select', node)">
+                <span class="dag-node-status">{{ statusIcon(node) }}</span>
+                <div class="dag-node-texts">
+                  <span class="dag-node-title">{{ node.title }}</span>
+                  <span v-if="node.project_name" class="dag-node-project">{{ node.project_name }}</span>
                 </div>
               </div>
             </div>
-          </template>
+          </div>
           <div v-if="layerIdx < dagLayers.length - 1" class="dag-arrow-h"></div>
         </template>
       </div>
     </div>
+    <button
+      class="dag-refresh-btn"
+      type="button"
+      :title="'刷新 DAG'"
+      :disabled="refreshing"
+      @click="emit('refresh')"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        :class="{ spinning: refreshing }"
+      >
+        <polyline points="23 4 23 10 17 10"></polyline>
+        <polyline points="1 20 1 14 7 14"></polyline>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+      </svg>
+    </button>
   </div>
 </template>
 
@@ -37,10 +60,11 @@ import { computed } from 'vue'
 
 const props = defineProps({
   nodes: { type: Array, required: true },
-  currentTaskId: { type: Number, default: null }
+  currentTaskId: { type: Number, default: null },
+  refreshing: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['select'])
+const emit = defineEmits(['select', 'refresh'])
 
 // Map a node to its workflow-status class.
 // task.status takes priority for terminal states (DONE / BLOCKED / CANCELLED)
@@ -116,6 +140,45 @@ const dagLayers = computed(() => {
   overflow: auto;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.dag-refresh-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  padding: 0;
+  z-index: 4;
+}
+
+.dag-refresh-btn:hover:not(:disabled) {
+  color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+.dag-refresh-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.dag-refresh-btn .spinning {
+  animation: dag-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes dag-refresh-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .pipeline-inline .pipeline-dag-dialog {
@@ -169,13 +232,13 @@ const dagLayers = computed(() => {
   padding: 24px 0 4px;
 }
 
-.dag-column {
+.dag-layer {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   flex-shrink: 0;
   width: 160px;
-  gap: 4px;
+  gap: 10px;
 }
 
 .dag-node-wrapper {
