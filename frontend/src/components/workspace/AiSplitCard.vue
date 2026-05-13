@@ -40,7 +40,21 @@
                   @input="updateField(index, 'title', $event.target.value)"
                   placeholder="任务标题"
                 />
-                <span class="suggestion-template-badge">{{ item.template_id || '未指定模板' }}</span>
+                <el-select
+                  :model-value="item.template_id || ''"
+                  size="small"
+                  class="suggestion-template-select"
+                  placeholder="选择工作流模板"
+                  clearable
+                  @update:model-value="(val) => updateField(index, 'template_id', val || null)"
+                >
+                  <el-option
+                    v-for="tmpl in templates"
+                    :key="tmpl.template_id"
+                    :label="tmpl.name"
+                    :value="tmpl.template_id"
+                  />
+                </el-select>
               </div>
               <textarea
                 class="suggestion-desc-input"
@@ -89,7 +103,8 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { getWorkflowTemplates } from '../../api/workflowTemplate.js'
 
 const props = defineProps({
   suggestion: { type: Object, default: null },
@@ -106,6 +121,16 @@ const suggestions = computed(() => {
 })
 
 const enabledIndices = ref(new Set())
+const templates = ref([])
+
+onMounted(async () => {
+  try {
+    const resp = await getWorkflowTemplates()
+    if (resp?.success) templates.value = resp.data || []
+  } catch (e) {
+    // silent — dropdown just stays empty
+  }
+})
 
 // Initialize enabledIndices when suggestion changes. Respect the `enabled`
 // flag from the backend payload so we don't accidentally re-enable everything
@@ -435,6 +460,11 @@ function onDismiss() {
   padding: 1px 6px;
   border-radius: 4px;
   font-weight: 500;
+}
+
+.suggestion-template-select {
+  width: 180px;
+  flex-shrink: 0;
 }
 
 .suggestion-desc {
