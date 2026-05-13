@@ -425,6 +425,14 @@ class TaskService {
         if (allDone) {
           await this.taskRepo.update(dep.id, { status: 'TODO' });
           await this.onTaskStatusChange(dep.id, 'TODO', visited);
+
+          if (dep.parent_task_id != null && dep.auto_execute_template_id) {
+            try {
+              await this.startTask(dep.id, { workflow_template_id: dep.auto_execute_template_id });
+            } catch (err) {
+              logger.warn('TaskService', `auto-start failed for task ${dep.id}: ${(err as Error).message}`);
+            }
+          }
         }
       }
     } else if (newStatus === 'BLOCKED' || newStatus === 'CANCELLED') {

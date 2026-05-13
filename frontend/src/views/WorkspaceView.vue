@@ -221,7 +221,9 @@
               v-if="selectedTask"
               :nodes="pipeline.nodes"
               :current-task-id="focusedTaskId"
+              :refreshing="pipelineRefreshing"
               @select="onDagSelect"
+              @refresh="onPipelineRefresh"
             />
             <div v-else class="panel-placeholder">请选择任务</div>
           </template>
@@ -608,6 +610,7 @@ async function onKanbanDragEnd(event) {
 
 const realTasks = ref([])
 const pipeline = ref({ root: null, nodes: [] })
+const pipelineRefreshing = ref(false)
 const selectedTask = ref(null)
 // Currently "focused" DAG node id — what the CurrentWorkflow panel displays.
 // Defaults to selectedTask.id but can be switched by clicking any node in the DAG.
@@ -967,6 +970,16 @@ async function onWorkflowRefresh() {
   }
 }
 
+async function onPipelineRefresh() {
+  if (!selectedTask.value?.id || pipelineRefreshing.value) return
+  pipelineRefreshing.value = true
+  try {
+    await loadPipeline(selectedTask.value.id)
+  } finally {
+    pipelineRefreshing.value = false
+  }
+}
+
 async function onWorkflowConfirm({ workflowRunId, taskId }) {
   try {
     const resp = await resumeWorkflow(workflowRunId, { approved: true })
@@ -1114,6 +1127,8 @@ watch(() => selectedTask.value?.id, async (newId) => {
   if (newId) {
     await loadPipeline(newId)
     await splitStore.load(newId)
+  } else {
+    pipeline.value = { root: null, nodes: [] }
   }
 })
 watch(taskListViewMode, (mode) => {
