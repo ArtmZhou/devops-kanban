@@ -967,6 +967,7 @@ async function onDismissSplit() {
 async function onWorkflowRefresh() {
   if (selectedTask.value?.id) {
     await loadPipeline(selectedTask.value.id)
+    await splitStore.load(selectedTask.value.id)
   }
 }
 
