@@ -12,7 +12,6 @@ export interface CreateWorkflowTemplateInput {
   name: string;
   steps: WorkflowTemplateStepInput[];
   tags?: string[];
-  auto_confirm_split?: boolean;
 }
 
 export interface UpdateWorkflowTemplateInput {
@@ -20,7 +19,6 @@ export interface UpdateWorkflowTemplateInput {
   name: string;
   steps: WorkflowTemplateStepInput[];
   tags?: string[];
-  auto_confirm_split?: boolean;
 }
 
 export interface ReorderWorkflowTemplatesInput {
@@ -41,7 +39,6 @@ export interface ExportedWorkflowTemplate {
   template_id: string;
   name: string;
   tags?: string[];
-  auto_confirm_split?: boolean;
   steps: ExportedWorkflowStep[];
 }
 

@@ -78,7 +78,6 @@ CREATE TABLE IF NOT EXISTS workflow_templates (
   steps TEXT NOT NULL DEFAULT '[]',
   tags TEXT NOT NULL DEFAULT '[]',
   "order" INTEGER,
-  auto_confirm_split INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -93,7 +92,6 @@ CREATE TABLE IF NOT EXISTS workflow_instances (
   template_version TEXT NOT NULL,
   name TEXT NOT NULL,
   steps TEXT NOT NULL DEFAULT '[]',
-  auto_confirm_split INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

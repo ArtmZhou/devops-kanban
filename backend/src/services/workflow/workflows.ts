@@ -264,6 +264,105 @@ export function buildWorkflowFromInstance(
       });
     }
 
+    // CONFIRM_SPLIT_TASK steps run an agent to summarize/audit the latest PENDING split suggestion,
+    // then automatically call splitSuggestionService.confirm to materialize child tasks.
+    if (templateStep.type === 'CONFIRM_SPLIT_TASK') {
+      return createStep({
+        id: templateStep.id,
+        inputSchema: isFirst ? firstStepInputSchema : stepOutputSchema,
+        outputSchema: stepOutputSchema,
+        stateSchema: sharedStateSchema,
+        execute: async ({ state, abortSignal, abort }) => {
+          const signalAlreadyAborted = abortSignal?.aborted ?? false;
+          logger.info('Workflows', `CONFIRM_SPLIT_TASK step ${templateStep.id} starting, workflowRun: ${options.runId}`);
+
+          try {
+            await options.lifecycle.onStepStart(options.runId, templateStep.id, options.task);
+
+            const { renderConfirmSplitPrompt, DEFAULT_CONFIRM_SPLIT_PROMPT } = await import('./defaultConfirmSplitPrompt.js');
+            const { splitSuggestionService } = await import('../splitSuggestionService.js');
+            const { TaskRepository } = await import('../../repositories/taskRepository.js');
+            const { AgentRepository } = await import('../../repositories/agentRepository.js');
+            const { AgentExecutorRegistry } = await import('./agentExecutorRegistry.js');
+            const { adaptStepResult } = await import('./stepResultAdapter.js');
+
+            const taskRepo = new TaskRepository();
+            const task = await taskRepo.findById(options.task.id);
+            if (!task) throw new Error(`Task ${options.task.id} not found`);
+
+            const pending = await splitSuggestionService.getPendingByTask(options.task.id);
+            if (!pending) {
+              const summary = '没有待确认的拆分建议，跳过。';
+              await options.lifecycle.onStepComplete(options.runId, templateStep.id, { summary });
+              return { summary };
+            }
+
+            const suggestionsBlock = (pending.suggestions || [])
+              .map((s, i) => `${i + 1}. [${s.enabled ? 'enabled' : 'disabled'}] ${s.title} — ${s.description || '(无描述)'}`)
+              .join('\n') || '(无拆分项)';
+
+            const promptText = renderConfirmSplitPrompt(templateStep.instructionPrompt || DEFAULT_CONFIRM_SPLIT_PROMPT, {
+              task_title: task.title,
+              task_description: task.description || '',
+              suggestions_block: suggestionsBlock,
+            });
+
+            const agentRepo = new AgentRepository();
+            const agent = await agentRepo.findById(templateStep.agentId);
+            if (!agent) throw new Error(`Agent ${templateStep.agentId} not found`);
+
+            const registry = new AgentExecutorRegistry();
+            const executor = registry.getExecutor(agent.executorType);
+
+            if (!Array.isArray(agent.skills) || agent.skills.some((skill: any) => typeof skill !== 'number')) {
+              throw new Error(`Agent ${agent.id} has invalid skills configuration`);
+            }
+            if (!Array.isArray(agent.mcpServers) || agent.mcpServers.some((id: any) => typeof id !== 'number')) {
+              throw new Error(`Agent ${agent.id} has invalid MCP servers configuration`);
+            }
+
+            const executionResult = await executor.execute({
+              prompt: promptText,
+              worktreePath: state.worktreePath,
+              executorConfig: {
+                type: agent.executorType,
+                skills: [...agent.skills],
+                mcpServers: [...agent.mcpServers],
+                env: agent.env ? { ...agent.env } : undefined,
+                settingsPath: agent.settingsPath || undefined,
+              },
+              abortSignal: signalAlreadyAborted ? undefined : abortSignal,
+            });
+
+            if (abortSignal?.aborted && !signalAlreadyAborted) {
+              abort();
+              return { summary: '' };
+            }
+
+            const adaptedResult = adaptStepResult(agent.executorType, executionResult);
+            const auditSummary = (adaptedResult.summary || '').trim() || '(无审核总结)';
+
+            // System auto-confirms after agent finished its review
+            try {
+              await splitSuggestionService.confirm(pending.id);
+              logger.info('Workflows', `Auto-confirmed split suggestion ${pending.id} for task ${options.task.id}`);
+            } catch (err) {
+              const errMsg = err instanceof Error ? err.message : String(err);
+              throw new Error(`自动确认拆分建议失败: ${errMsg}`);
+            }
+
+            const summary = `${auditSummary}\n\n已自动确认拆分建议 #${pending.id}，创建并启动子任务。`;
+            await options.lifecycle.onStepComplete(options.runId, templateStep.id, { summary });
+            return { summary };
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            await options.lifecycle.onStepError(options.runId, templateStep.id, errorMessage);
+            throw err;
+          }
+        },
+      });
+    }
+
     return createStep({
       id: templateStep.id,
       inputSchema: isFirst ? firstStepInputSchema : stepOutputSchema,

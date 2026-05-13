@@ -27,13 +27,6 @@ import { type StepSnapshot, WorkflowNotificationEvent } from '../notificationEve
 
 type TaskStatusChangeHandler = (taskId: number, status: string) => void | Promise<void>;
 
-type SplitSuggestionLoader = () => Promise<{
-  splitSuggestionService: {
-    getPendingByTask: (taskId: number) => Promise<{ id: number } | null>;
-    confirm: (id: number) => Promise<unknown>;
-  };
-}>;
-
 class WorkflowLifecycle {
   workflowRunRepo: WorkflowRunRepository;
   taskRepo: TaskRepository;
@@ -45,7 +38,6 @@ class WorkflowLifecycle {
   _stepAttemptSegmentIds: Map<string, number | null>;
   private onWorkflowNotification?: (event: WorkflowNotificationEvent) => void;
   private onTaskStatusChange?: TaskStatusChangeHandler;
-  private splitSuggestionLoader: SplitSuggestionLoader;
 
   constructor({
     workflowRunRepo,
@@ -57,7 +49,6 @@ class WorkflowLifecycle {
     instanceRepo,
     onWorkflowNotification,
     onTaskStatusChange,
-    splitSuggestionLoader,
   }: {
     workflowRunRepo?: WorkflowRunRepository;
     taskRepo?: TaskRepository;
@@ -68,7 +59,6 @@ class WorkflowLifecycle {
     instanceRepo?: WorkflowInstanceRepository;
     onWorkflowNotification?: (event: WorkflowNotificationEvent) => void;
     onTaskStatusChange?: TaskStatusChangeHandler;
-    splitSuggestionLoader?: SplitSuggestionLoader;
   } = {}) {
     this.workflowRunRepo = workflowRunRepo || new WorkflowRunRepository();
     this.taskRepo = taskRepo || new TaskRepository();
@@ -84,16 +74,6 @@ class WorkflowLifecycle {
     if (onTaskStatusChange !== undefined) {
       this.onTaskStatusChange = onTaskStatusChange;
     }
-    // Dynamic import avoids the module cycle:
-    // workflowService -> workflowLifecycle -> splitSuggestionService -> taskService -> workflowService
-    this.splitSuggestionLoader =
-      splitSuggestionLoader ||
-      (() => import('../splitSuggestionService.js') as Promise<{
-        splitSuggestionService: {
-          getPendingByTask: (taskId: number) => Promise<{ id: number } | null>;
-          confirm: (id: number) => Promise<unknown>;
-        };
-      }>);
   }
 
   setOnTaskStatusChange(handler: TaskStatusChangeHandler) {
@@ -106,23 +86,6 @@ class WorkflowLifecycle {
       await this.onTaskStatusChange(taskId, status);
     } catch (err) {
       logger.warn('WorkflowLifecycle', `onTaskStatusChange hook failed: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  private async _maybeAutoConfirmSplit(run: { task_id: number; workflow_instance_id: string }) {
-    try {
-      if (!run.task_id) return;
-      const instance = await this.instanceRepo.findByInstanceId(run.workflow_instance_id);
-      if (!instance?.auto_confirm_split) return;
-
-      const { splitSuggestionService } = await this.splitSuggestionLoader();
-      const pending = await splitSuggestionService.getPendingByTask(run.task_id);
-      if (!pending) return; // Silently skip when no PENDING suggestion
-
-      await splitSuggestionService.confirm(pending.id);
-      logger.info('WorkflowLifecycle', `Auto-confirmed split suggestion ${pending.id} for task ${run.task_id}`);
-    } catch (err) {
-      logger.warn('WorkflowLifecycle', `auto-confirm split failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -936,7 +899,6 @@ class WorkflowLifecycle {
     if (run.task_id) {
       await this.taskRepo.update(run.task_id, { status: 'DONE' });
       await this._notifyTaskStatusChange(run.task_id, 'DONE');
-      await this._maybeAutoConfirmSplit(run);
     }
 
     // Emit notification hook

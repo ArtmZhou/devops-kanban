@@ -40,7 +40,6 @@ class WorkflowInstanceService {
       template_version: new Date().toISOString(),
       name: template.name,
       steps: template.steps,
-      auto_confirm_split: template.auto_confirm_split === true,
     });
   }
 

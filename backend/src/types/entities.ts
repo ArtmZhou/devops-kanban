@@ -149,7 +149,6 @@ export interface WorkflowInstanceEntity {
   template_version: string;
   name: string;
   steps: WorkflowTemplateStepEntity[];
-  auto_confirm_split?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -161,7 +160,6 @@ export interface WorkflowTemplateEntity {
   steps: WorkflowTemplateStepEntity[];
   tags?: string[];
   order?: number;
-  auto_confirm_split?: boolean;
   created_at: string;
   updated_at: string;
 }

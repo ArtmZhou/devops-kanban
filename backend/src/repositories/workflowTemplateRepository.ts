@@ -11,7 +11,6 @@ class WorkflowTemplateRepository extends BaseRepository<WorkflowTemplateEntity> 
       ...row,
       steps: row.steps ? JSON.parse(row.steps as string) : [],
       tags: row.tags ? JSON.parse(row.tags as string) : [],
-      auto_confirm_split: row.auto_confirm_split === 1 || row.auto_confirm_split === true,
     } as WorkflowTemplateEntity;
   }
 
@@ -22,9 +21,6 @@ class WorkflowTemplateRepository extends BaseRepository<WorkflowTemplateEntity> 
     }
     if (entity.tags !== undefined) {
       result.tags = JSON.stringify(entity.tags);
-    }
-    if (entity.auto_confirm_split !== undefined) {
-      result.auto_confirm_split = entity.auto_confirm_split ? 1 : 0;
     }
     return result;
   }
