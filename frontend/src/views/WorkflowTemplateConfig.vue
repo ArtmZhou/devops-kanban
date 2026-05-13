@@ -318,17 +318,20 @@
                       v-model="selectedStep.canEarlyExit"
                       :active-text="$t('workflowTemplate.canEarlyExit')"
                     />
-                    <span class="meta-label" style="min-width: auto;">最大重试</span>
-                    <el-input-number
-                      v-model="selectedStep.maxRetries"
-                      :min="0"
-                      :max="3"
-                      :step="1"
-                      size="small"
-                      style="width: 80px"
-                    />
-                    <span class="meta-hint">失败自动重试（0=不重试）</span>
                   </div>
+                </div>
+
+                <div class="editor-field editor-field--row">
+                  <label class="meta-label" style="min-width: 88px;">失败重试</label>
+                  <el-input-number
+                    v-model="selectedStep.maxRetries"
+                    :min="0"
+                    :max="3"
+                    :step="1"
+                    size="small"
+                    style="width: 100px"
+                  />
+                  <span class="meta-hint">步骤失败后自动重试次数（0=不重试，最大3）</span>
                 </div>
 
                 <div class="editor-field editor-field--full step-type-field">
@@ -1682,6 +1685,12 @@ const handlePreviewPrompt = async () => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.editor-field--row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .step-type-hint {
