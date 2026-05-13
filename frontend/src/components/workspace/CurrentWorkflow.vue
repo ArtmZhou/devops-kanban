@@ -360,7 +360,9 @@ async function handleStart() {
   }
   actionLoading.value = true
   try {
-    const resp = await startTask(props.taskId)
+    const resp = await startTask(props.taskId, {
+      workflow_template_id: task.value.auto_execute_template_id
+    })
     if (resp?.success) {
       ElMessage.success('任务已启动')
       await load()
