@@ -151,7 +151,7 @@ const emit = defineEmits(['toggleCollapse'])
 
 // ─── Component state ──────────────────────────────────────────────────────────
 const chatId = ref(null)
-const sessionStatus = ref('idle') // 'idle' | 'running'
+const sessionStatus = ref('idle') // 'idle' | 'running' | 'ask_user'
 const messages = ref([])
 const inputText = ref('')
 const isCreatingSession = ref(false)
@@ -204,7 +204,11 @@ function startPolling() {
         messages.value = normalized.map(m => ({ ...m, _key: `b_${m.id}` }))
         scrollToBottom()
 
-        if (session.status !== 'running') {
+        if (session.status === 'running') {
+          sessionStatus.value = 'running'
+        } else if (session.status === 'ask_user') {
+          sessionStatus.value = 'ask_user'
+        } else {
           sessionStatus.value = 'idle'
           stopTimer()
           stopPolling()
@@ -297,6 +301,8 @@ async function loadOrCreateSession(agentId) {
           : 0
         startTimer(Math.max(0, elapsed))
         startPolling()
+      } else if (session.status === 'ask_user') {
+        sessionStatus.value = 'ask_user'
       } else {
         sessionStatus.value = 'idle'
       }
@@ -369,6 +375,11 @@ async function sendMessage() {
     (event) => {
       if (event.kind === 'status' && COMPLETED_PATTERNS.some(p => (event.content || '').toLowerCase().includes(p))) {
         receivedCompletedStatus = true
+      }
+      if (event.kind === 'ask_user') {
+        // AskUserQuestion received during streaming
+        sessionStatus.value = 'ask_user'
+        stopTimer()
       }
       const normalized = normalizeEvents([{
         id: tempIdCounter--,

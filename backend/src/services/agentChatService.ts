@@ -160,9 +160,32 @@ class AgentChatService {
         this.chatRepo.updateSession(chatId, { status: 'idle' });
       }
     } catch (err) {
-      logger.error('AgentChatService', `sendMessage failed for session ${chatId}: ${err instanceof Error ? err.message : String(err)}`);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Handle AskUserQuestion: persist event and keep session in ASK_USER state
+      if (errorMessage === 'STEP_AWAITING_USER_INPUT' && (err as any).askUserQuestion) {
+        const askUserQuestion = (err as any).askUserQuestion;
+
+        this.chatRepo.appendMessage(chatId, {
+          kind: 'ask_user',
+          role: 'assistant',
+          content: '',
+          payload: { ask_user_question: askUserQuestion },
+        });
+
+        this.chatRepo.updateSession(chatId, { status: 'ask_user' });
+
+        onEvent({
+          kind: 'ask_user',
+          role: 'assistant',
+          content: '',
+          payload: { ask_user_question: askUserQuestion },
+        });
+        return;
+      }
+
+      logger.error('AgentChatService', `sendMessage failed for session ${chatId}: ${errorMessage}`);
       this.chatRepo.updateSession(chatId, { status: 'idle' });
-      // Propagate error event
       const errorMsg = err instanceof Error ? err.message : String(err);
       this.chatRepo.appendMessage(chatId, {
         kind: 'error',
