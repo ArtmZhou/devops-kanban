@@ -1070,7 +1070,7 @@ const handlePreviewPrompt = async () => {
 
   try {
     const response = await previewPrompt({
-      step: { name: step.name, instructionPrompt: step.instructionPrompt || '', agentId: step.agentId },
+      step: { name: step.name, instructionPrompt: step.instructionPrompt || '', agentId: step.agentId, type: step.type },
       upstreamSteps,
       ...(step.canEarlyExit ? { canEarlyExit: true } : {}),
     })
