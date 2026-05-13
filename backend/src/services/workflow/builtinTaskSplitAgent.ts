@@ -8,7 +8,8 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const BUILTIN_SKILL_NAME = 'task-splitter';
-const BUILTIN_AGENT_ROLE = 'TASK_SPLITPER';
+export const TASK_SPLITTER_AGENT_ROLE = 'TASK_SPLITTER';
+const LEGACY_TYPO_ROLE = 'TASK_SPLITPER';
 const BUILTIN_AGENT_NAME = '任务拆分助手';
 const BUILTIN_AGENT_DESCRIPTION = '专用于将任务拆分为子任务的AI代理';
 
@@ -41,14 +42,29 @@ export async function bootstrapBuiltinTaskSplitAgent(): Promise<void> {
 
   // 2. Ensure the builtin agent exists
   const existingAgents = await agentRepo.findAll();
-  const existingAgent = existingAgents.find(a => a.role === BUILTIN_AGENT_ROLE);
+  const legacyAgent = existingAgents.find(a => a.role === LEGACY_TYPO_ROLE);
+  if (legacyAgent) {
+    await agentRepo.update(legacyAgent.id, { role: TASK_SPLITTER_AGENT_ROLE });
+    console.log(`[TaskSplitAgent] Migrated legacy role "${LEGACY_TYPO_ROLE}" → "${TASK_SPLITTER_AGENT_ROLE}" on agent id=${legacyAgent.id}.`);
+  }
+
+  const existingAgent = existingAgents.find(a => a.role === TASK_SPLITTER_AGENT_ROLE) || legacyAgent;
   if (existingAgent) {
     console.log(`[TaskSplitAgent] Builtin agent "${BUILTIN_AGENT_NAME}" already exists (id=${existingAgent.id}).`);
   } else {
-    const agentData: Omit<Parameters<typeof agentRepo.create>[0], 'id' | 'created_at' | 'updated_at'> = {
+    const agentData: {
+      name: string;
+      executorType: ExecutorType;
+      role: string;
+      description: string;
+      enabled: boolean;
+      skills: number[];
+      mcpServers: number[];
+      env: Record<string, string>;
+    } = {
       name: BUILTIN_AGENT_NAME,
       executorType: ExecutorType.CLAUDE_CODE,
-      role: BUILTIN_AGENT_ROLE,
+      role: TASK_SPLITTER_AGENT_ROLE,
       description: BUILTIN_AGENT_DESCRIPTION,
       enabled: true,
       skills: [skillId],

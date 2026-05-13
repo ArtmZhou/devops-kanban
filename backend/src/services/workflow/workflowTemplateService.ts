@@ -345,30 +345,49 @@ export async function bootstrapBuiltinTemplates(repo?: WorkflowTemplateRepositor
   }
 }
 
+// Signature phrases from the legacy DEFAULT_SPLIT_PROMPT (zh + en variants).
+// Only prompts containing one of these are migrated; user-customized prompts are preserved.
+const LEGACY_SPLIT_PROMPT_SIGNATURES = [
+  '你是一个项目任务拆解助手',
+  '你是一个任务拆解助手',
+  'project task splitter',
+  'task splitter assistant',
+];
+
+function isLegacySplitPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return LEGACY_SPLIT_PROMPT_SIGNATURES.some(sig => lower.includes(sig.toLowerCase()));
+}
+
 export async function migrateSplitTaskPrompts(): Promise<void> {
   const repo = new WorkflowTemplateRepository();
   const allTemplates = await repo.findAll();
   let migrated = 0;
+  let preserved = 0;
 
   for (const tpl of allTemplates) {
     const steps = tpl.steps as Array<{ type?: string; instructionPrompt?: string }>;
     let changed = false;
     for (const step of steps) {
       if (step.type === 'SPLIT_TASK' && typeof step.instructionPrompt === 'string' && step.instructionPrompt.length > 0) {
-        step.instructionPrompt = '';
-        changed = true;
+        if (isLegacySplitPrompt(step.instructionPrompt)) {
+          step.instructionPrompt = '';
+          changed = true;
+        } else {
+          preserved++;
+        }
       }
     }
     if (changed) {
       await repo.update(tpl.id, { steps: tpl.steps });
       migrated++;
-      console.log(`[MigrateSplitPrompts] Cleared SPLIT_TASK prompt for template "${tpl.name}"`);
+      console.log(`[MigrateSplitPrompts] Cleared legacy SPLIT_TASK prompt for template "${tpl.name}"`);
     }
   }
 
-  if (migrated === 0) {
+  if (migrated === 0 && preserved === 0) {
     console.log('[MigrateSplitPrompts] No templates need migration.');
   } else {
-    console.log(`[MigrateSplitPrompts] Migrated ${migrated} template(s).`);
+    console.log(`[MigrateSplitPrompts] Migrated ${migrated} template(s); preserved ${preserved} customized prompt(s).`);
   }
 }

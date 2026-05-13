@@ -165,7 +165,7 @@ export const validateWorkflowTemplatePayload = (currentTemplate, t, options = {}
     if (requireAssignedAgent && typeof step.agentId !== 'number') {
       return t('workflowTemplate.stepAgentRequired')
     }
-    if (!step.instructionPrompt) {
+    if (step.type !== 'SPLIT_TASK' && !step.instructionPrompt) {
       return t('workflowTemplate.stepPromptRequired')
     }
     if (requireExistingEnabledAgent && typeof step.agentId === 'number' && (isMissingAgent(step) || isDisabledAgent(step))) {

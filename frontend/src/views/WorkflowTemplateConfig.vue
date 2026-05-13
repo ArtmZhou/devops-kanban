@@ -505,7 +505,7 @@ function onToggleAiSplit(enabled) {
     steps.push({
       ...createEmptyWorkflowStep(t('workflowTemplate.aiSplitDefaultStepName', 'AI 拆分')),
       type: 'SPLIT_TASK',
-      instructionPrompt: t('workflowTemplate.aiSplitDefaultPrompt'),
+      instructionPrompt: '',
     })
   } else {
     if (!hasSplit) return
@@ -611,7 +611,7 @@ const previewSteps = computed(() => {
       agentStateClass,
       stateClass,
       skillNames,
-      hasWarning: isMissingAgent(sanitized) || isDisabledAgent(sanitized) || !sanitized.instructionPrompt
+      hasWarning: isMissingAgent(sanitized) || isDisabledAgent(sanitized) || (sanitized.type !== 'SPLIT_TASK' && !sanitized.instructionPrompt)
     }
   })
 })
