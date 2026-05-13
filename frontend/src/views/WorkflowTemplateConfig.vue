@@ -148,6 +148,16 @@
                   />
                 </el-select>
               </div>
+              <div class="meta-row">
+                <span class="meta-label">{{ $t('workflowTemplate.aiSplitToggleLabel', 'AI 拆分') }}</span>
+                <el-switch
+                  :model-value="aiSplitEnabled"
+                  size="small"
+                  data-testid="ai-split-toggle"
+                  @update:model-value="onToggleAiSplit"
+                />
+                <span class="meta-hint">{{ $t('workflowTemplate.aiSplitToggleHint', '在步骤末尾追加一个 AI 拆分步骤，生成子任务建议（可自行拖到其他位置）') }}</span>
+              </div>
             </div>
           </div>
 
@@ -311,9 +321,18 @@
                 <div class="editor-field editor-field--full step-type-field">
                   <label>{{ $t('workflowTemplate.stepType') }}</label>
                   <div class="editor-field__row">
-                    <el-select v-model="selectedStep.type" size="small" style="flex: 0 0 280px">
+                    <el-select
+                      v-model="selectedStep.type"
+                      size="small"
+                      style="flex: 0 0 280px"
+                      :disabled="selectedStep.type === 'SPLIT_TASK'"
+                    >
                       <el-option :label="$t('workflowTemplate.stepTypeDefault')" value="DEFAULT" />
-                      <el-option :label="$t('workflowTemplate.stepTypeSplit')" value="SPLIT_TASK" />
+                      <el-option
+                        v-if="selectedStep.type === 'SPLIT_TASK'"
+                        :label="$t('workflowTemplate.stepTypeSplit')"
+                        value="SPLIT_TASK"
+                      />
                     </el-select>
                     <span v-if="selectedStep.type === 'SPLIT_TASK'" class="step-type-hint">
                       {{ $t('workflowTemplate.stepTypeSplitHint') }}
@@ -457,6 +476,33 @@ const canDeleteSelected = computed(() => {
 const isDraftTemplate = computed(() => Boolean(template.value?.isDraft))
 
 const allTags = computed(() => [...new Set(templates.value.flatMap(t => t.tags || []))])
+
+const aiSplitEnabled = computed(() => {
+  const steps = template.value?.steps || []
+  return steps.some((s) => s?.type === 'SPLIT_TASK')
+})
+
+function onToggleAiSplit(enabled) {
+  if (!template.value) return
+  const steps = Array.isArray(template.value.steps) ? [...template.value.steps] : []
+  const hasSplit = steps.some((s) => s?.type === 'SPLIT_TASK')
+
+  if (enabled) {
+    if (hasSplit) return
+    steps.push({
+      ...createEmptyWorkflowStep(t('workflowTemplate.aiSplitDefaultStepName', 'AI 拆分')),
+      type: 'SPLIT_TASK',
+      instructionPrompt: t('workflowTemplate.aiSplitDefaultPrompt'),
+    })
+  } else {
+    if (!hasSplit) return
+    // Remove all SPLIT_TASK steps (user may have dragged it or there could be duplicates)
+    for (let i = steps.length - 1; i >= 0; i--) {
+      if (steps[i]?.type === 'SPLIT_TASK') steps.splice(i, 1)
+    }
+  }
+  template.value = { ...template.value, steps }
+}
 
 const canDeleteStep = computed(() => {
   return (template.value?.steps?.length || 0) > MIN_WORKFLOW_TEMPLATE_STEPS
