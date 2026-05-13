@@ -212,7 +212,7 @@ const STATUS_CLASS = {
   RUNNING: 'running',
   FAILED: 'failed',
   CANCELLED: 'failed',
-  SUSPENDED: 'running',
+  SUSPENDED: 'suspended',
   PENDING: 'pending'
 }
 
@@ -649,6 +649,23 @@ defineExpose({ workflowName })
   border-color: #ef4444;
 }
 
+.step-node-h.suspended .step-indicator {
+  background: #fff;
+  color: #d97706;
+  border-color: #d97706;
+  animation: pulse-suspend 2s ease-in-out infinite;
+}
+
+.step-node-h.suspended {
+  background: #fffbeb;
+  border-color: #fbbf24;
+}
+
+@keyframes pulse-suspend {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(217, 119, 6, 0); }
+}
+
 .step-index {
   display: inline-block;
   line-height: 1;
@@ -686,6 +703,10 @@ defineExpose({ workflowName })
 
 .step-node-h.failed .step-agent-h {
   color: #ef4444;
+}
+
+.step-node-h.suspended .step-agent-h {
+  color: #d97706;
 }
 
 .quick-actions {
