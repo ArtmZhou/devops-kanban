@@ -42,17 +42,20 @@ const props = defineProps({
 
 const emit = defineEmits(['select'])
 
-// Map a node to its workflow-status class. Prefer workflow_run_status
-// when available; otherwise fall back to task status (for mock/legacy data).
+// Map a node to its workflow-status class.
+// task.status takes priority for terminal states (DONE / BLOCKED / CANCELLED)
+// because those represent the user's definitive view; for active states we
+// consult workflow_run_status first, then fall back to task status.
 function nodeStatusClass(node) {
+  if (node.status === 'DONE') return 'is-done'
+  if (node.status === 'CANCELLED') return 'failed'
+
   const wf = node.workflow_run_status
   if (wf === 'COMPLETED' || wf === 'DONE') return 'is-done'
   if (wf === 'RUNNING' || wf === 'IN_PROGRESS' || wf === 'SUSPENDED') return 'running'
   if (wf === 'FAILED' || wf === 'CANCELLED') return 'failed'
   if (wf === 'PENDING') return 'pending'
-  // Fallback: no workflow run yet — use task status as a rough signal
   if (!wf) {
-    if (node.status === 'DONE') return 'is-done'
     if (node.status === 'IN_PROGRESS') return 'running'
     if (node.status === 'BLOCKED' || node.status === 'FAILED') return 'failed'
     return 'pending'
@@ -69,17 +72,21 @@ function statusIcon(node) {
 const dagLayers = computed(() => {
   const nodes = props.nodes || []
   if (!nodes.length) return []
+  const idSet = new Set(nodes.map((n) => n.id))
   const depth = new Map()
   for (const n of nodes) depth.set(n.id, 0)
   let changed = true
-  // Guard: if a cycle slips past backend validation, bound the relaxation
-  // iterations so we never infinite-loop. Worst-case DAG needs O(V*E) passes,
-  // so V^2 + 1 is a safe upper bound.
   let maxIter = nodes.length * nodes.length + 1
   while (changed && maxIter-- > 0) {
     changed = false
     for (const n of nodes) {
-      for (const depId of (n.depends_on || [])) {
+      // Treat both explicit depends_on and parent_task_id as layering constraints
+      // so parent → child always shows an arrow even when the child has no deps.
+      const predecessors = [...(n.depends_on || [])]
+      if (n.parent_task_id && idSet.has(n.parent_task_id)) {
+        predecessors.push(n.parent_task_id)
+      }
+      for (const depId of predecessors) {
         const d = (depth.get(depId) ?? 0) + 1
         if (d > (depth.get(n.id) ?? 0)) {
           depth.set(n.id, d)
