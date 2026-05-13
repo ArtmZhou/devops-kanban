@@ -1686,6 +1686,7 @@ const handlePreviewPrompt = async () => {
 
 .retries-label {
   font-size: var(--font-size-sm);
+  font-weight: 500;
   color: var(--text-secondary);
   white-space: nowrap;
 }
