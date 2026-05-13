@@ -27,7 +27,7 @@
             <span v-if="!isSidebarCollapsed" class="nav-text">{{ $t('nav.projects') }}</span>
           </router-link>
 
-          <router-link to="/workspace" class="nav-item" :class="{ 'router-link-active': $route.path.startsWith('/workspace') }" :title="$t('nav.workspace')">
+          <router-link to="/workspace" :class="{ 'router-link-active': $route.path.startsWith('/workspace') }" class="nav-item" :title="$t('nav.workspace')" @click="onWorkspaceClick">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="7" height="7"></rect>
               <rect x="14" y="3" width="7" height="7"></rect>
@@ -106,10 +106,23 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useProjectStore } from './stores/projectStore.js'
 import NotificationBell from './components/NotificationBell.vue'
 import SchedulerConfig from './components/SchedulerConfig.vue'
 
 const isSidebarCollapsed = ref(true)
+const projectStore = useProjectStore()
+const router = useRouter()
+
+const onWorkspaceClick = (event) => {
+  event.preventDefault()
+  if (projectStore.currentProjectId) {
+    router.push(`/workspace/${projectStore.currentProjectId}`)
+  } else {
+    router.push('/workspace')
+  }
+}
 
 const toggleSidebar = () => {
   isSidebarCollapsed.value = !isSidebarCollapsed.value

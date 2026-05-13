@@ -841,6 +841,8 @@ async function loadTasks() {
 async function handleProjectChange() {
   selectedStatus.value = null
   selectedTask.value = null
+  const project = projects.value.find(p => p.id === selectedProjectId.value) || null
+  projectStore.setCurrentProject(project)
   const path = selectedProjectId.value ? `/workspace/${selectedProjectId.value}` : '/workspace'
   if (route.path !== path) router.replace(path)
   await loadTasks()
@@ -1089,6 +1091,8 @@ onMounted(async () => {
     selectedProjectId.value = projects.value[0].id
     router.replace(`/workspace/${selectedProjectId.value}`)
   }
+  const initProject = projects.value.find(p => p.id === selectedProjectId.value) || null
+  projectStore.setCurrentProject(initProject)
   await loadTasks()
 })
 watch(() => selectedTask.value?.id, async (newId) => {
