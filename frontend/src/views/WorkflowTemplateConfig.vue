@@ -318,16 +318,16 @@
                       v-model="selectedStep.canEarlyExit"
                       :active-text="$t('workflowTemplate.canEarlyExit')"
                     />
-                    <span class="meta-label" style="min-width: auto;">最大重试</span>
+                    <span class="retries-label">失败重试</span>
                     <el-input-number
                       v-model="selectedStep.maxRetries"
                       :min="0"
                       :max="3"
                       :step="1"
                       size="small"
+                      controls-position="right"
                       style="width: 80px"
                     />
-                    <span class="meta-hint">失败自动重试（0=不重试）</span>
                   </div>
                 </div>
 
@@ -357,6 +357,9 @@
               <div class="editor-field editor-field--full editor-field--prompt">
                 <label>{{ $t('workflowTemplate.instructionPrompt') }}</label>
                 <div class="editor-field__hint">{{ $t('workflowTemplate.deliveryPromptGuidance') }}</div>
+                <div v-if="selectedStep.type === 'SPLIT_TASK'" class="editor-field__hint split-prompt-hint">
+                  AI 拆分逻辑由内置的 task-splitter Skill 提供详细规则；此处 prompt 用于引导 Agent 调用该 Skill 并传入上下文。
+                </div>
                 <el-input
                   v-model="selectedStep.instructionPrompt"
                   type="textarea"
@@ -505,7 +508,15 @@ function onToggleAiSplit(enabled) {
     steps.push({
       ...createEmptyWorkflowStep(t('workflowTemplate.aiSplitDefaultStepName', 'AI 拆分')),
       type: 'SPLIT_TASK',
-      instructionPrompt: t('workflowTemplate.aiSplitDefaultPrompt'),
+      instructionPrompt: `使用 task-splitter Skill 将当前任务拆分为若干子任务。
+
+## 上下文
+- 任务：{{task_title}} — {{task_description}}
+- 项目：{{project_name}}（仓库：{{project_repo_url}}）
+- 上游产出：{{last_step_output}}
+- 可选项目列表：{{available_projects}}
+
+按 Skill 约定的 JSON schema 输出结果。`,
     })
   } else {
     if (!hasSplit) return
@@ -611,7 +622,7 @@ const previewSteps = computed(() => {
       agentStateClass,
       stateClass,
       skillNames,
-      hasWarning: isMissingAgent(sanitized) || isDisabledAgent(sanitized) || !sanitized.instructionPrompt
+      hasWarning: isMissingAgent(sanitized) || isDisabledAgent(sanitized) || (sanitized.type !== 'SPLIT_TASK' && !sanitized.instructionPrompt)
     }
   })
 })
@@ -1059,7 +1070,7 @@ const handlePreviewPrompt = async () => {
 
   try {
     const response = await previewPrompt({
-      step: { name: step.name, instructionPrompt: step.instructionPrompt || '', agentId: step.agentId },
+      step: { name: step.name, instructionPrompt: step.instructionPrompt || '', agentId: step.agentId, type: step.type },
       upstreamSteps,
       ...(step.canEarlyExit ? { canEarlyExit: true } : {}),
     })
@@ -1682,6 +1693,13 @@ const handlePreviewPrompt = async () => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.retries-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .step-type-hint {

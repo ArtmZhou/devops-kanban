@@ -172,8 +172,13 @@ export function buildWorkflowFromInstance(
 
             // Execute agent with split prompt
             const agentRepo = new AgentRepository();
-            const agent = await agentRepo.findById(templateStep.agentId);
-            if (!agent) throw new Error(`Agent ${templateStep.agentId} not found`);
+            const { TASK_SPLITTER_AGENT_ROLE } = await import('./builtinTaskSplitAgent.js');
+            let agent = templateStep.agentId ? await agentRepo.findById(templateStep.agentId) : null;
+            if (!agent) {
+              const allAgents = await agentRepo.findAll();
+              agent = allAgents.find(a => a.role === TASK_SPLITTER_AGENT_ROLE) ?? null;
+              if (!agent) throw new Error(`No agent configured for SPLIT_TASK step and no ${TASK_SPLITTER_AGENT_ROLE} agent found`);
+            }
 
             const registry = new AgentExecutorRegistry();
             const executor = registry.getExecutor(agent.executorType);

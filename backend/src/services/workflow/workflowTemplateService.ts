@@ -344,3 +344,63 @@ export async function bootstrapBuiltinTemplates(repo?: WorkflowTemplateRepositor
     }
   }
 }
+
+// Signature phrases from the legacy DEFAULT_SPLIT_PROMPT (zh + en variants).
+// Only prompts containing one of these are migrated; user-customized prompts are preserved.
+const LEGACY_SPLIT_PROMPT_SIGNATURES = [
+  '你是一个项目任务拆解助手',
+  '你是一个任务拆解助手',
+  'project task splitter',
+  'task splitter assistant',
+];
+
+const NEW_SPLIT_PROMPT_TEMPLATE = `使用 task-splitter Skill 将当前任务拆分为若干子任务。
+
+## 上下文
+- 任务：{{task_title}} — {{task_description}}
+- 项目：{{project_name}}（仓库：{{project_repo_url}}）
+- 上游产出：{{last_step_output}}
+- 可选项目列表：{{available_projects}}
+
+按 Skill 约定的 JSON schema 输出结果。`;
+
+function isLegacySplitPrompt(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return LEGACY_SPLIT_PROMPT_SIGNATURES.some(sig => lower.includes(sig.toLowerCase()));
+}
+
+export async function migrateSplitTaskPrompts(): Promise<void> {
+  const repo = new WorkflowTemplateRepository();
+  const allTemplates = await repo.findAll();
+  let migrated = 0;
+  let preserved = 0;
+
+  for (const tpl of allTemplates) {
+    const steps = tpl.steps as Array<{ type?: string; instructionPrompt?: string }>;
+    let changed = false;
+    for (const step of steps) {
+      if (step.type !== 'SPLIT_TASK') continue;
+      const prompt = step.instructionPrompt ?? '';
+      // Replace legacy long prompt OR empty prompt (from earlier broken migration) with the new short one
+      if (prompt === '' || isLegacySplitPrompt(prompt)) {
+        if (prompt !== NEW_SPLIT_PROMPT_TEMPLATE) {
+          step.instructionPrompt = NEW_SPLIT_PROMPT_TEMPLATE;
+          changed = true;
+        }
+      } else {
+        preserved++;
+      }
+    }
+    if (changed) {
+      await repo.update(tpl.id, { steps: tpl.steps });
+      migrated++;
+      console.log(`[MigrateSplitPrompts] Updated SPLIT_TASK prompt for template "${tpl.name}"`);
+    }
+  }
+
+  if (migrated === 0 && preserved === 0) {
+    console.log('[MigrateSplitPrompts] No templates need migration.');
+  } else {
+    console.log(`[MigrateSplitPrompts] Migrated ${migrated} template(s); preserved ${preserved} customized prompt(s).`);
+  }
+}
