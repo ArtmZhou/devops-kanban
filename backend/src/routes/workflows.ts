@@ -6,6 +6,7 @@ import type { IdParams } from '../types/http/params.js';
 import type { TaskIdQuery } from '../types/http/query.js';
 import { successResponse, errorResponse } from '../utils/response.js';
 import { getErrorMessage, getStatusCode, parseNumber, logError } from '../utils/http.js';
+import { withRetry } from '../db/retry.js';
 
 const workflowService = new WorkflowService();
 
@@ -98,24 +99,25 @@ const workflowRoutes: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: IdParams; Body: ResumeWorkflowBody }>('/runs/:id/resume', async (request, reply) => {
     try {
-      const body = request.body || {};
-      const approved = body.approved ?? true;
-      const resumeData: { approved: boolean; comment?: string; ask_user_answer?: string } = { approved };
-      if (body.comment !== undefined) {
-        resumeData.comment = body.comment;
-      }
-      if (body.ask_user_answer !== undefined) {
-        const trimmed = String(body.ask_user_answer).trim();
-        if (!trimmed) {
-          reply.code(400);
-          return errorResponse('ask_user_answer must not be empty');
+      const run = await withRetry(async () => {
+        const body = request.body || {};
+        const approved = body.approved ?? true;
+        const resumeData: { approved: boolean; comment?: string; ask_user_answer?: string } = { approved };
+        if (body.comment !== undefined) {
+          resumeData.comment = body.comment;
         }
-        resumeData.ask_user_answer = trimmed;
-      }
-      const run = await workflowService.resumeWorkflow(
-        parseNumber(request.params.id),
-        resumeData
-      );
+        if (body.ask_user_answer !== undefined) {
+          const trimmed = String(body.ask_user_answer).trim();
+          if (!trimmed) {
+            throw Object.assign(new Error('ask_user_answer must not be empty'), { statusCode: 400 });
+          }
+          resumeData.ask_user_answer = trimmed;
+        }
+        return workflowService.resumeWorkflow(
+          parseNumber(request.params.id),
+          resumeData
+        );
+      });
       return successResponse(run, 'Workflow resumed');
     } catch (error) {
       logError(error, request);
