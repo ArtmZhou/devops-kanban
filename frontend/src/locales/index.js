@@ -11,7 +11,3 @@ const i18n = createI18n({
 })
 
 export default i18n
-
-export const getLocale = () => 'zh'
-
-export const t = (key, params) => i18n.global.t(key, params)

@@ -21,14 +21,6 @@ describe('workflow API', () => {
     expect(seen[0]).toEqual({ url: '/workflows/runs/10', method: 'get', data: undefined })
   })
 
-  it('getWorkflowRunSteps calls GET /workflows/runs/:id/steps', async () => {
-    const { seen, cleanup } = captureRequest()
-    try {
-      await expect(workflowApi.getWorkflowRunSteps(10)).rejects.toThrow('stop')
-    } finally { cleanup() }
-    expect(seen[0]).toEqual({ url: '/workflows/runs/10/steps', method: 'get', data: undefined })
-  })
-
   it('cancelWorkflow calls POST /workflows/runs/:id/cancel', async () => {
     const { seen, cleanup } = captureRequest()
     try {

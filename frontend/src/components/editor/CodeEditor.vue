@@ -166,7 +166,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted, nextTick, watchEffect } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getFileTree, readFileContent, writeFileContent, getUncommittedChanges, getDiff, commit } from '../../api/git'
+import { getFileTree, readFileContent, writeFileContent, getUncommittedChanges, commit } from '../../api/git'
 import FileTree from './FileTree.vue'
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'

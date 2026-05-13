@@ -119,30 +119,6 @@ describe('workflow template api helpers', () => {
     ])
   })
 
-  it('keeps getWorkflowTemplate compatible with the singleton default template consumer', async () => {
-    const seen = []
-    const interceptor = api.interceptors.request.use((config) => {
-      seen.push({
-        url: config.url,
-        method: config.method
-      })
-      return Promise.reject(new Error('stop request'))
-    })
-
-    try {
-      await expect(workflowTemplateApi.getWorkflowTemplate()).rejects.toThrow('stop request')
-    } finally {
-      api.interceptors.request.eject(interceptor)
-    }
-
-    expect(seen).toEqual([
-      {
-        url: '/workflow-template/workflow-v1',
-        method: 'get'
-      }
-    ])
-  })
-
   it('sends reorder request with filtered non-draft templates', async () => {
     expect(typeof workflowTemplateApi.reorderWorkflowTemplates).toBe('function')
 

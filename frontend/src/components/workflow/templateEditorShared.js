@@ -102,7 +102,7 @@ const createGeneratedWorkflowStepId = (step, index, usedIds) => {
   return candidate
 }
 
-export const buildWorkflowStepsPayload = (steps = []) => {
+const buildWorkflowStepsPayload = (steps = []) => {
   const usedIds = new Set()
 
   return steps.map((step, index) => {
@@ -174,7 +174,7 @@ export const validateWorkflowTemplatePayload = (currentTemplate, t, options = {}
 
 export const getAgentDisplayName = (agent, t) => agent?.name || t('workflowTemplate.agentFallbackName', { id: agent?.id ?? '' })
 
-export const formatExecutorType = (agent) => {
+const formatExecutorType = (agent) => {
   const executorType = agent?.executorType || agent?.type
   if (!executorType) return ''
 

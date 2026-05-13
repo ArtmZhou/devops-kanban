@@ -134,7 +134,7 @@ export function useApiErrorHandler(options = {}) {
  * Simplified error handler for quick use in components/stores.
  * Wrapper around useToast with standardized API error handling.
  */
-export function useApiError() {
+function useApiError() {
   const toast = useToast()
 
   function apiError(error, defaultMessage = '操作失败') {

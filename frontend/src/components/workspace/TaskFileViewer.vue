@@ -2,9 +2,6 @@
   <div class="task-file-viewer">
     <!-- No task / no worktree -->
     <div v-if="!taskId" class="viewer-empty">请选择任务</div>
-    <div v-else-if="taskId < 0" class="viewer-empty">
-      <span>示例任务没有实际 worktree</span>
-    </div>
     <div v-else-if="!task?.worktree_path" class="viewer-empty">
       <span>该任务尚未创建 worktree</span>
       <el-button size="small" type="primary" :loading="creating" @click="handleCreateWorktree">
@@ -171,7 +168,7 @@ function withTimeout(promise, ms) {
 }
 
 async function loadTree() {
-  if (!props.taskId || props.taskId < 0 || !props.projectId || !props.task?.worktree_path) {
+  if (!props.taskId || !props.projectId || !props.task?.worktree_path) {
     fileTree.value = null
     return
   }

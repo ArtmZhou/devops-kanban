@@ -162,7 +162,6 @@ import { getWorkflowRun, cancelWorkflow, retryWorkflow } from '../../api/workflo
 
 const props = defineProps({
   taskId: { type: Number, default: null },
-  mockRun: { type: Object, default: null },
   embedded: { type: Boolean, default: false },
   collapsed: { type: Boolean, default: false },
   pendingSplitCount: { type: Number, default: 0 }
@@ -199,16 +198,14 @@ const STATUS_LABEL = {
   PENDING: '待执行'
 }
 
-const activeRun = computed(() => props.mockRun || run.value)
-
 const workflowName = computed(() => {
-  return activeRun.value?.workflow_template_snapshot?.name
-    || activeRun.value?.workflow_id
+  return run.value?.workflow_template_snapshot?.name
+    || run.value?.workflow_id
     || null
 })
 
 const steps = computed(() => {
-  const list = activeRun.value?.steps || []
+  const list = run.value?.steps || []
   return list.map((step, index) => ({
     id: step.step_id || step.id || index,
     step_id: step.step_id,
@@ -246,7 +243,7 @@ function formatDuration(ms) {
 }
 
 const timelineMeta = computed(() => {
-  const r = activeRun.value
+  const r = run.value
   if (!r) return { startText: '', endText: '', durationText: '' }
   // Start time: prefer run-level started_at, else earliest step started_at, else created_at.
   const stepStarts = (r.steps || []).map(s => s.started_at).filter(Boolean)
@@ -267,7 +264,7 @@ const timelineMeta = computed(() => {
   return { startText, endText, durationText }
 })
 
-const runStatus = computed(() => activeRun.value?.status || null)
+const runStatus = computed(() => run.value?.status || null)
 const isTerminal = computed(() => {
   const s = runStatus.value
   return s === 'COMPLETED' || s === 'FAILED' || s === 'CANCELLED'
@@ -417,7 +414,7 @@ async function handleRefresh() {
   emit('refresh')
 }
 
-watch(activeRun, (newRun) => {
+watch(run, (newRun) => {
   emit('run-update', newRun)
 }, { immediate: true })
 

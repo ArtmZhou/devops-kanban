@@ -2,9 +2,6 @@
   <div class="changed-files-panel">
     <!-- No task / no worktree -->
     <div v-if="!taskId" class="panel-empty">请选择任务</div>
-    <div v-else-if="taskId < 0" class="panel-empty">
-      <span>示例任务没有实际 worktree</span>
-    </div>
     <div v-else-if="!task?.worktree_path" class="panel-empty">
       <span>该任务尚未创建 worktree</span>
       <el-button size="small" type="primary" :loading="creating" @click="handleCreateWorktree">
@@ -211,7 +208,7 @@ const deletedCount = computed(() => changes.value.filter(f => f.status === 'dele
 const untrackedCount = computed(() => changes.value.filter(f => f.status === 'untracked').length)
 
 async function loadChanges() {
-  if (!props.taskId || props.taskId < 0 || !props.projectId || !props.task?.worktree_path) {
+  if (!props.taskId || !props.projectId || !props.task?.worktree_path) {
     changes.value = []
     return
   }
@@ -339,7 +336,7 @@ async function handleDeleteWorktree() {
 }
 
 async function handlePush() {
-  if (!props.task?.project_id || !props.taskId || props.taskId < 0) return
+  if (!props.task?.project_id || !props.taskId) return
   try {
     await ElMessageBox.confirm(
       `将推送分支 ${props.task.worktree_branch || ''} 到远程仓库，确定继续？`,
@@ -365,7 +362,7 @@ async function handlePush() {
 }
 
 function handleMerge() {
-  if (!props.task?.project_id || !props.taskId || props.taskId < 0) {
+  if (!props.task?.project_id || !props.taskId) {
     ElMessage.warning('当前任务无法合入')
     return
   }

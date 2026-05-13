@@ -55,7 +55,7 @@
             v-for="task in tasks"
             :key="task.id"
             class="task-card"
-            :class="{ 'selected': selectedTask?.id === task.id, 'is-mock': task.id < 0 }"
+            :class="{ 'selected': selectedTask?.id === task.id }"
             @click="selectTask(task)"
           >
             <div class="task-card-header">
@@ -107,7 +107,7 @@
                 <div
                   :data-id="task.id"
                   class="task-card"
-                  :class="{ 'selected': selectedTask?.id === task.id, 'is-mock': task.id < 0 }"
+                  :class="{ 'selected': selectedTask?.id === task.id }"
                   @click="selectTask(task)"
                 >
                   <div class="task-card-header">
@@ -205,7 +205,6 @@
           <!-- Current workflow steps -->
           <CurrentWorkflow
             :task-id="focusedTaskId"
-            :mock-run="mockRunForSelected"
             :embedded="true"
             :collapsed="midCollapsed"
             :pending-split-count="pendingSplitCount"
@@ -562,99 +561,12 @@ async function onKanbanDragEnd(event) {
   }
 }
 
-// --- Mock cross-project pipeline demo ---
-// Shows a root task in "DevOps 看板系统" that fans out into children living in other projects.
-const MOCK_ROOT_ID = -1001
-const MOCK_TASK = {
-  id: MOCK_ROOT_ID,
-  title: '设计任务依赖 DAG 架构（示例）',
-  status: 'DONE',
-  priority: 'HIGH',
-  project_id: null, // filled in at load time with the current project id
-  parent_task_id: null,
-  depends_on: []
-}
-const MOCK_PIPELINE_NODES = [
-  { id: -1001, title: '设计任务依赖 DAG 架构', status: 'DONE', workflow_run_status: 'COMPLETED', priority: 'HIGH', parent_task_id: null, depends_on: [], project_name: 'DevOps 看板系统' },
-  { id: -1002, title: '用户服务开发', status: 'IN_PROGRESS', workflow_run_status: 'RUNNING', priority: 'HIGH', parent_task_id: -1001, depends_on: [-1001], project_name: '用户服务' },
-  { id: -1003, title: '订单服务开发', status: 'IN_PROGRESS', workflow_run_status: 'RUNNING', priority: 'HIGH', parent_task_id: -1001, depends_on: [-1001], project_name: '订单服务' },
-  { id: -1004, title: '前端集成', status: 'TODO', workflow_run_status: null, priority: 'MEDIUM', parent_task_id: -1001, depends_on: [-1001], project_name: '前端项目' },
-  { id: -1005, title: '集成测试', status: 'TODO', workflow_run_status: null, priority: 'MEDIUM', parent_task_id: -1001, depends_on: [-1002, -1003, -1004], project_name: '集成测试' }
-]
-
-// Per-node mock workflow runs — shown when user clicks a DAG node
-const MOCK_RUNS = {
-  [-1001]: {
-    workflow_template_snapshot: { name: '架构设计工作流' },
-    status: 'COMPLETED',
-    created_at: '2026-05-11T09:00:00+08:00',
-    updated_at: '2026-05-11T11:30:00+08:00',
-    steps: [
-      { step_id: 's1', name: '需求分析', status: 'DONE', started_at: '2026-05-11T09:00:00+08:00', completed_at: '2026-05-11T09:45:00+08:00' },
-      { step_id: 's2', name: '架构设计', status: 'DONE', started_at: '2026-05-11T09:45:00+08:00', completed_at: '2026-05-11T10:55:00+08:00' },
-      { step_id: 's3', name: 'AI 拆分子任务', status: 'DONE', started_at: '2026-05-11T10:55:00+08:00', completed_at: '2026-05-11T11:30:00+08:00' }
-    ]
-  },
-  [-1002]: {
-    workflow_template_snapshot: { name: '用户服务开发工作流' },
-    status: 'RUNNING',
-    created_at: '2026-05-11T12:00:00+08:00',
-    updated_at: '2026-05-12T09:30:00+08:00',
-    steps: [
-      { step_id: 's1', name: 'API 设计', status: 'DONE', started_at: '2026-05-11T12:00:00+08:00', completed_at: '2026-05-11T13:15:00+08:00' },
-      { step_id: 's2', name: '实体建模', status: 'DONE', started_at: '2026-05-11T13:15:00+08:00', completed_at: '2026-05-11T15:00:00+08:00' },
-      { step_id: 's3', name: '接口实现', status: 'IN_PROGRESS', started_at: '2026-05-11T15:00:00+08:00', completed_at: null },
-      { step_id: 's4', name: '单元测试', status: 'PENDING', started_at: null, completed_at: null }
-    ]
-  },
-  [-1003]: {
-    workflow_template_snapshot: { name: '订单服务开发工作流' },
-    status: 'RUNNING',
-    created_at: '2026-05-11T12:00:00+08:00',
-    updated_at: '2026-05-12T09:30:00+08:00',
-    steps: [
-      { step_id: 's1', name: 'API 设计', status: 'DONE', started_at: '2026-05-11T12:00:00+08:00', completed_at: '2026-05-11T14:00:00+08:00' },
-      { step_id: 's2', name: '实体建模', status: 'IN_PROGRESS', started_at: '2026-05-11T14:00:00+08:00', completed_at: null },
-      { step_id: 's3', name: '接口实现', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's4', name: '单元测试', status: 'PENDING', started_at: null, completed_at: null }
-    ]
-  },
-  [-1004]: {
-    workflow_template_snapshot: { name: '前端开发工作流' },
-    status: 'PENDING',
-    created_at: '2026-05-11T12:00:00+08:00',
-    updated_at: '2026-05-11T12:00:00+08:00',
-    steps: [
-      { step_id: 's1', name: '页面设计', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's2', name: '组件开发', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's3', name: '联调', status: 'PENDING', started_at: null, completed_at: null }
-    ]
-  },
-  [-1005]: {
-    workflow_template_snapshot: { name: '集成测试工作流' },
-    status: 'PENDING',
-    created_at: '2026-05-11T12:00:00+08:00',
-    updated_at: '2026-05-11T12:00:00+08:00',
-    steps: [
-      { step_id: 's1', name: '环境准备', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's2', name: '端到端测试', status: 'PENDING', started_at: null, completed_at: null },
-      { step_id: 's3', name: '发布验收', status: 'PENDING', started_at: null, completed_at: null }
-    ]
-  }
-}
-
 const realTasks = ref([])
 const pipeline = ref({ root: null, nodes: [] })
 const selectedTask = ref(null)
 // Currently "focused" DAG node id — what the CurrentWorkflow panel displays.
 // Defaults to selectedTask.id but can be switched by clicking any node in the DAG.
 const focusedNodeId = ref(null)
-
-const mockRunForSelected = computed(() => {
-  const id = focusedNodeId.value ?? selectedTask.value?.id
-  if (id != null && id < 0) return MOCK_RUNS[id] || null
-  return null
-})
 
 // The task id whose workflow is shown below — follows DAG clicks, falls back to selectedTask
 const focusedTaskId = computed(() => focusedNodeId.value ?? selectedTask.value?.id ?? null)
@@ -780,9 +692,7 @@ async function handleWorkflowStartEditorConfirm(draftTemplate) {
   }
 }
 const tasks = computed(() => {
-  // Prepend the mock root task so users can preview the cross-project DAG
-  const mockForCurrent = { ...MOCK_TASK, project_id: selectedProjectId.value ?? MOCK_TASK.project_id }
-  const all = [mockForCurrent, ...realTasks.value]
+  const all = realTasks.value
   if (!selectedStatus.value) return all
   return all.filter(t => t.status === selectedStatus.value)
 })
@@ -871,11 +781,6 @@ async function handleProjectChange() {
 }
 
 async function loadPipeline(taskId) {
-  if (taskId < 0) {
-    // Mock pipeline for demo task
-    pipeline.value = { root: MOCK_PIPELINE_NODES[0], nodes: MOCK_PIPELINE_NODES }
-    return
-  }
   try {
     const resp = await getTaskPipeline(taskId)
     if (resp?.success) {
@@ -1305,12 +1210,6 @@ watch(taskListViewMode, (mode) => {
   margin-bottom: 4px;
   border: 1px solid transparent;
   background: var(--bg-secondary);
-}
-
-.task-card.is-mock {
-  border-style: dashed;
-  border-color: rgba(37, 198, 201, 0.25);
-  background: rgba(37, 198, 201, 0.02);
 }
 
 .task-card:hover {
