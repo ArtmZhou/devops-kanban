@@ -7,7 +7,7 @@ import corsPlugin from './middleware/cors.js';
 import errorHandlerPlugin from './middleware/errorHandler.js';
 import { initWorkflows } from './services/workflow/workflows.js';
 import { initDatabase, seedSampleData } from './db/index.js';
-import { bootstrapBuiltinTemplates } from './services/workflow/workflowTemplateService.js';
+import { bootstrapBuiltinTemplates, migrateSplitTaskPrompts } from './services/workflow/workflowTemplateService.js';
 import { bootstrapBuiltinTaskSplitAgent } from './services/workflow/builtinTaskSplitAgent.js';
 import {
   agentRoutes,
@@ -52,6 +52,9 @@ export async function buildApp() {
 
   // Bootstrap built-in workflow templates
   await bootstrapBuiltinTemplates();
+
+  // Migrate existing SPLIT_TASK step prompts to use task-splitter skill
+  await migrateSplitTaskPrompts();
 
   // Bootstrap built-in task split agent and skill
   await bootstrapBuiltinTaskSplitAgent();

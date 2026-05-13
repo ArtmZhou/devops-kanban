@@ -344,3 +344,31 @@ export async function bootstrapBuiltinTemplates(repo?: WorkflowTemplateRepositor
     }
   }
 }
+
+export async function migrateSplitTaskPrompts(): Promise<void> {
+  const repo = new WorkflowTemplateRepository();
+  const allTemplates = await repo.findAll();
+  let migrated = 0;
+
+  for (const tpl of allTemplates) {
+    const steps = tpl.steps as Array<{ type?: string; instructionPrompt?: string }>;
+    let changed = false;
+    for (const step of steps) {
+      if (step.type === 'SPLIT_TASK' && typeof step.instructionPrompt === 'string' && step.instructionPrompt.length > 0) {
+        step.instructionPrompt = '';
+        changed = true;
+      }
+    }
+    if (changed) {
+      await repo.update(tpl.id, { steps: tpl.steps });
+      migrated++;
+      console.log(`[MigrateSplitPrompts] Cleared SPLIT_TASK prompt for template "${tpl.name}"`);
+    }
+  }
+
+  if (migrated === 0) {
+    console.log('[MigrateSplitPrompts] No templates need migration.');
+  } else {
+    console.log(`[MigrateSplitPrompts] Migrated ${migrated} template(s).`);
+  }
+}
