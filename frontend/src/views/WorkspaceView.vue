@@ -410,10 +410,12 @@
 
     <el-dialog
       v-model="showSplitSuggestionsDialog"
-      title="AI 拆分建议"
-      width="720px"
+      title="拆分建议"
+      width="80vw"
+      top="3vh"
       align-center
       :destroy-on-close="true"
+      class="split-suggestions-dialog"
     >
       <AiSplitCard
         :suggestion="splitStore.pendingByTask.get(selectedTask?.id)"
@@ -2066,5 +2068,13 @@ watch(taskListViewMode, (mode) => {
 
 .task-kanban-board.column-resizing .task-kanban-column {
   pointer-events: none;
+}
+</style>
+
+<style>
+.split-suggestions-dialog .el-dialog__body {
+  max-height: calc(94vh - 110px);
+  overflow-y: auto;
+  padding: 16px 24px;
 }
 </style>

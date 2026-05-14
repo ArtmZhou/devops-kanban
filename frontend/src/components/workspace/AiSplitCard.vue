@@ -106,6 +106,9 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { getWorkflowTemplates } from '../../api/workflowTemplate.js'
+import { useProjectStore } from '../../stores/projectStore.js'
+
+const projectStore = useProjectStore()
 
 const props = defineProps({
   suggestion: { type: Object, default: null },
@@ -206,7 +209,10 @@ function onAddTask() {
 }
 
 function repoLabel(item) {
-  if (item.linked_project_id != null) return `项目 #${item.linked_project_id}`
+  if (item.linked_project_id != null) {
+    const project = projectStore.projects.find(p => p.id === item.linked_project_id)
+    return project ? project.name : `项目 #${item.linked_project_id}`
+  }
   if (item.target_repo_url) return item.target_repo_url
   return '当前项目'
 }
@@ -313,6 +319,11 @@ function onDismiss() {
   min-height: 0;
   overflow: hidden;
   max-height: 280px;
+}
+
+.ai-split-card.is-embedded .split-card-body {
+  max-height: none;
+  overflow: visible;
 }
 
 .split-ai-icon {
