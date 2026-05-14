@@ -168,7 +168,7 @@ export function buildWorkflowFromInstance(
               project_repo_url: project.git_url ?? '',
               last_step_output: lastStepOutput,
               available_projects: availableProjectsBlock || '(no other projects)',
-            });
+            }).replaceAll('\n', '\\n');
 
             // Execute agent with split prompt
             const agentRepo = new AgentRepository();
