@@ -22,19 +22,21 @@ export async function bootstrapBuiltinTaskSplitAgent(): Promise<void> {
   const agentRepo = new AgentRepository();
   const skillService = new SkillService({ storagePath: STORAGE_PATH, skillRepo });
 
-  // 1. Ensure the builtin skill exists
+  // 1. Ensure the builtin skill exists, and always sync files from source to storage
+  // so SKILL.md updates from new releases take effect.
   const existingSkills = await skillRepo.findAll();
   let skillId: number;
+  const targetDir = skillService.getSkillDir(BUILTIN_SKILL_NAME);
 
   const existingSkill = existingSkills.find(s => s.name === BUILTIN_SKILL_NAME || s.identifier === BUILTIN_SKILL_NAME);
   if (existingSkill) {
     skillId = existingSkill.id;
-    console.log(`[TaskSplitAgent] Builtin skill "${BUILTIN_SKILL_NAME}" already exists (id=${skillId}).`);
+    mkdirSync(targetDir, { recursive: true });
+    copySkillFiles(SOURCE_SKILL_DIR, targetDir);
+    console.log(`[TaskSplitAgent] Builtin skill "${BUILTIN_SKILL_NAME}" exists (id=${skillId}); synced source files.`);
   } else {
     const created = await skillService.createSkill(BUILTIN_SKILL_NAME, 'Built-in skill for splitting tasks into sub-tasks with project matching and dependency mapping.');
     skillId = created.id;
-    // Copy files from source to storage
-    const targetDir = skillService.getSkillDir(BUILTIN_SKILL_NAME);
     mkdirSync(targetDir, { recursive: true });
     copySkillFiles(SOURCE_SKILL_DIR, targetDir);
     console.log(`[TaskSplitAgent] Builtin skill "${BUILTIN_SKILL_NAME}" created (id=${skillId}).`);
