@@ -412,7 +412,7 @@
       v-model="showSplitSuggestionsDialog"
       title="拆分建议"
       width="80vw"
-      top="5vh"
+      top="3vh"
       align-center
       :destroy-on-close="true"
       class="split-suggestions-dialog"
@@ -2073,7 +2073,7 @@ watch(taskListViewMode, (mode) => {
 
 <style>
 .split-suggestions-dialog .el-dialog__body {
-  max-height: calc(90vh - 110px);
+  max-height: calc(94vh - 110px);
   overflow-y: auto;
   padding: 16px 24px;
 }
