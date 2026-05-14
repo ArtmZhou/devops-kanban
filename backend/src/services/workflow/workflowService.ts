@@ -17,9 +17,10 @@ import * as path from 'node:path';
 
 
 function toStepState(instance: WorkflowInstanceEntity) {
-  return instance.steps.map((step) => ({
+  return instance.steps.map((step: any) => ({
     step_id: step.id,
     name: step.name,
+    type: step.type,
     status: 'PENDING',
     started_at: null,
     completed_at: null,

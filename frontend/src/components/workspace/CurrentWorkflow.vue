@@ -251,12 +251,19 @@ const steps = computed(() => {
   }))
 })
 
-// Show the 拆分建议 button whenever the workflow template includes a SPLIT_TASK step,
+// Show the 拆分建议 button whenever the workflow includes a SPLIT_TASK step,
 // even before any suggestions exist — user can click to manually trigger.
+// Fall back to step name matching for legacy runs that don't carry step.type.
 const hasSplitStep = computed(() => {
   const templateSteps = run.value?.workflow_template_snapshot?.steps || []
   if (templateSteps.some(s => s?.type === 'SPLIT_TASK')) return true
-  return (run.value?.steps || []).some(s => s?.type === 'SPLIT_TASK')
+  const runSteps = run.value?.steps || []
+  if (runSteps.some(s => s?.type === 'SPLIT_TASK')) return true
+  // Legacy fallback: step name contains "拆分" / "split"
+  return runSteps.some(s => {
+    const name = (s?.name || '').toLowerCase()
+    return name.includes('拆分') || name.includes('split')
+  })
 })
 
 const splitButtonTooltip = computed(() => {
