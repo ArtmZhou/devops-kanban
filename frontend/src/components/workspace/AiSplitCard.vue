@@ -315,6 +315,11 @@ function onDismiss() {
   max-height: 280px;
 }
 
+.ai-split-card.is-embedded .split-card-body {
+  max-height: none;
+  overflow: visible;
+}
+
 .split-ai-icon {
   width: 16px;
   height: 16px;
