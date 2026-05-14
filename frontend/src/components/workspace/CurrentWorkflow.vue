@@ -144,16 +144,17 @@
           确认
         </button>
       </el-tooltip>
-      <el-tooltip v-if="pendingSplitCount > 0" :content="`${pendingSplitCount} 条 AI 拆分建议待确认`" placement="top">
+      <el-tooltip v-if="hasSplitStep" :content="splitButtonTooltip" placement="top">
         <button class="quick-action-btn quick-action-split" :disabled="actionLoading" @click="emit('show-split-suggestions')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"></path>
-            <path d="M8 6a4 4 0 0 1 4-4"></path>
-            <circle cx="18" cy="18" r="3"></circle>
-            <path d="M18 15v-3l2-2"></path>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.6 4.6a3 3 0 0 0 1.8 1.8L20 11l-4.6 1.6a3 3 0 0 0-1.8 1.8L12 19l-1.6-4.6a3 3 0 0 0-1.8-1.8L4 11l4.6-1.6a3 3 0 0 0 1.8-1.8z"></path>
+            <path d="M19 3v3"></path>
+            <path d="M20.5 4.5h-3"></path>
+            <path d="M5 18v3"></path>
+            <path d="M6.5 19.5h-3"></path>
           </svg>
-          AI 拆分建议
-          <span class="quick-action-badge">{{ pendingSplitCount }}</span>
+          拆分建议
+          <span v-if="pendingSplitCount > 0" class="quick-action-badge">{{ pendingSplitCount }}</span>
         </button>
       </el-tooltip>
       <button class="quick-action-btn" :disabled="!taskId || actionLoading" @click="handleRefresh">
@@ -248,6 +249,19 @@ const steps = computed(() => {
     agent_id: step.agent_id || null,
     raw: step
   }))
+})
+
+// Show the 拆分建议 button whenever the workflow template includes a SPLIT_TASK step,
+// even before any suggestions exist — user can click to manually trigger.
+const hasSplitStep = computed(() => {
+  const templateSteps = run.value?.workflow_template_snapshot?.steps || []
+  if (templateSteps.some(s => s?.type === 'SPLIT_TASK')) return true
+  return (run.value?.steps || []).some(s => s?.type === 'SPLIT_TASK')
+})
+
+const splitButtonTooltip = computed(() => {
+  if (props.pendingSplitCount > 0) return `${props.pendingSplitCount} 条拆分建议待确认`
+  return '查看 / 编辑拆分建议'
 })
 
 function formatDateTime(input) {
