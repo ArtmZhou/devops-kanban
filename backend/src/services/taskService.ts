@@ -431,6 +431,9 @@ class TaskService {
             const hasActive = existingRun && (existingRun.status === 'RUNNING' || existingRun.status === 'PENDING' || existingRun.status === 'SUSPENDED');
             if (hasActive) continue;
             try {
+              if (!dep.worktree_path) {
+                await this.createWorktree(dep.id);
+              }
               await this.startTask(dep.id, { workflow_template_id: dep.auto_execute_template_id });
             } catch (err) {
               logger.warn('TaskService', `auto-start failed for task ${dep.id} (template ${dep.auto_execute_template_id}): ${(err as Error).message}`);

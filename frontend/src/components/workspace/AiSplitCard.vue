@@ -2,11 +2,12 @@
   <div class="ai-split-card" :class="{ collapsed: !expanded, 'is-embedded': embedded }">
     <div v-if="!embedded" class="split-card-header" @click="expanded = !expanded">
       <div class="split-header-left">
-        <svg class="split-ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 2a4 4 0 0 1 4 4c0 1.95-1.4 3.58-3.25 3.93L12 22"></path>
-          <path d="M8 6a4 4 0 0 1 4-4"></path>
-          <circle cx="18" cy="18" r="3"></circle>
-          <path d="M18 15v-3l2-2"></path>
+        <svg class="split-ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l1.6 4.6a3 3 0 0 0 1.8 1.8L20 11l-4.6 1.6a3 3 0 0 0-1.8 1.8L12 19l-1.6-4.6a3 3 0 0 0-1.8-1.8L4 11l4.6-1.6a3 3 0 0 0 1.8-1.8z"></path>
+          <path d="M19 3v3"></path>
+          <path d="M20.5 4.5h-3"></path>
+          <path d="M5 18v3"></path>
+          <path d="M6.5 19.5h-3"></path>
         </svg>
         <h4>AI 拆分建议</h4>
         <span class="split-subtitle">工作流已完成，建议拆分为以下子任务</span>

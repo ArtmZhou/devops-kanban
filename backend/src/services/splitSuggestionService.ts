@@ -61,6 +61,10 @@ async function confirm(id: number): Promise<{ tasks: number[]; suggestion: Split
     const templateId = task.auto_execute_template_id;
     if (!templateId) continue;
     try {
+      // Ensure worktree exists before starting (parity with manual start flow)
+      if (!task.worktree_path) {
+        await taskService.createWorktree(task.id);
+      }
       await taskService.startTask(task.id, { workflow_template_id: templateId });
     } catch (err) {
       logger.warn('splitSuggestionService', `failed to auto-start task ${task.id}: ${(err as Error).message}`);

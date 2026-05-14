@@ -93,6 +93,7 @@ export interface SessionEventEntity {
 export interface WorkflowStepEntity {
   step_id: string;
   name: string;
+  type?: string;
   status: string;
   started_at: string | null;
   completed_at: string | null;

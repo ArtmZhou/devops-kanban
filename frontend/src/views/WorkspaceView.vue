@@ -924,11 +924,23 @@ const selectTask = (task) => {
   userSelectedStep.value = null
 }
 
-// Clicking a node in the DAG just shifts which workflow is shown below.
-// It does NOT re-select the task (that would reload the whole DAG).
-function onDagSelect(node) {
+// Clicking a node in the DAG shifts which workflow is shown below,
+// and switches the left task list / right file panel to the node's
+// project if it belongs to a different project.
+async function onDagSelect(node) {
   if (!node) return
   focusedNodeId.value = node.id
+
+  if (node.project_id && node.project_id !== selectedProjectId.value) {
+    selectedProjectId.value = node.project_id
+    const project = projects.value.find(p => p.id === node.project_id) || null
+    projectStore.setCurrentProject(project)
+    const path = `/workspace/${node.project_id}`
+    if (route.path !== path) router.replace(path)
+    await loadTasks()
+    const matched = realTasks.value.find(t => t.id === node.id)
+    if (matched) selectedTask.value = matched
+  }
 }
 
 const PRIORITY_TEXT = { CRITICAL: '紧急', HIGH: '高', MEDIUM: '中', LOW: '低' }
