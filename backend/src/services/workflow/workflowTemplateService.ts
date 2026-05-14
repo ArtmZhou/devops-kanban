@@ -354,6 +354,7 @@ const LEGACY_SPLIT_PROMPT_SIGNATURES = [
   'project task splitter',
   'task splitter assistant',
   '使用 task-splitter Skill 将当前任务拆分为若干子任务。\n\n## 上下文',
+  '# 任务：拆分需求为子任务\n\n你必须严格按照以下要求执行',
 ];
 
 function isLegacySplitPrompt(prompt: string): boolean {
