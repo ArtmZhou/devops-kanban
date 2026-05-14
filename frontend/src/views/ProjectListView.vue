@@ -1,6 +1,6 @@
 <template>
-  <div class="project-list-view page-shell page-shell--canvas page-shell--padded">
-    <div class="page-shell__inner page-shell__inner--narrow project-home">
+  <div class="project-list-view">
+    <div class="project-home">
       <div class="brand-banner">
         <h1 class="brand-wordmark">Cooperation Platform</h1>
       </div>
@@ -170,14 +170,18 @@ watch(() => dialogVisible.value, (newValue) => {
 
 <style scoped>
 .project-list-view {
-  overflow-y: auto;
+  min-height: 100%;
+  padding: var(--page-padding);
+  background: var(--page-bg);
 }
 
 .project-home {
+  width: 100%;
+  max-width: var(--page-max-width-narrow);
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: 100%;
 }
 
 .brand-banner {
